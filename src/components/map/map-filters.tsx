@@ -1,0 +1,174 @@
+"use client";
+
+import { Check, SlidersHorizontal, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MapCategory } from "@/data/demo-map-places";
+import styles from "./map.module.css";
+
+export type MapCategoryFilter = "all" | MapCategory;
+
+const categoryFilters: Array<{
+  value: MapCategoryFilter;
+  label: string;
+}> = [
+  { value: "all", label: "Wszystkie" },
+  { value: "food", label: "Jedzenie" },
+  { value: "accommodation", label: "Nocleg" },
+  { value: "hygiene", label: "Higiena" },
+  { value: "medical", label: "Medyczna" },
+  { value: "legal", label: "Prawna" },
+];
+
+type MapFiltersProps = {
+  category: MapCategoryFilter;
+  openNow: boolean;
+  free: boolean;
+  filtersOpen: boolean;
+  onCategoryChange: (category: MapCategoryFilter) => void;
+  onOpenNowChange: (value: boolean) => void;
+  onFreeChange: (value: boolean) => void;
+  onFiltersOpenChange: (value: boolean) => void;
+};
+
+export function MapFilters({
+  category,
+  openNow,
+  free,
+  filtersOpen,
+  onCategoryChange,
+  onOpenNowChange,
+  onFreeChange,
+  onFiltersOpenChange,
+}: MapFiltersProps) {
+  const activeAdditionalFilters = Number(openNow) + Number(free);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  const [showOverflowCue, setShowOverflowCue] = useState(false);
+
+  const updateOverflowCue = useCallback(() => {
+    const filters = filtersRef.current;
+
+    if (!filters) {
+      return;
+    }
+
+    const hiddenContentWidth = filters.scrollWidth - filters.clientWidth - filters.scrollLeft;
+    setShowOverflowCue(hiddenContentWidth > 2);
+  }, []);
+
+  useEffect(() => {
+    const filters = filtersRef.current;
+
+    if (!filters) {
+      return;
+    }
+
+    updateOverflowCue();
+    filters.addEventListener("scroll", updateOverflowCue, { passive: true });
+    const resizeObserver = new ResizeObserver(updateOverflowCue);
+    resizeObserver.observe(filters);
+
+    return () => {
+      filters.removeEventListener("scroll", updateOverflowCue);
+      resizeObserver.disconnect();
+    };
+  }, [updateOverflowCue]);
+
+  return (
+    <div className="relative min-w-0">
+      <div
+        className={[
+          styles.mapFilterViewport,
+          showOverflowCue ? styles.mapFilterViewportFaded : "",
+        ].join(" ")}
+      >
+        <div
+          ref={filtersRef}
+          className={`${styles.mapFilterScroll} flex min-w-0 gap-2 overflow-x-auto pb-1 pr-7`}
+          aria-label="Kategorie miejsc na mapie"
+        >
+          {categoryFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              className={[
+                "filter-chip",
+                category === filter.value ? "filter-chip-strong bg-brand-soft" : "",
+              ].join(" ")}
+              aria-pressed={category === filter.value}
+              onClick={() => onCategoryChange(filter.value)}
+            >
+              {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
+              {filter.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={[
+              "filter-chip",
+              filtersOpen || activeAdditionalFilters > 0
+                ? "filter-chip-strong bg-brand-soft"
+                : "",
+            ].join(" ")}
+            aria-expanded={filtersOpen}
+            aria-controls="map-additional-filters"
+            onClick={() => onFiltersOpenChange(!filtersOpen)}
+          >
+            <SlidersHorizontal aria-hidden="true" size={17} />
+            Filtry
+            {activeAdditionalFilters > 0 ? (
+              <span aria-label={`${activeAdditionalFilters} aktywne`}>
+                {activeAdditionalFilters}
+              </span>
+            ) : null}
+          </button>
+        </div>
+      </div>
+
+      {filtersOpen ? (
+        <section
+          id="map-additional-filters"
+          className="absolute right-0 top-[calc(100%+3.25rem)] z-[700] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]"
+          aria-label="Dodatkowe filtry mapy"
+        >
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-extrabold text-foreground">Szybkie filtry</h2>
+            <button
+              type="button"
+              className="touch-target inline-flex min-w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+              aria-label="Zamknij filtry"
+              onClick={() => onFiltersOpenChange(false)}
+            >
+              <X aria-hidden="true" size={20} />
+            </button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              className={[
+                "filter-chip w-full",
+                openNow ? "filter-chip-strong bg-brand-soft" : "",
+              ].join(" ")}
+              aria-pressed={openNow}
+              onClick={() => onOpenNowChange(!openNow)}
+            >
+              {openNow ? <Check aria-hidden="true" size={16} /> : null}
+              Otwarte teraz
+            </button>
+            <button
+              type="button"
+              className={[
+                "filter-chip w-full",
+                free ? "filter-chip-strong bg-brand-soft" : "",
+              ].join(" ")}
+              aria-pressed={free}
+              onClick={() => onFreeChange(!free)}
+            >
+              {free ? <Check aria-hidden="true" size={16} /> : null}
+              Bezpłatne
+            </button>
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
