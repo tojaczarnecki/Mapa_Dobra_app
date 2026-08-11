@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Flag, LockKeyhole, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
+  createSubmissionRequestId,
   fieldDescriptionIds,
   FormError,
   FormField,
@@ -24,6 +25,7 @@ import type {
 
 export type PlaceUpdateContext = {
   id: string;
+  slug: string;
   name: string;
   address: string;
   href: string;
@@ -64,6 +66,10 @@ export function PlaceUpdateForm({
   });
   const [errors, setErrors] = useState<UpdateErrors>({});
   const [submission, setSubmission] = useState<PlaceUpdateSubmission>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>();
+  const isSubmittingRef = useRef(false);
+  const requestIdRef = useRef<string | undefined>(undefined);
   const successRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,10 +86,10 @@ export function PlaceUpdateForm({
     }
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (protection.contactWebsite) {
+    if (isSubmittingRef.current) {
       return;
     }
 
@@ -107,6 +113,7 @@ export function PlaceUpdateForm({
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+      setSubmitError(undefined);
       const firstErrorId = nextErrors.placeReference
         ? "update-place-reference"
         : nextErrors.reportTypes
@@ -123,6 +130,7 @@ export function PlaceUpdateForm({
       createdAt: new Date().toISOString(),
       status: "PENDING",
       placeId: place?.id,
+      placeSlug: place?.slug,
       placeReference: place?.name ?? placeReference.trim(),
       reportTypes,
       description: description.trim(),
@@ -140,8 +148,35 @@ export function PlaceUpdateForm({
       },
     };
 
+    const requestId = requestIdRef.current ?? createSubmissionRequestId();
+    requestIdRef.current = requestId;
     setErrors({});
-    setSubmission(nextSubmission);
+    setSubmitError(undefined);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/submissions/place-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...nextSubmission,
+          requestId,
+          protection,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Submission failed");
+      }
+
+      setSubmission(nextSubmission);
+    } catch {
+      setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   if (submission) {
@@ -465,19 +500,27 @@ export function PlaceUpdateForm({
           </div>
         </FormSection>
 
-        <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:py-6">
-          <Link
-            href={place?.href ?? "/szukaj"}
-            className="touch-target inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-extrabold text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-          >
-            Anuluj
-          </Link>
-          <button
-            type="submit"
-            className="touch-target inline-flex items-center justify-center rounded-lg bg-brand px-5 py-3 text-base font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
-          >
-            Wyślij zgłoszenie
-          </button>
+        <div className="py-5 sm:py-6">
+          {submitError ? (
+            <p className="mb-3 text-sm font-bold leading-5 text-urgent" role="alert">
+              {submitError}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              href={place?.href ?? "/szukaj"}
+              className="touch-target inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-extrabold text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+            >
+              Anuluj
+            </Link>
+            <button
+              type="submit"
+              className="touch-target inline-flex items-center justify-center rounded-lg bg-brand px-5 py-3 text-base font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white disabled:cursor-wait disabled:opacity-60"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Wysyłanie…" : "Wyślij zgłoszenie"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

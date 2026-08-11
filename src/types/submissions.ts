@@ -38,6 +38,7 @@ export type PlaceUpdateType =
 export type PlaceUpdateSubmission = SubmissionBase & {
   submissionType: "PLACE_UPDATE";
   placeId?: string;
+  placeSlug?: string;
   placeReference: string;
   reportTypes: PlaceUpdateType[];
   description: string;

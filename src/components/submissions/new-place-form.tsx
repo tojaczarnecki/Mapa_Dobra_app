@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Info, LockKeyhole, MapPinned } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  createSubmissionRequestId,
   fieldDescriptionIds,
   FormError,
   FormField,
@@ -171,6 +172,10 @@ export function NewPlaceForm() {
     contactWebsite: "",
   });
   const [submission, setSubmission] = useState<NewPlaceSubmission>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>();
+  const isSubmittingRef = useRef(false);
+  const requestIdRef = useRef<string | undefined>(undefined);
   const stepHeadingRef = useRef<HTMLDivElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
   const includesAccommodation = draft.helpCategories.includes("accommodation");
@@ -346,10 +351,10 @@ export function NewPlaceForm() {
     return undefined;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (protection.contactWebsite) {
+    if (isSubmittingRef.current) {
       return;
     }
 
@@ -357,6 +362,7 @@ export function NewPlaceForm() {
     if (invalidStep) {
       const invalidStepIndex = steps.findIndex((step) => step.id === invalidStep);
       setCurrentStepIndex(Math.max(0, invalidStepIndex));
+      setSubmitError(undefined);
       requestAnimationFrame(() => validateStep(invalidStep));
       focusStep();
       return;
@@ -402,7 +408,34 @@ export function NewPlaceForm() {
       },
     };
 
-    setSubmission(nextSubmission);
+    const requestId = requestIdRef.current ?? createSubmissionRequestId();
+    requestIdRef.current = requestId;
+    setSubmitError(undefined);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/submissions/new-place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...nextSubmission,
+          requestId,
+          protection,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Submission failed");
+      }
+
+      setSubmission(nextSubmission);
+    } catch {
+      setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   function resetForm() {
@@ -417,6 +450,8 @@ export function NewPlaceForm() {
     setErrors({});
     setCurrentStepIndex(0);
     setSubmission(undefined);
+    setSubmitError(undefined);
+    requestIdRef.current = undefined;
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   }
 
@@ -1174,12 +1209,20 @@ export function NewPlaceForm() {
         </div>
 
         <div className="mt-5 sm:mt-6">
+          {submitError ? (
+            <p className="mb-3 text-sm font-bold leading-5 text-urgent" role="alert">
+              {submitError}
+            </p>
+          ) : null}
           <StepActions
             onBack={currentStepIndex > 0 ? goBack : undefined}
             onNext={currentStep.id === "summary" ? undefined : goNext}
             nextType={currentStep.id === "summary" ? "submit" : "button"}
+            disabled={isSubmitting}
             nextLabel={
-              currentStep.id === "summary"
+              currentStep.id === "summary" && isSubmitting
+                ? "Wysyłanie…"
+                : currentStep.id === "summary"
                 ? "Wyślij zgłoszenie"
                 : currentStep.id === "source"
                   ? "Przejdź do podsumowania"

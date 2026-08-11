@@ -25,6 +25,7 @@ export default async function ReportUpdatePage({ searchParams }: UpdatePageProps
   const placeContext = place
     ? {
         id: place.id,
+        slug: place.slug,
         name: place.name,
         address: place.address,
         href: `/lodz/${place.categorySlug}/${place.slug}`,

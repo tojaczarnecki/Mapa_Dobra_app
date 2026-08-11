@@ -7,6 +7,18 @@ export const formControlClass =
 
 export const formSelectClass = `${formControlClass} pr-10`;
 
+export function createSubmissionRequestId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/gu, (character) => {
+    const randomValue = Math.floor(Math.random() * 16);
+    const value = character === "x" ? randomValue : (randomValue & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 export function FormError({ id, children }: { id: string; children?: ReactNode }) {
   if (!children) {
     return null;
@@ -198,12 +210,14 @@ export function StepActions({
   onBack,
   onNext,
   nextType = "button",
+  disabled = false,
 }: {
   backLabel?: string;
   nextLabel?: string;
   onBack?: () => void;
   onNext?: () => void;
   nextType?: "button" | "submit";
+  disabled?: boolean;
 }) {
   return (
     <div className="flex min-w-0 flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-between">
@@ -221,8 +235,9 @@ export function StepActions({
       )}
       <button
         type={nextType}
-        className="touch-target inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-base font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
+        className="touch-target inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-base font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white disabled:cursor-wait disabled:opacity-60"
         onClick={nextType === "button" ? onNext : undefined}
+        disabled={disabled}
       >
         {nextLabel}
         {nextType === "button" ? <ChevronRight aria-hidden="true" size={19} /> : null}

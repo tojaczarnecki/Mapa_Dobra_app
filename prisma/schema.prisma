@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ModerationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PlaceUpdateType {
+  HOURS                      @map("hours")
+  ADDRESS                    @map("address")
+  PHONE                      @map("phone")
+  ONLINE_CONTACT             @map("online-contact")
+  HELP_SCOPE                 @map("help-scope")
+  REQUIREMENTS               @map("requirements")
+  TEMPORARY_CLOSURE          @map("temporary-closure")
+  PERMANENT_CLOSURE          @map("permanent-closure")
+  ACCOMMODATION_AVAILABILITY @map("accommodation-availability")
+  ACCOMMODATION_RULES        @map("accommodation-rules")
+  OTHER                      @map("other")
+}
+
+enum HelpCategory {
+  FOOD          @map("food")
+  ACCOMMODATION @map("accommodation")
+  HYGIENE       @map("hygiene")
+  CLOTHING      @map("clothing")
+  MEDICAL       @map("medical")
+  PSYCHOLOGICAL @map("psychological")
+  LEGAL         @map("legal")
+  SOCIAL        @map("social")
+  OTHER         @map("other")
+}
+
+enum SubmissionSourceType {
+  VISITED        @map("visited")
+  USED_HELP      @map("used-help")
+  STAFF          @map("staff")
+  PHONE          @map("phone")
+  WEBSITE        @map("website")
+  SOCIAL         @map("social")
+  VOLUNTEER      @map("volunteer")
+  RECOMMENDATION @map("recommendation")
+  OTHER          @map("other")
+  PREFER_NOT     @map("prefer-not")
+}
+
+enum InformationState {
+  YES
+  NO
+  UNKNOWN
+}
+
+model PlaceUpdateSubmission {
+  id                   String                @id @default(uuid()) @db.Uuid
+  requestId            String                @unique @db.Uuid
+  placeId              String?               @db.VarChar(200)
+  placeSlug            String?               @db.VarChar(200)
+  placeNameSnapshot    String                @db.VarChar(250)
+  submissionTypes      PlaceUpdateType[]
+  description          String                @db.VarChar(4000)
+  proposedPhone        String?               @db.VarChar(50)
+  proposedAddress      String?               @db.VarChar(400)
+  proposedOpeningHours String?               @db.VarChar(1200)
+  proposedWebsite      String?               @db.VarChar(2048)
+  proposedOtherValue   String?               @db.VarChar(2000)
+  sourceType           SubmissionSourceType?
+  sourceUrl            String?               @db.VarChar(2048)
+  reporterName         String?               @db.VarChar(160)
+  reporterEmail        String?               @db.VarChar(320)
+  reporterPhone        String?               @db.VarChar(50)
+  moderationStatus     ModerationStatus      @default(PENDING)
+  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([moderationStatus, createdAt])
+  @@index([placeSlug])
+  @@map("place_update_submissions")
+}
+
+model NewPlaceSubmission {
+  id                              String                @id @default(uuid()) @db.Uuid
+  requestId                       String                @unique @db.Uuid
+  name                            String                @db.VarChar(250)
+  organizationName                String?               @db.VarChar(250)
+  categories                      HelpCategory[]
+  streetAddress                   String?               @db.VarChar(300)
+  postalCode                      String?               @db.VarChar(20)
+  city                            String                @db.VarChar(120)
+  district                        String?               @db.VarChar(120)
+  phone                           String?               @db.VarChar(50)
+  email                           String?               @db.VarChar(320)
+  website                         String?               @db.VarChar(2048)
+  openingHoursDescription         String?               @db.VarChar(1200)
+  description                     String?               @db.VarChar(4000)
+  requirements                    String[]
+  sourceType                      SubmissionSourceType?
+  sourceUrl                       String?               @db.VarChar(2048)
+  reporterName                    String?               @db.VarChar(160)
+  reporterEmail                   String?               @db.VarChar(320)
+  reporterPhone                   String?               @db.VarChar(50)
+  accommodationType               String?               @db.VarChar(160)
+  targetGroups                    String[]
+  availabilityKnown               InformationState?
+  availableBedsReported           Int?
+  availabilityReportedAt          DateTime?             @db.Timestamptz(3)
+  availabilityReportedDescription String?               @db.VarChar(240)
+  admissionHoursDescription       String?               @db.VarChar(1200)
+  sobrietyPolicy                  String?               @db.VarChar(240)
+  petPolicy                       String?               @db.VarChar(240)
+  accessibilityFeatures           String[]
+  moderationStatus                ModerationStatus      @default(PENDING)
+  createdAt                       DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                       DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([moderationStatus, createdAt])
+  @@map("new_place_submissions")
+}
