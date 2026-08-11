@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Bookmark, Grid2X2, Map, Menu, Search } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 const primaryItems = [
   { href: "/szukaj", label: "Szukaj", icon: Search },
@@ -13,6 +16,10 @@ const secondaryItems = [
 ];
 
 export function MobileBottomNav() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) return null;
+
   return (
     <nav
       aria-label="Dolna nawigacja"

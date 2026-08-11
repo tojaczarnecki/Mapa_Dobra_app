@@ -1,0 +1,71 @@
+import Image from "next/image";
+import Link from "next/link";
+import { ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
+import { logoutAdmin } from "@/app/admin/actions";
+
+type AdminShellProps = {
+  displayName: string;
+  role: string;
+  children: React.ReactNode;
+};
+
+const roleLabels: Record<string, string> = {
+  SUPER_ADMIN: "Superadministrator",
+  ADMIN: "Administrator",
+  MODERATOR: "Moderator",
+};
+
+export function AdminShell({ displayName, role, children }: AdminShellProps) {
+  return (
+    <div className="min-h-screen bg-[#f7f5ef] text-foreground">
+      <header className="border-b border-border bg-white">
+        <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-6 px-5 py-3 lg:px-8">
+          <Link href="/admin" className="inline-flex rounded-md p-1" aria-label="Mapa Dobra - panel administratora">
+            <Image
+              src="/brand/mapa-dobra-logo.svg"
+              alt="Mapa Dobra"
+              width={170}
+              height={40}
+              priority
+              className="h-9 w-auto"
+            />
+          </Link>
+          <div className="min-w-0 text-right">
+            <p className="truncate text-sm font-bold">{displayName}</p>
+            <p className="text-xs text-muted-foreground">{roleLabels[role] ?? role}</p>
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto grid max-w-[1200px] lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="border-b border-border bg-white px-4 py-3 lg:min-h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+          <nav aria-label="Panel administratora" className="flex gap-2 lg:flex-col">
+            <Link
+              href="/admin"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
+            >
+              <LayoutDashboard aria-hidden="true" size={19} />
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/zgloszenia"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
+            >
+              <ClipboardList aria-hidden="true" size={19} />
+              Zgłoszenia
+            </Link>
+            <form action={logoutAdmin} className="lg:mt-5 lg:border-t lg:border-border lg:pt-5">
+              <button
+                type="submit"
+                className="inline-flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+              >
+                <LogOut aria-hidden="true" size={19} />
+                Wyloguj
+              </button>
+            </form>
+          </nav>
+        </aside>
+        <div className="min-w-0 px-5 py-7 lg:px-8 lg:py-9">{children}</div>
+      </div>
+    </div>
+  );
+}

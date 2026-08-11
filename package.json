@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "admin:create": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.9.1",

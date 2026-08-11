@@ -59,27 +59,100 @@ enum InformationState {
   UNKNOWN
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+}
+
+enum AuditAction {
+  LOGIN
+  STATUS_CHANGED
+  APPROVED
+  REJECTED
+}
+
+enum AuditEntityType {
+  ADMIN_USER
+  PLACE_UPDATE_SUBMISSION
+  NEW_PLACE_SUBMISSION
+}
+
+model AdminUser {
+  id                           String                  @id @default(uuid()) @db.Uuid
+  email                        String                  @unique @db.VarChar(320)
+  passwordHash                 String                  @db.VarChar(512)
+  displayName                  String                  @db.VarChar(160)
+  role                         AdminRole               @default(MODERATOR)
+  active                       Boolean                 @default(true)
+  createdAt                    DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime                @updatedAt @db.Timestamptz(3)
+  lastLoginAt                  DateTime?               @db.Timestamptz(3)
+  sessions                     AdminSession[]
+  auditLogs                    AuditLog[]
+  moderatedPlaceUpdates        PlaceUpdateSubmission[] @relation("PlaceUpdateModerator")
+  moderatedNewPlaceSubmissions NewPlaceSubmission[]    @relation("NewPlaceModerator")
+
+  @@index([active])
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  adminUserId String    @db.Uuid
+  tokenHash   String    @unique @db.Char(64)
+  expiresAt   DateTime  @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+model AuditLog {
+  id             String            @id @default(uuid()) @db.Uuid
+  adminUserId    String            @db.Uuid
+  action         AuditAction
+  entityType     AuditEntityType
+  entityId       String            @db.Uuid
+  previousStatus ModerationStatus?
+  newStatus      ModerationStatus?
+  note           String?           @db.VarChar(1000)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  adminUser      AdminUser         @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([adminUserId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
+
 model PlaceUpdateSubmission {
-  id                   String                @id @default(uuid()) @db.Uuid
-  requestId            String                @unique @db.Uuid
-  placeId              String?               @db.VarChar(200)
-  placeSlug            String?               @db.VarChar(200)
-  placeNameSnapshot    String                @db.VarChar(250)
-  submissionTypes      PlaceUpdateType[]
-  description          String                @db.VarChar(4000)
-  proposedPhone        String?               @db.VarChar(50)
-  proposedAddress      String?               @db.VarChar(400)
-  proposedOpeningHours String?               @db.VarChar(1200)
-  proposedWebsite      String?               @db.VarChar(2048)
-  proposedOtherValue   String?               @db.VarChar(2000)
-  sourceType           SubmissionSourceType?
-  sourceUrl            String?               @db.VarChar(2048)
-  reporterName         String?               @db.VarChar(160)
-  reporterEmail        String?               @db.VarChar(320)
-  reporterPhone        String?               @db.VarChar(50)
-  moderationStatus     ModerationStatus      @default(PENDING)
-  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
+  id                     String                @id @default(uuid()) @db.Uuid
+  requestId              String                @unique @db.Uuid
+  placeId                String?               @db.VarChar(200)
+  placeSlug              String?               @db.VarChar(200)
+  placeNameSnapshot      String                @db.VarChar(250)
+  submissionTypes        PlaceUpdateType[]
+  description            String                @db.VarChar(4000)
+  proposedPhone          String?               @db.VarChar(50)
+  proposedAddress        String?               @db.VarChar(400)
+  proposedOpeningHours   String?               @db.VarChar(1200)
+  proposedWebsite        String?               @db.VarChar(2048)
+  proposedOtherValue     String?               @db.VarChar(2000)
+  sourceType             SubmissionSourceType?
+  sourceUrl              String?               @db.VarChar(2048)
+  reporterName           String?               @db.VarChar(160)
+  reporterEmail          String?               @db.VarChar(320)
+  reporterPhone          String?               @db.VarChar(50)
+  moderationStatus       ModerationStatus      @default(PENDING)
+  moderatorNote          String?               @db.VarChar(2000)
+  rejectionReason        String?               @db.VarChar(1000)
+  moderatedAt            DateTime?             @db.Timestamptz(3)
+  moderatedByAdminUserId String?               @db.Uuid
+  createdAt              DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime              @updatedAt @db.Timestamptz(3)
+  moderatedBy            AdminUser?            @relation("PlaceUpdateModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
 
   @@index([moderationStatus, createdAt])
   @@index([placeSlug])
@@ -118,8 +191,13 @@ model NewPlaceSubmission {
   petPolicy                       String?               @db.VarChar(240)
   accessibilityFeatures           String[]
   moderationStatus                ModerationStatus      @default(PENDING)
+  moderatorNote                   String?               @db.VarChar(2000)
+  rejectionReason                 String?               @db.VarChar(1000)
+  moderatedAt                     DateTime?             @db.Timestamptz(3)
+  moderatedByAdminUserId          String?               @db.Uuid
   createdAt                       DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt                       DateTime              @updatedAt @db.Timestamptz(3)
+  moderatedBy                     AdminUser?            @relation("NewPlaceModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
 
   @@index([moderationStatus, createdAt])
   @@map("new_place_submissions")
