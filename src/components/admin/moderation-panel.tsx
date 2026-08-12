@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Check, SearchCheck, X } from "lucide-react";
 import type { ModerationStatus } from "@/generated/prisma/enums";
+import { StatusBadge } from "@/components/admin/status-badge";
 import {
   moderateSubmission,
   type ModerationActionState,
@@ -47,7 +48,7 @@ function ModerationForm({
 }: {
   entityId: string;
   entityType: AdminSubmissionKind;
-  targetStatus: "UNDER_REVIEW" | "APPROVED" | "REJECTED";
+  targetStatus: "UNDER_REVIEW" | "REJECTED";
 }) {
   const [state, formAction] = useActionState(moderateSubmission, initialState);
   const config = {
@@ -56,7 +57,6 @@ function ModerationForm({
       tone: "neutral" as const,
       icon: SearchCheck,
     },
-    APPROVED: { label: "Zatwierdź", tone: "brand" as const, icon: Check },
     REJECTED: { label: "Odrzuć", tone: "urgent" as const, icon: X },
   }[targetStatus];
 
@@ -65,17 +65,6 @@ function ModerationForm({
       <input type="hidden" name="entityId" value={entityId} />
       <input type="hidden" name="entityType" value={entityType} />
       <input type="hidden" name="targetStatus" value={targetStatus} />
-      {targetStatus === "APPROVED" ? (
-        <label className="block text-sm font-bold">
-          <span className="mb-2 block">Notatka moderatora <span className="font-normal text-muted-foreground">(opcjonalnie)</span></span>
-          <textarea
-            name="note"
-            maxLength={2000}
-            rows={3}
-            className="w-full resize-y rounded-lg border border-border bg-white px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/25"
-          />
-        </label>
-      ) : null}
       {targetStatus === "REJECTED" ? (
         <label className="block text-sm font-bold">
           <span className="mb-2 block">Powód odrzucenia</span>
@@ -112,10 +101,13 @@ export function ModerationPanel({
   const isFinished = status === "APPROVED" || status === "REJECTED";
 
   return (
-    <section className="rounded-lg border border-border bg-white p-5 lg:sticky lg:top-6">
-      <h2 className="text-lg font-bold">Moderacja</h2>
+    <section className="rounded-lg border border-border bg-white p-4 lg:sticky lg:top-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">Moderacja</h2>
+        <StatusBadge status={status} />
+      </div>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-        Zatwierdzenie nie publikuje jeszcze danych ani nie zmienia publicznego miejsca.
+        Oryginalne zgłoszenie pozostaje bez zmian. Publikację wykonasz z wersji roboczej poniżej.
       </p>
       {isFinished ? (
         <div className="mt-5 rounded-lg bg-[#f5f3ed] p-4 text-sm leading-6">
@@ -126,14 +118,11 @@ export function ModerationPanel({
           ) : null}
         </div>
       ) : (
-        <div className="mt-5 space-y-5">
+        <div className="mt-4 space-y-4">
           {status === "PENDING" ? (
             <ModerationForm entityId={entityId} entityType={entityType} targetStatus="UNDER_REVIEW" />
           ) : null}
-          <div className="border-t border-border pt-5">
-            <ModerationForm entityId={entityId} entityType={entityType} targetStatus="APPROVED" />
-          </div>
-          <div className="border-t border-border pt-5">
+          <div className="border-t border-border pt-4">
             <ModerationForm entityId={entityId} entityType={entityType} targetStatus="REJECTED" />
           </div>
         </div>

@@ -3,7 +3,7 @@ import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import { MapExperience } from "@/components/map/map-experience";
 import type { MapCategoryFilter } from "@/components/map/map-filters";
-import { demoMapPlaces } from "@/data/demo-map-places";
+import { getPublicMapPlaces } from "@/lib/places/public-data";
 
 export const metadata: Metadata = {
   title: "Mapa miejsc pomocy | Mapa Dobra",
@@ -33,7 +33,7 @@ function firstValue(value?: string | string[]) {
 }
 
 export default async function MapPage({ searchParams }: MapPageProps) {
-  const params = await searchParams;
+  const [params, places] = await Promise.all([searchParams, getPublicMapPlaces()]);
   const requestedCategory = firstValue(params.kategoria) as MapCategoryFilter;
   const initialCategory = validCategories.has(requestedCategory)
     ? requestedCategory
@@ -41,7 +41,7 @@ export default async function MapPage({ searchParams }: MapPageProps) {
 
   return (
     <MapExperience
-      places={demoMapPlaces}
+      places={places}
       initialQuery={firstValue(params.q)}
       initialCategory={initialCategory}
       initialOpenNow={firstValue(params.otwarte) === "1"}

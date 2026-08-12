@@ -1,0 +1,518 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin/session";
+import { validatePlaceAdminPayload } from "@/lib/places/admin-validation";
+import type {
+  PlaceAdminPayload,
+  PlaceFormActionState,
+  PlacePublicationStatusValue,
+} from "@/types/place-admin";
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const allowedStatuses: PlacePublicationStatusValue[] = [
+  "DRAFT",
+  "PUBLISHED",
+  "TEMPORARILY_CLOSED",
+  "PERMANENTLY_CLOSED",
+  "ARCHIVED",
+];
+
+function slugify(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLocaleLowerCase("pl-PL")
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-|-$/gu, "")
+    .slice(0, 200);
+}
+
+function openingRows(payload: PlaceAdminPayload) {
+  const schedules = [
+    ...payload.openingHours.operation.map((day) => ({ ...day, kind: "OPERATION" as const })),
+    ...(payload.isAccommodation
+      ? payload.openingHours.admission.map((day) => ({ ...day, kind: "ADMISSION" as const }))
+      : []),
+  ];
+
+  type OpeningRow = {
+    kind: "OPERATION" | "ADMISSION";
+    weekday: (typeof schedules)[number]["weekday"];
+    status: (typeof schedules)[number]["status"];
+    opensAt: string | null;
+    closesAt: string | null;
+    note: string | null;
+    sortOrder: number;
+  };
+  const rows: OpeningRow[] = [];
+  for (const day of schedules) {
+    if (day.status !== "OPEN") {
+      rows.push({
+        kind: day.kind,
+        weekday: day.weekday,
+        status: day.status,
+        opensAt: null,
+        closesAt: null,
+        note: day.note || null,
+        sortOrder: 0,
+      });
+      continue;
+    }
+    day.periods.forEach((period, sortOrder) => {
+      rows.push({
+        kind: day.kind,
+        weekday: day.weekday,
+        status: "OPEN",
+        opensAt: period.opensAt || null,
+        closesAt: period.closesAt || null,
+        note: day.note || null,
+        sortOrder,
+      });
+    });
+  }
+  return rows;
+}
+
+function placeScalarData(
+  payload: PlaceAdminPayload,
+  organizationId: string | null,
+  primaryCategoryId: string,
+  adminUserId: string,
+) {
+  return {
+    slug: payload.slug,
+    name: payload.name,
+    organizationId,
+    primaryCategoryId,
+    typeLabel: payload.typeLabel || null,
+    description: payload.description || null,
+    street: payload.street || null,
+    buildingNumber: payload.buildingNumber || null,
+    addressLine: payload.addressLine,
+    postalCode: payload.postalCode || null,
+    city: payload.city,
+    district: payload.district || null,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
+    phone: payload.phone || null,
+    email: payload.email || null,
+    website: payload.website || null,
+    socialMedia: payload.socialMedia || null,
+    operationalStatus: payload.operationalStatus,
+    todayHoursLabel: payload.todayHoursLabel || null,
+    audience: payload.audience,
+    services: payload.services,
+    internalNote: payload.internalNote || null,
+    lastEditedByAdminUserId: adminUserId,
+    ...(payload.markVerified
+      ? {
+          verificationStatus: "VERIFIED" as const,
+          verifiedAt: new Date(),
+          verificationSource: payload.verificationSource,
+        }
+      : {}),
+  };
+}
+
+function accommodationScalarData(payload: NonNullable<PlaceAdminPayload["accommodation"]>) {
+  return {
+    type: payload.type,
+    audienceLabel: payload.audienceLabel || null,
+    targetGroups: payload.targetGroups,
+    acceptedProfiles: payload.acceptedProfiles,
+    admissionHoursDescription: payload.admissionHoursDescription || null,
+    acceptsToday: payload.acceptsToday,
+    lodzRegistrationRequired: payload.lodzRegistrationRequired,
+    referralRequired: payload.referralRequired,
+    documentRequired: payload.documentRequired,
+    sobrietyPolicy: payload.sobrietyPolicy,
+    sobrietyNote: payload.sobrietyNote || null,
+    petPolicy: payload.petPolicy,
+    petNote: payload.petNote || null,
+    wheelchairAccessibility: payload.wheelchairAccessibility,
+    careServices: payload.careServices,
+    partialDependencySupport: payload.partialDependencySupport,
+    mealsInfo: payload.mealsInfo || null,
+    hygieneInfo: payload.hygieneInfo || null,
+    luggageInfo: payload.luggageInfo || null,
+    returnTimeInfo: payload.returnTimeInfo || null,
+    maxStayInfo: payload.maxStayInfo || null,
+    feeInfo: payload.feeInfo || null,
+    availabilityState: payload.availabilityState,
+    availabilityLabel: payload.availabilityLabel || null,
+    availabilityNote: payload.availabilityNote || null,
+    importantNote: payload.importantNote || null,
+  };
+}
+
+function auditSnapshot(place: {
+  name: string;
+  slug: string;
+  addressLine: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  publicationStatus: string;
+  operationalStatus: string;
+  categories: Array<{ category: { slug: string } }>;
+  openingHours: unknown[];
+  requirements: unknown[];
+  accessibility: unknown[];
+  accommodation: unknown;
+}) {
+  return {
+    name: place.name,
+    slug: place.slug,
+    addressLine: place.addressLine,
+    phone: place.phone,
+    email: place.email,
+    website: place.website,
+    publicationStatus: place.publicationStatus,
+    operationalStatus: place.operationalStatus,
+    categories: place.categories.map((item) => item.category.slug),
+    openingHours: place.openingHours,
+    requirements: place.requirements,
+    accessibility: place.accessibility,
+    accommodation: place.accommodation,
+  };
+}
+
+function changedFields(previous: Record<string, unknown> | null, next: Record<string, unknown>) {
+  if (!previous) return Object.keys(next);
+  return Object.keys(next).filter(
+    (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
+  );
+}
+
+const placeAuditInclude = {
+  categories: { include: { category: true }, orderBy: { sortOrder: "asc" as const } },
+  openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
+  requirements: { orderBy: { sortOrder: "asc" as const } },
+  accessibility: { orderBy: { sortOrder: "asc" as const } },
+  accommodation: { include: { capacityGroups: { orderBy: { sortOrder: "asc" as const } } } },
+} satisfies Prisma.PlaceInclude;
+
+export async function savePlace(
+  _previousState: PlaceFormActionState,
+  formData: FormData,
+): Promise<PlaceFormActionState> {
+  const session = await requireAdmin();
+  const rawPayload = formData.get("payload");
+  if (typeof rawPayload !== "string" || rawPayload.length > 200_000) {
+    return { error: "Nie udało się odczytać formularza." };
+  }
+
+  let input: unknown;
+  try {
+    input = JSON.parse(rawPayload);
+  } catch {
+    return { error: "Nie udało się odczytać formularza." };
+  }
+  const validation = validatePlaceAdminPayload(input);
+  if (!validation.ok) {
+    return { error: "Sprawdź wymagane pola i poprawność wprowadzonych danych." };
+  }
+  const payload = validation.data;
+
+  try {
+    const savedId = await prisma.$transaction(async (transaction) => {
+      const existing = payload.id
+        ? await transaction.place.findUnique({
+            where: { id: payload.id },
+            include: placeAuditInclude,
+          })
+        : null;
+      if (payload.id && !existing) throw new Error("NOT_FOUND");
+      if (existing?.accommodation && !payload.isAccommodation) {
+        throw new Error("ACCOMMODATION_REMOVAL");
+      }
+
+      const duplicateSlug = await transaction.place.findFirst({
+        where: { slug: payload.slug, ...(payload.id ? { id: { not: payload.id } } : {}) },
+        select: { id: true },
+      });
+      if (duplicateSlug) throw new Error("DUPLICATE_SLUG");
+
+      const categoryRecords = await transaction.category.findMany({
+        where: { slug: { in: payload.categorySlugs }, active: true },
+        select: { id: true, slug: true },
+      });
+      if (categoryRecords.length !== payload.categorySlugs.length) throw new Error("CATEGORY");
+      const categoryIdBySlug = new Map(categoryRecords.map((item) => [item.slug, item.id]));
+      const primaryCategoryId = categoryIdBySlug.get(payload.primaryCategorySlug);
+      if (!primaryCategoryId) throw new Error("CATEGORY");
+
+      let organizationId: string | null = null;
+      if (payload.organizationName) {
+        const organizationSlug = slugify(payload.organizationName);
+        const organization = await transaction.organization.upsert({
+          where: { slug: organizationSlug },
+          create: { slug: organizationSlug, name: payload.organizationName },
+          update: { name: payload.organizationName },
+          select: { id: true },
+        });
+        organizationId = organization.id;
+      }
+
+      const scalarData = placeScalarData(
+        payload,
+        organizationId,
+        primaryCategoryId,
+        session.user.id,
+      );
+      const place = existing
+        ? await transaction.place.update({ where: { id: existing.id }, data: scalarData })
+        : await transaction.place.create({
+            data: {
+              ...scalarData,
+              publicationStatus: "DRAFT",
+              verificationStatus: payload.markVerified ? "VERIFIED" : "UNVERIFIED",
+              isDemo: false,
+            },
+          });
+
+      await Promise.all([
+        transaction.placeCategory.deleteMany({ where: { placeId: place.id } }),
+        transaction.openingHours.deleteMany({ where: { placeId: place.id } }),
+        transaction.placeRequirement.deleteMany({ where: { placeId: place.id } }),
+        transaction.placeAccessibility.deleteMany({ where: { placeId: place.id } }),
+      ]);
+
+      await transaction.placeCategory.createMany({
+        data: payload.categorySlugs.map((slug, sortOrder) => ({
+          placeId: place.id,
+          categoryId: categoryIdBySlug.get(slug)!,
+          sortOrder,
+        })),
+      });
+      await transaction.openingHours.createMany({
+        data: openingRows(payload).map((item) => ({ ...item, placeId: place.id })),
+      });
+      await transaction.placeRequirement.createMany({
+        data: payload.requirements.map((item, sortOrder) => ({
+          placeId: place.id,
+          kind: item.kind,
+          state: item.state,
+          label: item.label,
+          note: item.note || null,
+          sortOrder,
+        })),
+      });
+      await transaction.placeAccessibility.createMany({
+        data: payload.accessibility.map((item, sortOrder) => ({
+          placeId: place.id,
+          feature: item.feature,
+          state: item.state,
+          label: item.label,
+          note: item.note || null,
+          sortOrder,
+        })),
+      });
+
+      if (payload.isAccommodation && payload.accommodation) {
+        const priorAccommodation = existing?.accommodation;
+        const priorState = priorAccommodation?.availabilityState;
+        const capacityChanged = payload.accommodation.capacityGroups.some((group) => {
+          const previous = priorAccommodation?.capacityGroups.find((item) => item.id === group.id);
+          return !previous || previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds;
+        });
+        const availabilityChanged = priorState !== payload.accommodation.availabilityState || capacityChanged;
+        const accommodationData = {
+          ...accommodationScalarData(payload.accommodation),
+          ...(availabilityChanged ? { availabilityConfirmedAt: new Date() } : {}),
+        };
+        const savedAccommodation = priorAccommodation
+          ? await transaction.accommodationDetails.update({
+              where: { id: priorAccommodation.id },
+              data: accommodationData,
+            })
+          : await transaction.accommodationDetails.create({
+              data: { placeId: place.id, ...accommodationData },
+            });
+
+        const retainedIds: string[] = [];
+        for (const [sortOrder, group] of payload.accommodation.capacityGroups.entries()) {
+          const previous = priorAccommodation?.capacityGroups.find((item) => item.id === group.id);
+          const savedGroup = previous
+            ? await transaction.accommodationCapacityGroup.update({
+                where: { id: previous.id },
+                data: {
+                  label: group.label,
+                  totalBeds: group.totalBeds,
+                  availableBeds: group.availableBeds,
+                  sortOrder,
+                  ...(previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds
+                    ? { availabilityUpdatedAt: new Date(), updatedByAdminUserId: session.user.id }
+                    : {}),
+                },
+              })
+            : await transaction.accommodationCapacityGroup.create({
+                data: {
+                  accommodationDetailsId: savedAccommodation.id,
+                  label: group.label,
+                  totalBeds: group.totalBeds,
+                  availableBeds: group.availableBeds,
+                  availabilityUpdatedAt: new Date(),
+                  updatedByAdminUserId: session.user.id,
+                  sortOrder,
+                },
+              });
+          retainedIds.push(savedGroup.id);
+          if (!previous || previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds) {
+            await transaction.accommodationAvailabilityHistory.create({
+              data: {
+                accommodationDetailsId: savedAccommodation.id,
+                capacityGroupId: savedGroup.id,
+                availabilityState: payload.accommodation.availabilityState,
+                availableBeds: group.availableBeds,
+                totalBeds: group.totalBeds,
+                reportedAt: new Date(),
+                adminUserId: session.user.id,
+                origin: "ADMIN_MANUAL",
+                note: payload.accommodation.availabilityNote || null,
+              },
+            });
+            await transaction.auditLog.create({
+              data: {
+                adminUserId: session.user.id,
+                action: "AVAILABILITY_UPDATED",
+                entityType: "ACCOMMODATION_CAPACITY_GROUP",
+                entityId: savedGroup.id,
+                changedFields: ["availableBeds", "totalBeds"],
+                previousValues: previous
+                  ? ({ availableBeds: previous.availableBeds, totalBeds: previous.totalBeds } as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+                newValues: {
+                  availableBeds: group.availableBeds,
+                  totalBeds: group.totalBeds,
+                },
+                changeOrigin: "ADMIN_MANUAL",
+                sourceType: payload.markVerified ? payload.verificationSource : null,
+                note: payload.internalNote || null,
+              },
+            });
+          }
+        }
+        if (priorAccommodation) {
+          await transaction.accommodationCapacityGroup.deleteMany({
+            where: {
+              accommodationDetailsId: savedAccommodation.id,
+              ...(retainedIds.length ? { id: { notIn: retainedIds } } : {}),
+            },
+          });
+        }
+        if (availabilityChanged && payload.accommodation.capacityGroups.length === 0) {
+          await transaction.accommodationAvailabilityHistory.create({
+            data: {
+              accommodationDetailsId: savedAccommodation.id,
+              availabilityState: payload.accommodation.availabilityState,
+              reportedAt: new Date(),
+              adminUserId: session.user.id,
+              origin: "ADMIN_MANUAL",
+              note: payload.accommodation.availabilityNote || null,
+            },
+          });
+        }
+      }
+
+      const completePlace = await transaction.place.findUniqueOrThrow({
+        where: { id: place.id },
+        include: placeAuditInclude,
+      });
+      const previousSnapshot = existing ? auditSnapshot(existing) : null;
+      const nextSnapshot = auditSnapshot(completePlace);
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: existing ? "PLACE_UPDATED" : "PLACE_CREATED",
+          entityType: "PLACE",
+          entityId: place.id,
+          changedFields: changedFields(previousSnapshot, nextSnapshot),
+          previousValues: previousSnapshot
+            ? (JSON.parse(JSON.stringify(previousSnapshot)) as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+          newValues: JSON.parse(JSON.stringify(nextSnapshot)) as Prisma.InputJsonValue,
+          changeOrigin: "ADMIN_MANUAL",
+          sourceType: payload.markVerified ? payload.verificationSource : null,
+          note: payload.internalNote || null,
+        },
+      });
+
+      return place.id;
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/miejsca");
+    revalidatePath(`/admin/miejsca/${savedId}`);
+    revalidatePath("/szukaj");
+    revalidatePath("/mapa");
+    return { success: "Dane miejsca zostały zapisane.", placeId: savedId };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "DUPLICATE_SLUG") return { error: "Inne miejsce używa już tego slugu." };
+    if (reason === "ACCOMMODATION_REMOVAL") {
+      return { error: "Danych noclegowych nie można usunąć tym formularzem. Zmień status miejsca lub skontaktuj się z superadministratorem." };
+    }
+    return { error: "Nie udało się zapisać miejsca. Sprawdź dane i spróbuj ponownie." };
+  }
+}
+
+export async function changePlaceStatus(
+  _previousState: PlaceFormActionState,
+  formData: FormData,
+): Promise<PlaceFormActionState> {
+  const session = await requireAdmin();
+  const placeId = formData.get("placeId");
+  const status = formData.get("status");
+  if (
+    typeof placeId !== "string" ||
+    !uuidPattern.test(placeId) ||
+    typeof status !== "string" ||
+    !allowedStatuses.includes(status as PlacePublicationStatusValue)
+  ) {
+    return { error: "Nie udało się zmienić statusu miejsca." };
+  }
+
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const current = await transaction.place.findUnique({
+        where: { id: placeId },
+        select: { publicationStatus: true, operationalStatus: true },
+      });
+      if (!current) throw new Error("NOT_FOUND");
+      const targetStatus = status as PlacePublicationStatusValue;
+      await transaction.place.update({
+        where: { id: placeId },
+        data: {
+          publicationStatus: targetStatus,
+          lastEditedByAdminUserId: session.user.id,
+          ...(targetStatus === "TEMPORARILY_CLOSED" || targetStatus === "PERMANENTLY_CLOSED"
+            ? { operationalStatus: "CLOSED" }
+            : {}),
+        },
+      });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: targetStatus === "PUBLISHED" ? "PLACE_PUBLISHED" : "PLACE_STATUS_CHANGED",
+          entityType: "PLACE",
+          entityId: placeId,
+          changedFields: ["publicationStatus"],
+          previousValues: { publicationStatus: current.publicationStatus },
+          newValues: { publicationStatus: targetStatus },
+          changeOrigin: "ADMIN_MANUAL",
+        },
+      });
+    });
+    revalidatePath("/admin/miejsca");
+    revalidatePath(`/admin/miejsca/${placeId}`);
+    revalidatePath("/szukaj");
+    revalidatePath("/mapa");
+    return { success: "Status miejsca został zmieniony.", placeId };
+  } catch {
+    return { error: "Nie udało się zmienić statusu miejsca." };
+  }
+}

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
+import { ClipboardList, LayoutDashboard, LogOut, MapPinned } from "lucide-react";
 import { logoutAdmin } from "@/app/admin/actions";
 
 type AdminShellProps = {
@@ -52,6 +52,13 @@ export function AdminShell({ displayName, role, children }: AdminShellProps) {
             >
               <ClipboardList aria-hidden="true" size={19} />
               Zgłoszenia
+            </Link>
+            <Link
+              href="/admin/miejsca"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
+            >
+              <MapPinned aria-hidden="true" size={19} />
+              Miejsca
             </Link>
             <form action={logoutAdmin} className="lg:mt-5 lg:border-t lg:border-border lg:pt-5">
               <button

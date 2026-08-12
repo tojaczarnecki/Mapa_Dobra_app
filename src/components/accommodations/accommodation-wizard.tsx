@@ -25,7 +25,6 @@ import {
   type PetAnswer,
   type RegistrationAnswer,
   type WheelchairNeed,
-  demoAccommodations,
 } from "@/data/demo-accommodations";
 
 type WizardStep = "profile" | "wheelchair" | "registration" | "pet" | "needs";
@@ -217,8 +216,8 @@ function getUnmetConditions(accommodation: Accommodation, answers: WizardAnswers
   return unmet;
 }
 
-function rankAccommodations(answers: WizardAnswers): MatchResult[] {
-  return demoAccommodations
+function rankAccommodations(accommodations: Accommodation[], answers: WizardAnswers): MatchResult[] {
+  return accommodations
     .map((accommodation) => {
       const unmetConditions = getUnmetConditions(accommodation, answers);
       const groupMatch =
@@ -291,7 +290,7 @@ function selectedMarker(isSelected: boolean) {
   );
 }
 
-export function AccommodationWizard() {
+export function AccommodationWizard({ accommodations }: { accommodations: Accommodation[] }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>(initialAnswers);
   const [showResults, setShowResults] = useState(false);
@@ -303,7 +302,7 @@ export function AccommodationWizard() {
     (step.id === "wheelchair" && answers.wheelchair) ||
     (step.id === "registration" && answers.registration) ||
     (step.id === "pet" && answers.pet);
-  const matches = rankAccommodations(answers);
+  const matches = rankAccommodations(accommodations, answers);
   const exactMatches = matches.filter((match) => match.unmetConditions.length === 0);
   const visibleMatches = exactMatches.length > 0 ? exactMatches : matches.slice(0, 6);
 

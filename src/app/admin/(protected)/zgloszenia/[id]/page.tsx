@@ -3,12 +3,12 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { ModerationPanel } from "@/components/admin/moderation-panel";
+import { SubmissionDraftEditor } from "@/components/admin/submission-draft-editor";
 import {
   DetailSection,
   InfoRows,
   TagList,
 } from "@/components/admin/detail-section";
-import { demoPlaceDetails } from "@/data/demo-place-details";
 import {
   categoryLabels,
   formatAdminDate,
@@ -17,6 +17,8 @@ import {
   updateTypeLabels,
 } from "@/lib/admin/labels";
 import { getSubmissionDetail } from "@/lib/admin/submissions";
+import { getOrCreateSubmissionDraft } from "@/lib/admin/submission-drafts";
+import { requireAdmin } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -90,16 +92,17 @@ function SourceInfo({
   );
 }
 
-function currentOpeningHours(place: (typeof demoPlaceDetails)[number]) {
+function currentOpeningHours(place: PlaceUpdateDetail["targetPlace"]) {
+  if (!place) return undefined;
   return place.openingHours
-    .map((day) => {
-      const value =
-        day.status === "closed"
-          ? "Zamknięte"
-          : day.status === "unknown"
-            ? day.note ?? "Brak potwierdzonych godzin"
-            : day.periods?.join(", ") ?? "Brak godzin";
-      return `${day.day}: ${value}`;
+    .filter((row) => row.kind === "OPERATION")
+    .map((row) => {
+      const value = row.status === "CLOSED"
+        ? "Zamknięte"
+        : row.status === "UNKNOWN"
+          ? row.note ?? "Brak potwierdzonych godzin"
+          : `${row.opensAt ?? "?"}-${row.closesAt ?? "?"}`;
+      return `${row.weekday}: ${value}`;
     })
     .join("; ");
 }
@@ -112,7 +115,11 @@ export default async function AdminSubmissionDetailPage({
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
 
-  const detail = await getSubmissionDetail(id);
+  const session = await requireAdmin();
+  const [detail, draft] = await Promise.all([
+    getSubmissionDetail(id),
+    getOrCreateSubmissionDraft(id, session.user.id),
+  ]);
   if (!detail) notFound();
 
   const isPlaceUpdate = detail.kind === "place-update";
@@ -147,20 +154,23 @@ export default async function AdminSubmissionDetailPage({
       </header>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="min-w-0 space-y-5">
+        <div className="order-2 min-w-0 space-y-5 lg:order-1">
+          {draft ? <SubmissionDraftEditor draft={draft} status={submission.moderationStatus} /> : null}
           {detail.kind === "place-update" ? (
             <PlaceUpdateDetails submission={detail.submission} />
           ) : (
             <NewPlaceDetails submission={detail.submission} />
           )}
         </div>
-        <ModerationPanel
-          entityId={submission.id}
-          entityType={detail.kind}
-          status={submission.moderationStatus}
-          moderatorNote={submission.moderatorNote}
-          rejectionReason={submission.rejectionReason}
-        />
+        <aside className="order-1 lg:order-2">
+          <ModerationPanel
+            entityId={submission.id}
+            entityType={detail.kind}
+            status={submission.moderationStatus}
+            moderatorNote={submission.moderatorNote}
+            rejectionReason={submission.rejectionReason}
+          />
+        </aside>
       </div>
     </div>
   );
@@ -172,25 +182,23 @@ type PlaceUpdateDetail = Extract<
 >["submission"];
 
 function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
-  const demoPlace = demoPlaceDetails.find(
-    (place) => place.slug === submission.placeSlug || place.id === submission.placeId,
-  );
+  const currentPlace = submission.targetPlace;
   const comparisons = [
     submission.proposedPhone
-      ? { label: "Telefon", current: demoPlace?.contact.phone, proposed: submission.proposedPhone }
+      ? { label: "Telefon", current: currentPlace?.phone ?? undefined, proposed: submission.proposedPhone }
       : null,
     submission.proposedAddress
-      ? { label: "Adres", current: demoPlace?.address, proposed: submission.proposedAddress }
+      ? { label: "Adres", current: currentPlace?.addressLine, proposed: submission.proposedAddress }
       : null,
     submission.proposedOpeningHours
       ? {
           label: "Godziny",
-          current: demoPlace ? currentOpeningHours(demoPlace) : undefined,
+          current: currentOpeningHours(currentPlace),
           proposed: submission.proposedOpeningHours,
         }
       : null,
     submission.proposedWebsite
-      ? { label: "Strona WWW", current: demoPlace?.contact.website, proposed: submission.proposedWebsite }
+      ? { label: "Strona WWW", current: currentPlace?.website ?? undefined, proposed: submission.proposedWebsite }
       : null,
     submission.proposedOtherValue
       ? { label: "Inna wartość", current: undefined, proposed: submission.proposedOtherValue }
@@ -207,7 +215,7 @@ function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
       {comparisons.length > 0 ? (
         <DetailSection
           title="Porównanie danych"
-          description={demoPlace ? "Bieżące wartości pochodzą z demonstracyjnego rekordu w kodzie. Zatwierdzenie ich nie zmieni." : "Nie odnaleziono wiarygodnego rekordu demonstracyjnego. Pokazujemy wyłącznie zgłoszone wartości."}
+          description={currentPlace ? "Bieżące wartości pochodzą z aktualnego, opublikowanego rekordu w PostgreSQL." : "Nie odnaleziono wiarygodnego rekordu miejsca. Pokazujemy wyłącznie zgłoszone wartości."}
         >
           <div className="space-y-4">
             {comparisons.map((comparison) => (

@@ -131,6 +131,9 @@ export async function getSubmissionDetail(id: string) {
         moderatedBy: {
           select: { displayName: true },
         },
+        targetPlace: {
+          include: { openingHours: { orderBy: [{ weekday: "asc" }, { sortOrder: "asc" }] } },
+        },
       },
     }),
     prisma.newPlaceSubmission.findUnique({

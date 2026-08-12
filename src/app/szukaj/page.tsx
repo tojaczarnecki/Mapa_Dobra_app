@@ -8,7 +8,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { PlaceCard } from "@/components/places/place-card";
-import { demoPlaces } from "@/data/demo-places";
+import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { TextField } from "@/components/ui/text-field";
 
 const quickFilters = [
@@ -19,7 +19,10 @@ const quickFilters = [
   "Bez dokumentów",
 ];
 
-export default function SearchPage() {
+export const dynamic = "force-dynamic";
+
+export default async function SearchPage() {
+  const places = await getPublicSearchPlaces();
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,680px)_minmax(320px,1fr)] lg:items-start lg:gap-8">
@@ -82,7 +85,7 @@ export default function SearchPage() {
 
             <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="text-lg font-extrabold text-foreground">12 miejsc</p>
+                <p className="text-lg font-extrabold text-foreground">{places.length} miejsc</p>
                 <span className="text-sm font-bold text-muted-foreground" aria-hidden="true">
                   |
                 </span>
@@ -125,7 +128,7 @@ export default function SearchPage() {
           </div>
 
           <div className="grid min-w-0 gap-3 sm:gap-4">
-            {demoPlaces.map((place) => (
+            {places.map((place) => (
               <PlaceCard key={place.id} place={place} />
             ))}
           </div>

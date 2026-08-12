@@ -70,28 +70,165 @@ enum AuditAction {
   STATUS_CHANGED
   APPROVED
   REJECTED
+  PLACE_CREATED
+  PLACE_UPDATED
+  PLACE_PUBLISHED
+  PLACE_STATUS_CHANGED
+  AVAILABILITY_UPDATED
+  DRAFT_SAVED
+  SUBMISSION_PUBLISHED
 }
 
 enum AuditEntityType {
   ADMIN_USER
   PLACE_UPDATE_SUBMISSION
   NEW_PLACE_SUBMISSION
+  PLACE
+  ACCOMMODATION_CAPACITY_GROUP
+  SUBMISSION_DRAFT
+}
+
+enum PlacePublicationStatus {
+  DRAFT
+  PUBLISHED
+  TEMPORARILY_CLOSED
+  PERMANENTLY_CLOSED
+  ARCHIVED
+}
+
+enum PlaceVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  NEEDS_CONFIRMATION
+}
+
+enum PlaceOperationalStatus {
+  OPEN
+  CLOSED
+  OPEN_TODAY
+  UNKNOWN
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum OpeningHoursKind {
+  OPERATION
+  ADMISSION
+}
+
+enum OpeningHoursStatus {
+  OPEN
+  CLOSED
+  UNKNOWN
+}
+
+enum RequirementKind {
+  REFERRAL
+  DOCUMENT
+  FEE
+  LODZ_REGISTRATION
+  APPOINTMENT
+  OTHER
+}
+
+enum AccessibilityFeature {
+  STEP_FREE_ENTRANCE
+  RAMP
+  ELEVATOR
+  ACCESSIBLE_TOILET
+  ACCESSIBLE_SHOWER
+  WHEELCHAIR_PLACE
+  ASSISTANCE_DOG
+  CARE_SERVICES
+  STAY_WITH_ASSISTANT
+  OTHER
+}
+
+enum AccommodationType {
+  SHELTER
+  NIGHT_SHELTER
+  WARMING_CENTER
+  HOSTEL
+  INTERVENTION_HOSTEL
+  CARE_SHELTER
+  WOMEN_WITH_CHILDREN_HOME
+  OTHER
+}
+
+enum AccommodationAvailabilityState {
+  AVAILABLE
+  FEW
+  FULL
+  UNKNOWN
+  STALE
+  SUSPENDED
+}
+
+enum SobrietyPolicy {
+  SOBRIETY_REQUIRED
+  ZERO_TOLERANCE
+  INDIVIDUAL_ASSESSMENT
+  SEPARATE_PROCEDURE
+  UNKNOWN
+}
+
+enum PetPolicy {
+  ACCEPTED
+  NOT_ACCEPTED
+  DOG_ONLY
+  BY_ARRANGEMENT
+  ASSISTANCE_DOG_ONLY
+  UNKNOWN
+}
+
+enum ChangeOrigin {
+  DEMO_MIGRATION
+  ADMIN_MANUAL
+  USER_SUBMISSION
+}
+
+enum VerificationSource {
+  PHONE_CALL
+  ORGANIZATION_EMAIL
+  VISIT
+  OFFICIAL_WEBSITE
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum DraftFieldDecision {
+  PENDING
+  INCLUDE
+  REJECT
 }
 
 model AdminUser {
-  id                           String                  @id @default(uuid()) @db.Uuid
-  email                        String                  @unique @db.VarChar(320)
-  passwordHash                 String                  @db.VarChar(512)
-  displayName                  String                  @db.VarChar(160)
-  role                         AdminRole               @default(MODERATOR)
-  active                       Boolean                 @default(true)
-  createdAt                    DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt                    DateTime                @updatedAt @db.Timestamptz(3)
-  lastLoginAt                  DateTime?               @db.Timestamptz(3)
+  id                           String                             @id @default(uuid()) @db.Uuid
+  email                        String                             @unique @db.VarChar(320)
+  passwordHash                 String                             @db.VarChar(512)
+  displayName                  String                             @db.VarChar(160)
+  role                         AdminRole                          @default(MODERATOR)
+  active                       Boolean                            @default(true)
+  createdAt                    DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime                           @updatedAt @db.Timestamptz(3)
+  lastLoginAt                  DateTime?                          @db.Timestamptz(3)
   sessions                     AdminSession[]
   auditLogs                    AuditLog[]
-  moderatedPlaceUpdates        PlaceUpdateSubmission[] @relation("PlaceUpdateModerator")
-  moderatedNewPlaceSubmissions NewPlaceSubmission[]    @relation("NewPlaceModerator")
+  moderatedPlaceUpdates        PlaceUpdateSubmission[]            @relation("PlaceUpdateModerator")
+  moderatedNewPlaceSubmissions NewPlaceSubmission[]               @relation("NewPlaceModerator")
+  editedPlaces                 Place[]                            @relation("PlaceLastEditor")
+  capacityUpdates              AccommodationCapacityGroup[]
+  availabilityHistory          AccommodationAvailabilityHistory[]
+  createdDrafts                SubmissionDraft[]                  @relation("DraftCreator")
+  updatedDrafts                SubmissionDraft[]                  @relation("DraftUpdater")
 
   @@index([active])
   @@map("admin_users")
@@ -111,20 +248,291 @@ model AdminSession {
 }
 
 model AuditLog {
-  id             String            @id @default(uuid()) @db.Uuid
-  adminUserId    String            @db.Uuid
-  action         AuditAction
-  entityType     AuditEntityType
-  entityId       String            @db.Uuid
-  previousStatus ModerationStatus?
-  newStatus      ModerationStatus?
-  note           String?           @db.VarChar(1000)
-  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
-  adminUser      AdminUser         @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+  id                String              @id @default(uuid()) @db.Uuid
+  adminUserId       String              @db.Uuid
+  action            AuditAction
+  entityType        AuditEntityType
+  entityId          String              @db.Uuid
+  previousStatus    ModerationStatus?
+  newStatus         ModerationStatus?
+  note              String?             @db.VarChar(1000)
+  changedFields     String[]            @default([])
+  previousValues    Json?
+  newValues         Json?
+  changeOrigin      ChangeOrigin?
+  sourceType        VerificationSource?
+  sourceReferenceId String?             @db.Uuid
+  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
+  adminUser         AdminUser           @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
 
   @@index([adminUserId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique @db.VarChar(200)
+  name        String   @db.VarChar(250)
+  description String?  @db.VarChar(2000)
+  phone       String?  @db.VarChar(50)
+  email       String?  @db.VarChar(320)
+  website     String?  @db.VarChar(2048)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  places      Place[]
+
+  @@map("organizations")
+}
+
+model Category {
+  id            String          @id @default(uuid()) @db.Uuid
+  slug          String          @unique @db.VarChar(120)
+  name          String          @db.VarChar(160)
+  description   String?         @db.VarChar(1000)
+  active        Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  placeLinks    PlaceCategory[]
+  primaryPlaces Place[]         @relation("PrimaryPlaceCategory")
+
+  @@index([active, sortOrder])
+  @@map("categories")
+}
+
+model Place {
+  id                      String                  @id @default(uuid()) @db.Uuid
+  legacyId                String?                 @unique @db.VarChar(200)
+  citySlug                String                  @default("lodz") @db.VarChar(120)
+  slug                    String                  @unique @db.VarChar(200)
+  name                    String                  @db.VarChar(250)
+  organizationId          String?                 @db.Uuid
+  primaryCategoryId       String                  @db.Uuid
+  typeLabel               String?                 @db.VarChar(160)
+  description             String?                 @db.VarChar(4000)
+  street                  String?                 @db.VarChar(300)
+  buildingNumber          String?                 @db.VarChar(40)
+  addressLine             String                  @db.VarChar(400)
+  postalCode              String?                 @db.VarChar(20)
+  city                    String                  @default("Łódź") @db.VarChar(120)
+  district                String?                 @db.VarChar(120)
+  latitude                Decimal?                @db.Decimal(9, 6)
+  longitude               Decimal?                @db.Decimal(9, 6)
+  phone                   String?                 @db.VarChar(50)
+  email                   String?                 @db.VarChar(320)
+  website                 String?                 @db.VarChar(2048)
+  socialMedia             String?                 @db.VarChar(2048)
+  publicationStatus       PlacePublicationStatus  @default(DRAFT)
+  verificationStatus      PlaceVerificationStatus @default(UNVERIFIED)
+  operationalStatus       PlaceOperationalStatus  @default(UNKNOWN)
+  todayHoursLabel         String?                 @db.VarChar(240)
+  verificationNote        String?                 @db.VarChar(1000)
+  verificationSource      VerificationSource?
+  verifiedAt              DateTime?               @db.Timestamptz(3)
+  internalNote            String?                 @db.VarChar(2000)
+  audience                String[]
+  services                String[]
+  distanceLabel           String?                 @db.VarChar(80)
+  isDemo                  Boolean                 @default(false)
+  lastEditedByAdminUserId String?                 @db.Uuid
+  createdAt               DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                @updatedAt @db.Timestamptz(3)
+  organization            Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  primaryCategory         Category                @relation("PrimaryPlaceCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  categories              PlaceCategory[]
+  openingHours            OpeningHours[]
+  requirements            PlaceRequirement[]
+  accessibility           PlaceAccessibility[]
+  accommodation           AccommodationDetails?
+  lastEditedBy            AdminUser?              @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
+  updateSubmissions       PlaceUpdateSubmission[] @relation("SubmissionTargetPlace")
+  publishedUpdates        PlaceUpdateSubmission[] @relation("PublishedUpdatePlace")
+  publishedNewPlaces      NewPlaceSubmission[]    @relation("PublishedNewPlace")
+  submissionDrafts        SubmissionDraft[]
+
+  @@index([publicationStatus, city])
+  @@index([primaryCategoryId])
+  @@index([name])
+  @@map("places")
+}
+
+model PlaceCategory {
+  placeId    String   @db.Uuid
+  categoryId String   @db.Uuid
+  sortOrder  Int      @default(0)
+  place      Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([placeId, categoryId])
+  @@index([categoryId])
+  @@map("place_categories")
+}
+
+model OpeningHours {
+  id        String             @id @default(uuid()) @db.Uuid
+  placeId   String             @db.Uuid
+  kind      OpeningHoursKind   @default(OPERATION)
+  weekday   Weekday
+  status    OpeningHoursStatus
+  opensAt   String?            @db.VarChar(5)
+  closesAt  String?            @db.VarChar(5)
+  note      String?            @db.VarChar(240)
+  sortOrder Int                @default(0)
+  place     Place              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, kind, weekday, sortOrder])
+  @@index([placeId, kind, weekday])
+  @@map("opening_hours")
+}
+
+model PlaceRequirement {
+  id        String           @id @default(uuid()) @db.Uuid
+  placeId   String           @db.Uuid
+  kind      RequirementKind
+  state     InformationState @default(UNKNOWN)
+  label     String           @db.VarChar(240)
+  note      String?          @db.VarChar(500)
+  sortOrder Int              @default(0)
+  place     Place            @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, kind, sortOrder])
+  @@index([placeId, sortOrder])
+  @@map("place_requirements")
+}
+
+model PlaceAccessibility {
+  id        String               @id @default(uuid()) @db.Uuid
+  placeId   String               @db.Uuid
+  feature   AccessibilityFeature
+  state     InformationState     @default(UNKNOWN)
+  label     String               @db.VarChar(240)
+  note      String?              @db.VarChar(500)
+  sortOrder Int                  @default(0)
+  place     Place                @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, feature, sortOrder])
+  @@index([placeId, sortOrder])
+  @@map("place_accessibility")
+}
+
+model AccommodationDetails {
+  id                        String                             @id @default(uuid()) @db.Uuid
+  placeId                   String                             @unique @db.Uuid
+  type                      AccommodationType
+  audienceLabel             String?                            @db.VarChar(240)
+  targetGroups              String[]
+  acceptedProfiles          String[]
+  admissionHoursDescription String?                            @db.VarChar(1200)
+  acceptsToday              InformationState                   @default(UNKNOWN)
+  lodzRegistrationRequired  InformationState                   @default(UNKNOWN)
+  referralRequired          InformationState                   @default(UNKNOWN)
+  documentRequired          InformationState                   @default(UNKNOWN)
+  sobrietyPolicy            SobrietyPolicy                     @default(UNKNOWN)
+  sobrietyNote              String?                            @db.VarChar(500)
+  petPolicy                 PetPolicy                          @default(UNKNOWN)
+  petNote                   String?                            @db.VarChar(500)
+  wheelchairAccessibility   InformationState                   @default(UNKNOWN)
+  careServices              InformationState                   @default(UNKNOWN)
+  partialDependencySupport  InformationState                   @default(UNKNOWN)
+  mealsInfo                 String?                            @db.VarChar(500)
+  hygieneInfo               String?                            @db.VarChar(500)
+  luggageInfo               String?                            @db.VarChar(500)
+  returnTimeInfo            String?                            @db.VarChar(500)
+  maxStayInfo               String?                            @db.VarChar(500)
+  feeInfo                   String?                            @db.VarChar(500)
+  availabilityState         AccommodationAvailabilityState     @default(UNKNOWN)
+  availabilityLabel         String?                            @db.VarChar(240)
+  availabilityConfirmedAt   DateTime?                          @db.Timestamptz(3)
+  availabilityNote          String?                            @db.VarChar(1000)
+  importantNote             String?                            @db.VarChar(500)
+  createdAt                 DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                           @updatedAt @db.Timestamptz(3)
+  place                     Place                              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  capacityGroups            AccommodationCapacityGroup[]
+  availabilityHistory       AccommodationAvailabilityHistory[]
+
+  @@map("accommodation_details")
+}
+
+model AccommodationCapacityGroup {
+  id                     String                             @id @default(uuid()) @db.Uuid
+  accommodationDetailsId String                             @db.Uuid
+  label                  String                             @db.VarChar(160)
+  totalBeds              Int?
+  availableBeds          Int?
+  availabilityUpdatedAt  DateTime?                          @db.Timestamptz(3)
+  updatedByAdminUserId   String?                            @db.Uuid
+  sortOrder              Int                                @default(0)
+  createdAt              DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                           @updatedAt @db.Timestamptz(3)
+  accommodationDetails   AccommodationDetails               @relation(fields: [accommodationDetailsId], references: [id], onDelete: Cascade)
+  updatedByAdminUser     AdminUser?                         @relation(fields: [updatedByAdminUserId], references: [id], onDelete: SetNull)
+  history                AccommodationAvailabilityHistory[]
+
+  @@unique([accommodationDetailsId, label])
+  @@index([accommodationDetailsId, sortOrder])
+  @@map("accommodation_capacity_groups")
+}
+
+model AccommodationAvailabilityHistory {
+  id                     String                         @id @default(uuid()) @db.Uuid
+  accommodationDetailsId String                         @db.Uuid
+  capacityGroupId        String?                        @db.Uuid
+  availabilityState      AccommodationAvailabilityState
+  availableBeds          Int?
+  totalBeds              Int?
+  reportedAt             DateTime                       @db.Timestamptz(3)
+  adminUserId            String?                        @db.Uuid
+  origin                 ChangeOrigin
+  note                   String?                        @db.VarChar(1000)
+  createdAt              DateTime                       @default(now()) @db.Timestamptz(3)
+  accommodationDetails   AccommodationDetails           @relation(fields: [accommodationDetailsId], references: [id], onDelete: Cascade)
+  capacityGroup          AccommodationCapacityGroup?    @relation(fields: [capacityGroupId], references: [id], onDelete: SetNull)
+  adminUser              AdminUser?                     @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([accommodationDetailsId, reportedAt])
+  @@index([capacityGroupId, reportedAt])
+  @@map("accommodation_availability_history")
+}
+
+model SubmissionDraft {
+  id                      String                 @id @default(uuid()) @db.Uuid
+  placeUpdateSubmissionId String?                @unique @db.Uuid
+  newPlaceSubmissionId    String?                @unique @db.Uuid
+  targetPlaceId           String?                @db.Uuid
+  createdByAdminUserId    String                 @db.Uuid
+  updatedByAdminUserId    String                 @db.Uuid
+  createdAt               DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime               @updatedAt @db.Timestamptz(3)
+  placeUpdateSubmission   PlaceUpdateSubmission? @relation(fields: [placeUpdateSubmissionId], references: [id], onDelete: Cascade)
+  newPlaceSubmission      NewPlaceSubmission?    @relation(fields: [newPlaceSubmissionId], references: [id], onDelete: Cascade)
+  targetPlace             Place?                 @relation(fields: [targetPlaceId], references: [id], onDelete: SetNull)
+  createdBy               AdminUser              @relation("DraftCreator", fields: [createdByAdminUserId], references: [id], onDelete: Restrict)
+  updatedBy               AdminUser              @relation("DraftUpdater", fields: [updatedByAdminUserId], references: [id], onDelete: Restrict)
+  items                   SubmissionDraftItem[]
+
+  @@index([targetPlaceId])
+  @@map("submission_drafts")
+}
+
+model SubmissionDraftItem {
+  id                   String             @id @default(uuid()) @db.Uuid
+  submissionDraftId    String             @db.Uuid
+  fieldKey             String             @db.VarChar(120)
+  label                String             @db.VarChar(160)
+  currentValueSnapshot Json?
+  userValueSnapshot    Json?
+  workingValue         Json?
+  decision             DraftFieldDecision @default(PENDING)
+  sortOrder            Int                @default(0)
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+  submissionDraft      SubmissionDraft    @relation(fields: [submissionDraftId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionDraftId, fieldKey])
+  @@index([submissionDraftId, sortOrder])
+  @@map("submission_draft_items")
 }
 
 model PlaceUpdateSubmission {
@@ -150,12 +558,19 @@ model PlaceUpdateSubmission {
   rejectionReason        String?               @db.VarChar(1000)
   moderatedAt            DateTime?             @db.Timestamptz(3)
   moderatedByAdminUserId String?               @db.Uuid
+  targetPlaceId          String?               @db.Uuid
+  publishedPlaceId       String?               @db.Uuid
+  publishedAt            DateTime?             @db.Timestamptz(3)
   createdAt              DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt              DateTime              @updatedAt @db.Timestamptz(3)
   moderatedBy            AdminUser?            @relation("PlaceUpdateModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
+  targetPlace            Place?                @relation("SubmissionTargetPlace", fields: [targetPlaceId], references: [id], onDelete: SetNull)
+  publishedPlace         Place?                @relation("PublishedUpdatePlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
+  draft                  SubmissionDraft?
 
   @@index([moderationStatus, createdAt])
   @@index([placeSlug])
+  @@index([targetPlaceId])
   @@map("place_update_submissions")
 }
 
@@ -195,10 +610,15 @@ model NewPlaceSubmission {
   rejectionReason                 String?               @db.VarChar(1000)
   moderatedAt                     DateTime?             @db.Timestamptz(3)
   moderatedByAdminUserId          String?               @db.Uuid
+  publishedPlaceId                String?               @db.Uuid
+  publishedAt                     DateTime?             @db.Timestamptz(3)
   createdAt                       DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt                       DateTime              @updatedAt @db.Timestamptz(3)
   moderatedBy                     AdminUser?            @relation("NewPlaceModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
+  publishedPlace                  Place?                @relation("PublishedNewPlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
+  draft                           SubmissionDraft?
 
   @@index([moderationStatus, createdAt])
+  @@index([publishedPlaceId])
   @@map("new_place_submissions")
 }

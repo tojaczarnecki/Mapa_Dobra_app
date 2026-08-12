@@ -33,7 +33,7 @@ export function SubmissionList({
           <li key={`${item.kind}-${item.id}`}>
             <Link
               href={`/admin/zgloszenia/${item.id}`}
-              className={`grid min-w-0 gap-3 px-5 transition hover:bg-brand-soft/45 md:grid-cols-[minmax(0,1.4fr)_minmax(150px,.8fr)_150px_130px_32px] md:items-center md:gap-4 ${compact ? "py-3.5" : "py-4"}`}
+                className={`grid min-w-0 gap-2.5 px-4 transition hover:bg-brand-soft/45 sm:px-5 md:grid-cols-[minmax(0,1.4fr)_minmax(150px,.8fr)_150px_130px_32px] md:items-center md:gap-4 ${compact ? "py-3" : "py-3.5"}`}
             >
               <div className="min-w-0">
                 <span className="mb-1 block text-xs font-bold text-brand-strong">{item.typeLabel}</span>

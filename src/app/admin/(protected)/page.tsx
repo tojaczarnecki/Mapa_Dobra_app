@@ -22,7 +22,7 @@ export default async function AdminDashboardPage() {
   const { metrics, latest } = await getDashboardData();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-1 text-sm font-bold text-brand-strong">Panel administratora</p>
@@ -44,19 +44,19 @@ export default async function AdminDashboardPage() {
         <h2 id="queue-status-heading" className="mb-4 text-lg font-bold">
           Status zgłoszeń
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {metrics.map((metric) => (
             <Link
               key={metric.status}
               href={metricLinks[metric.status]}
-              className="rounded-lg border border-border bg-white p-5 transition hover:border-brand hover:shadow-sm"
+              className="rounded-lg border border-border bg-white p-4 transition hover:border-brand hover:shadow-sm"
               aria-label={`${moderationStatusLabels[metric.status]}: ${metric.total}`}
             >
               <p className="text-sm font-bold text-muted-foreground">
                 {metricDescriptions[metric.status]}
               </p>
-              <p className="mt-2 text-3xl font-bold">{metric.total}</p>
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
+              <p className="mt-1.5 text-3xl font-bold leading-none">{metric.total}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-2.5 text-xs text-muted-foreground">
                 <span>Zmiany: <strong className="text-foreground">{metric.placeUpdates}</strong></span>
                 <span>Nowe: <strong className="text-foreground">{metric.newPlaces}</strong></span>
               </div>

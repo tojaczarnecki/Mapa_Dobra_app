@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlaceDetailView } from "@/components/place-details/place-detail-view";
-import { demoPlaceDetails, getDemoPlaceDetail } from "@/data/demo-place-details";
+import { getPublicPlaceDetail } from "@/lib/places/public-data";
 
 type PlaceDetailPageProps = {
   params: Promise<{
@@ -10,18 +10,11 @@ type PlaceDetailPageProps = {
   }>;
 };
 
-export function generateStaticParams() {
-  return demoPlaceDetails.map((place) => ({
-    kategoria: place.categorySlug,
-    slug: place.slug,
-  }));
-}
-
 export async function generateMetadata({
   params,
 }: PlaceDetailPageProps): Promise<Metadata> {
   const { kategoria, slug } = await params;
-  const place = getDemoPlaceDetail(kategoria, slug);
+  const place = await getPublicPlaceDetail(kategoria, slug);
 
   if (!place) {
     return {
@@ -37,7 +30,7 @@ export async function generateMetadata({
 
 export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) {
   const { kategoria, slug } = await params;
-  const place = getDemoPlaceDetail(kategoria, slug);
+  const place = await getPublicPlaceDetail(kategoria, slug);
 
   if (!place) {
     notFound();

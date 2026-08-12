@@ -37,7 +37,7 @@ export default async function AdminSubmissionsPage({
   const items = await getSubmissionSummaries({ status, kind, sort: sortValue });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <header>
         <p className="mb-1 text-sm font-bold text-brand-strong">Moderacja</p>
         <h1 className="text-3xl font-bold">Zgłoszenia</h1>
@@ -48,10 +48,10 @@ export default async function AdminSubmissionsPage({
 
       <form
         method="get"
-        className="grid gap-3 rounded-lg border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end"
+        className="grid gap-2.5 rounded-lg border border-border bg-white p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end"
       >
         <label className="text-sm font-bold">
-          <span className="mb-2 block">Status</span>
+          <span className="mb-1.5 block">Status</span>
           <select
             name="status"
             defaultValue={statusKey in statusValues ? statusKey : "all"}
@@ -65,7 +65,7 @@ export default async function AdminSubmissionsPage({
           </select>
         </label>
         <label className="text-sm font-bold">
-          <span className="mb-2 block">Typ</span>
+          <span className="mb-1.5 block">Typ</span>
           <select
             name="type"
             defaultValue={typeKey in kindValues ? typeKey : "all"}
@@ -77,7 +77,7 @@ export default async function AdminSubmissionsPage({
           </select>
         </label>
         <label className="text-sm font-bold">
-          <span className="mb-2 block">Sortowanie</span>
+          <span className="mb-1.5 block">Sortowanie</span>
           <select
             name="sort"
             defaultValue={sortValue}
