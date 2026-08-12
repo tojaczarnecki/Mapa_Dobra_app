@@ -14,6 +14,11 @@ enum ModerationStatus {
   REJECTED
 }
 
+enum SubmissionPublicationStatus {
+  NOT_PUBLISHED
+  PUBLISHED
+}
+
 enum PlaceUpdateType {
   HOURS                      @map("hours")
   ADDRESS                    @map("address")
@@ -76,6 +81,7 @@ enum AuditAction {
   PLACE_STATUS_CHANGED
   AVAILABILITY_UPDATED
   DRAFT_SAVED
+  DRAFT_REBASED
   SUBMISSION_PUBLISHED
 }
 
@@ -510,6 +516,8 @@ model SubmissionDraft {
   targetPlaceId           String?                @db.Uuid
   createdByAdminUserId    String                 @db.Uuid
   updatedByAdminUserId    String                 @db.Uuid
+  basePlaceUpdatedAt      DateTime?              @db.Timestamptz(3)
+  basePlaceSnapshot       Json?
   createdAt               DateTime               @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime               @updatedAt @db.Timestamptz(3)
   placeUpdateSubmission   PlaceUpdateSubmission? @relation(fields: [placeUpdateSubmissionId], references: [id], onDelete: Cascade)
@@ -543,36 +551,37 @@ model SubmissionDraftItem {
 }
 
 model PlaceUpdateSubmission {
-  id                     String                @id @default(uuid()) @db.Uuid
-  requestId              String                @unique @db.Uuid
-  placeId                String?               @db.VarChar(200)
-  placeSlug              String?               @db.VarChar(200)
-  placeNameSnapshot      String                @db.VarChar(250)
+  id                     String                      @id @default(uuid()) @db.Uuid
+  requestId              String                      @unique @db.Uuid
+  placeId                String?                     @db.VarChar(200)
+  placeSlug              String?                     @db.VarChar(200)
+  placeNameSnapshot      String                      @db.VarChar(250)
   submissionTypes        PlaceUpdateType[]
-  description            String                @db.VarChar(4000)
-  proposedPhone          String?               @db.VarChar(50)
-  proposedAddress        String?               @db.VarChar(400)
-  proposedOpeningHours   String?               @db.VarChar(1200)
-  proposedWebsite        String?               @db.VarChar(2048)
-  proposedOtherValue     String?               @db.VarChar(2000)
+  description            String                      @db.VarChar(4000)
+  proposedPhone          String?                     @db.VarChar(50)
+  proposedAddress        String?                     @db.VarChar(400)
+  proposedOpeningHours   String?                     @db.VarChar(1200)
+  proposedWebsite        String?                     @db.VarChar(2048)
+  proposedOtherValue     String?                     @db.VarChar(2000)
   sourceType             SubmissionSourceType?
-  sourceUrl              String?               @db.VarChar(2048)
-  reporterName           String?               @db.VarChar(160)
-  reporterEmail          String?               @db.VarChar(320)
-  reporterPhone          String?               @db.VarChar(50)
-  moderationStatus       ModerationStatus      @default(PENDING)
-  moderatorNote          String?               @db.VarChar(2000)
-  rejectionReason        String?               @db.VarChar(1000)
-  moderatedAt            DateTime?             @db.Timestamptz(3)
-  moderatedByAdminUserId String?               @db.Uuid
-  targetPlaceId          String?               @db.Uuid
-  publishedPlaceId       String?               @db.Uuid
-  publishedAt            DateTime?             @db.Timestamptz(3)
-  createdAt              DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt              DateTime              @updatedAt @db.Timestamptz(3)
-  moderatedBy            AdminUser?            @relation("PlaceUpdateModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
-  targetPlace            Place?                @relation("SubmissionTargetPlace", fields: [targetPlaceId], references: [id], onDelete: SetNull)
-  publishedPlace         Place?                @relation("PublishedUpdatePlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
+  sourceUrl              String?                     @db.VarChar(2048)
+  reporterName           String?                     @db.VarChar(160)
+  reporterEmail          String?                     @db.VarChar(320)
+  reporterPhone          String?                     @db.VarChar(50)
+  moderationStatus       ModerationStatus            @default(PENDING)
+  publicationStatus      SubmissionPublicationStatus @default(NOT_PUBLISHED)
+  moderatorNote          String?                     @db.VarChar(2000)
+  rejectionReason        String?                     @db.VarChar(1000)
+  moderatedAt            DateTime?                   @db.Timestamptz(3)
+  moderatedByAdminUserId String?                     @db.Uuid
+  targetPlaceId          String?                     @db.Uuid
+  publishedPlaceId       String?                     @db.Uuid
+  publishedAt            DateTime?                   @db.Timestamptz(3)
+  createdAt              DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                    @updatedAt @db.Timestamptz(3)
+  moderatedBy            AdminUser?                  @relation("PlaceUpdateModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
+  targetPlace            Place?                      @relation("SubmissionTargetPlace", fields: [targetPlaceId], references: [id], onDelete: SetNull)
+  publishedPlace         Place?                      @relation("PublishedUpdatePlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
   draft                  SubmissionDraft?
 
   @@index([moderationStatus, createdAt])
@@ -582,47 +591,48 @@ model PlaceUpdateSubmission {
 }
 
 model NewPlaceSubmission {
-  id                              String                @id @default(uuid()) @db.Uuid
-  requestId                       String                @unique @db.Uuid
-  name                            String                @db.VarChar(250)
-  organizationName                String?               @db.VarChar(250)
+  id                              String                      @id @default(uuid()) @db.Uuid
+  requestId                       String                      @unique @db.Uuid
+  name                            String                      @db.VarChar(250)
+  organizationName                String?                     @db.VarChar(250)
   categories                      HelpCategory[]
-  streetAddress                   String?               @db.VarChar(300)
-  postalCode                      String?               @db.VarChar(20)
-  city                            String                @db.VarChar(120)
-  district                        String?               @db.VarChar(120)
-  phone                           String?               @db.VarChar(50)
-  email                           String?               @db.VarChar(320)
-  website                         String?               @db.VarChar(2048)
-  openingHoursDescription         String?               @db.VarChar(1200)
-  description                     String?               @db.VarChar(4000)
+  streetAddress                   String?                     @db.VarChar(300)
+  postalCode                      String?                     @db.VarChar(20)
+  city                            String                      @db.VarChar(120)
+  district                        String?                     @db.VarChar(120)
+  phone                           String?                     @db.VarChar(50)
+  email                           String?                     @db.VarChar(320)
+  website                         String?                     @db.VarChar(2048)
+  openingHoursDescription         String?                     @db.VarChar(1200)
+  description                     String?                     @db.VarChar(4000)
   requirements                    String[]
   sourceType                      SubmissionSourceType?
-  sourceUrl                       String?               @db.VarChar(2048)
-  reporterName                    String?               @db.VarChar(160)
-  reporterEmail                   String?               @db.VarChar(320)
-  reporterPhone                   String?               @db.VarChar(50)
-  accommodationType               String?               @db.VarChar(160)
+  sourceUrl                       String?                     @db.VarChar(2048)
+  reporterName                    String?                     @db.VarChar(160)
+  reporterEmail                   String?                     @db.VarChar(320)
+  reporterPhone                   String?                     @db.VarChar(50)
+  accommodationType               String?                     @db.VarChar(160)
   targetGroups                    String[]
   availabilityKnown               InformationState?
   availableBedsReported           Int?
-  availabilityReportedAt          DateTime?             @db.Timestamptz(3)
-  availabilityReportedDescription String?               @db.VarChar(240)
-  admissionHoursDescription       String?               @db.VarChar(1200)
-  sobrietyPolicy                  String?               @db.VarChar(240)
-  petPolicy                       String?               @db.VarChar(240)
+  availabilityReportedAt          DateTime?                   @db.Timestamptz(3)
+  availabilityReportedDescription String?                     @db.VarChar(240)
+  admissionHoursDescription       String?                     @db.VarChar(1200)
+  sobrietyPolicy                  String?                     @db.VarChar(240)
+  petPolicy                       String?                     @db.VarChar(240)
   accessibilityFeatures           String[]
-  moderationStatus                ModerationStatus      @default(PENDING)
-  moderatorNote                   String?               @db.VarChar(2000)
-  rejectionReason                 String?               @db.VarChar(1000)
-  moderatedAt                     DateTime?             @db.Timestamptz(3)
-  moderatedByAdminUserId          String?               @db.Uuid
-  publishedPlaceId                String?               @db.Uuid
-  publishedAt                     DateTime?             @db.Timestamptz(3)
-  createdAt                       DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt                       DateTime              @updatedAt @db.Timestamptz(3)
-  moderatedBy                     AdminUser?            @relation("NewPlaceModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
-  publishedPlace                  Place?                @relation("PublishedNewPlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
+  moderationStatus                ModerationStatus            @default(PENDING)
+  publicationStatus               SubmissionPublicationStatus @default(NOT_PUBLISHED)
+  moderatorNote                   String?                     @db.VarChar(2000)
+  rejectionReason                 String?                     @db.VarChar(1000)
+  moderatedAt                     DateTime?                   @db.Timestamptz(3)
+  moderatedByAdminUserId          String?                     @db.Uuid
+  publishedPlaceId                String?                     @db.Uuid
+  publishedAt                     DateTime?                   @db.Timestamptz(3)
+  createdAt                       DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt                       DateTime                    @updatedAt @db.Timestamptz(3)
+  moderatedBy                     AdminUser?                  @relation("NewPlaceModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
+  publishedPlace                  Place?                      @relation("PublishedNewPlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
   draft                           SubmissionDraft?
 
   @@index([moderationStatus, createdAt])

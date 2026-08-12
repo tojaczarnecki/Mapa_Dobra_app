@@ -5,9 +5,15 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin/session";
 import { validatePlaceAdminPayload } from "@/lib/places/admin-validation";
+import { deriveTodayHoursLabel, openingRows } from "@/lib/places/opening-hours";
+import {
+  requiresOperationalStatusOnRepublish,
+  validatePlaceStatusCombination,
+} from "@/lib/places/publication-status";
 import type {
   PlaceAdminPayload,
   PlaceFormActionState,
+  PlaceOperationalStatusValue,
   PlacePublicationStatusValue,
 } from "@/types/place-admin";
 
@@ -28,52 +34,6 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "")
     .slice(0, 200);
-}
-
-function openingRows(payload: PlaceAdminPayload) {
-  const schedules = [
-    ...payload.openingHours.operation.map((day) => ({ ...day, kind: "OPERATION" as const })),
-    ...(payload.isAccommodation
-      ? payload.openingHours.admission.map((day) => ({ ...day, kind: "ADMISSION" as const }))
-      : []),
-  ];
-
-  type OpeningRow = {
-    kind: "OPERATION" | "ADMISSION";
-    weekday: (typeof schedules)[number]["weekday"];
-    status: (typeof schedules)[number]["status"];
-    opensAt: string | null;
-    closesAt: string | null;
-    note: string | null;
-    sortOrder: number;
-  };
-  const rows: OpeningRow[] = [];
-  for (const day of schedules) {
-    if (day.status !== "OPEN") {
-      rows.push({
-        kind: day.kind,
-        weekday: day.weekday,
-        status: day.status,
-        opensAt: null,
-        closesAt: null,
-        note: day.note || null,
-        sortOrder: 0,
-      });
-      continue;
-    }
-    day.periods.forEach((period, sortOrder) => {
-      rows.push({
-        kind: day.kind,
-        weekday: day.weekday,
-        status: "OPEN",
-        opensAt: period.opensAt || null,
-        closesAt: period.closesAt || null,
-        note: day.note || null,
-        sortOrder,
-      });
-    });
-  }
-  return rows;
 }
 
 function placeScalarData(
@@ -102,7 +62,7 @@ function placeScalarData(
     website: payload.website || null,
     socialMedia: payload.socialMedia || null,
     operationalStatus: payload.operationalStatus,
-    todayHoursLabel: payload.todayHoursLabel || null,
+    todayHoursLabel: deriveTodayHoursLabel(payload.openingHours.operation),
     audience: payload.audience,
     services: payload.services,
     internalNote: payload.internalNote || null,
@@ -213,7 +173,11 @@ export async function savePlace(
   }
   const validation = validatePlaceAdminPayload(input);
   if (!validation.ok) {
-    return { error: "Sprawdź wymagane pola i poprawność wprowadzonych danych." };
+    return {
+      error: validation.reason === "invalid-fields"
+        ? "Sprawdź wymagane pola i poprawność wprowadzonych danych."
+        : validation.reason,
+    };
   }
   const payload = validation.data;
 
@@ -290,7 +254,10 @@ export async function savePlace(
         })),
       });
       await transaction.openingHours.createMany({
-        data: openingRows(payload).map((item) => ({ ...item, placeId: place.id })),
+        data: [
+          ...openingRows(payload.openingHours.operation, "OPERATION"),
+          ...(payload.isAccommodation ? openingRows(payload.openingHours.admission, "ADMISSION") : []),
+        ].map((item) => ({ ...item, placeId: place.id })),
       });
       await transaction.placeRequirement.createMany({
         data: payload.requirements.map((item, sortOrder) => ({
@@ -468,6 +435,7 @@ export async function changePlaceStatus(
   const session = await requireAdmin();
   const placeId = formData.get("placeId");
   const status = formData.get("status");
+  const operationalStatus = formData.get("operationalStatus");
   if (
     typeof placeId !== "string" ||
     !uuidPattern.test(placeId) ||
@@ -485,14 +453,27 @@ export async function changePlaceStatus(
       });
       if (!current) throw new Error("NOT_FOUND");
       const targetStatus = status as PlacePublicationStatusValue;
+      const needsExplicitOperationalStatus = requiresOperationalStatusOnRepublish(
+        current.publicationStatus,
+        targetStatus,
+      );
+      const validOperationalStatuses: PlaceOperationalStatusValue[] = ["OPEN", "CLOSED", "OPEN_TODAY", "UNKNOWN"];
+      const selectedOperationalStatus =
+        typeof operationalStatus === "string" && validOperationalStatuses.includes(operationalStatus as PlaceOperationalStatusValue)
+          ? operationalStatus as PlaceOperationalStatusValue
+          : null;
+      if (needsExplicitOperationalStatus && !selectedOperationalStatus) throw new Error("OPERATIONAL_REQUIRED");
+      const nextOperationalStatus = targetStatus === "TEMPORARILY_CLOSED" || targetStatus === "PERMANENTLY_CLOSED"
+        ? "CLOSED" as const
+        : selectedOperationalStatus ?? current.operationalStatus;
+      const combination = validatePlaceStatusCombination(targetStatus, nextOperationalStatus);
+      if (!combination.ok) throw new Error("STATUS_CONFLICT");
       await transaction.place.update({
         where: { id: placeId },
         data: {
           publicationStatus: targetStatus,
           lastEditedByAdminUserId: session.user.id,
-          ...(targetStatus === "TEMPORARILY_CLOSED" || targetStatus === "PERMANENTLY_CLOSED"
-            ? { operationalStatus: "CLOSED" }
-            : {}),
+          operationalStatus: nextOperationalStatus,
         },
       });
       await transaction.auditLog.create({
@@ -501,9 +482,9 @@ export async function changePlaceStatus(
           action: targetStatus === "PUBLISHED" ? "PLACE_PUBLISHED" : "PLACE_STATUS_CHANGED",
           entityType: "PLACE",
           entityId: placeId,
-          changedFields: ["publicationStatus"],
-          previousValues: { publicationStatus: current.publicationStatus },
-          newValues: { publicationStatus: targetStatus },
+          changedFields: ["publicationStatus", "operationalStatus"],
+          previousValues: { publicationStatus: current.publicationStatus, operationalStatus: current.operationalStatus },
+          newValues: { publicationStatus: targetStatus, operationalStatus: nextOperationalStatus },
           changeOrigin: "ADMIN_MANUAL",
         },
       });
@@ -513,7 +494,14 @@ export async function changePlaceStatus(
     revalidatePath("/szukaj");
     revalidatePath("/mapa");
     return { success: "Status miejsca został zmieniony.", placeId };
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "OPERATIONAL_REQUIRED") {
+      return { error: "Wybierz aktualny stan operacyjny przed ponownym opublikowaniem miejsca." };
+    }
+    if (reason === "STATUS_CONFLICT") {
+      return { error: "Wybrany status publikacji jest sprzeczny ze stanem operacyjnym miejsca." };
+    }
     return { error: "Nie udało się zmienić statusu miejsca." };
   }
 }

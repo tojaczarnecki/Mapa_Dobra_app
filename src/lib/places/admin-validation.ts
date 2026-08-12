@@ -4,32 +4,22 @@ import type {
   AccommodationTypeValue,
   AdminAccessibility,
   AdminAccommodation,
-  AdminOpeningDay,
   AdminRequirement,
-  OpeningStatusValue,
   PetPolicyValue,
   PlaceAdminPayload,
+  PlacePublicationStatusValue,
   PlaceOperationalStatusValue,
   RequirementKindValue,
   SobrietyPolicyValue,
   TriState,
   VerificationSourceValue,
-  WeekdayValue,
 } from "@/types/place-admin";
+import { validateOpeningSchedule } from "./opening-hours.ts";
+import { validatePlaceStatusCombination } from "./publication-status.ts";
 
 type UnknownRecord = Record<string, unknown>;
 
 const triStates: TriState[] = ["YES", "NO", "UNKNOWN"];
-const weekdays: WeekdayValue[] = [
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY",
-  "SUNDAY",
-];
-const openingStatuses: OpeningStatusValue[] = ["OPEN", "CLOSED", "UNKNOWN"];
 const requirementKinds: RequirementKindValue[] = [
   "REFERRAL",
   "DOCUMENT",
@@ -55,6 +45,13 @@ const operationalStatuses: PlaceOperationalStatusValue[] = [
   "CLOSED",
   "OPEN_TODAY",
   "UNKNOWN",
+];
+const publicationStatuses: PlacePublicationStatusValue[] = [
+  "DRAFT",
+  "PUBLISHED",
+  "TEMPORARILY_CLOSED",
+  "PERMANENTLY_CLOSED",
+  "ARCHIVED",
 ];
 const accommodationTypes: AccommodationTypeValue[] = [
   "SHELTER",
@@ -98,7 +95,6 @@ const verificationSources: VerificationSourceValue[] = [
   "OTHER",
 ];
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const timePattern = /^\d{2}:\d{2}$/u;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -133,42 +129,6 @@ function optionalNumber(value: unknown, min: number, max: number) {
   return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max
     ? value
     : undefined;
-}
-
-function openingDays(value: unknown) {
-  if (!Array.isArray(value) || value.length !== 7) return null;
-  const parsed: AdminOpeningDay[] = [];
-  for (const rawDay of value) {
-    if (!isRecord(rawDay)) return null;
-    const weekday = enumValue(rawDay.weekday, weekdays);
-    const status = enumValue(rawDay.status, openingStatuses);
-    const note = text(rawDay.note, 240);
-    if (!weekday || !status || note === null || !Array.isArray(rawDay.periods) || rawDay.periods.length > 3) {
-      return null;
-    }
-    const periods: AdminOpeningDay["periods"] = [];
-    if (status === "OPEN") {
-      if (rawDay.periods.length < 1) return null;
-      for (const rawPeriod of rawDay.periods) {
-        if (!isRecord(rawPeriod)) return null;
-        const opensAt = text(rawPeriod.opensAt, 5);
-        const closesAt = text(rawPeriod.closesAt, 5);
-        if (
-          opensAt === null ||
-          closesAt === null ||
-          (opensAt && !timePattern.test(opensAt)) ||
-          (closesAt && !timePattern.test(closesAt)) ||
-          (!opensAt && !closesAt)
-        ) {
-          return null;
-        }
-        periods.push({ opensAt, closesAt });
-      }
-    }
-    parsed.push({ weekday, status, periods, note });
-  }
-  if (new Set(parsed.map((day) => day.weekday)).size !== 7) return null;
-  return parsed;
 }
 
 function requirements(value: unknown) {
@@ -323,6 +283,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const email = text(value.email, 320);
   const website = text(value.website, 2048);
   const socialMedia = text(value.socialMedia, 2048);
+  const publicationStatus = enumValue(value.publicationStatus, publicationStatuses);
   const operationalStatus = enumValue(value.operationalStatus, operationalStatuses);
   const todayHoursLabel = text(value.todayHoursLabel, 240);
   const audience = stringArray(value.audience);
@@ -334,8 +295,12 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const isAccommodation = value.isAccommodation === true;
   const parsedAccommodation = isAccommodation ? accommodation(value.accommodation) : undefined;
   const rawHours = isRecord(value.openingHours) ? value.openingHours : null;
-  const operation = rawHours ? openingDays(rawHours.operation) : null;
-  const admission = rawHours ? openingDays(rawHours.admission) : null;
+  const operationResult = rawHours ? validateOpeningSchedule(rawHours.operation) : null;
+  const admissionResult = rawHours ? validateOpeningSchedule(rawHours.admission) : null;
+  if (operationResult && !operationResult.ok) return { ok: false, reason: `Godziny działania: ${operationResult.error}` };
+  if (admissionResult && !admissionResult.ok) return { ok: false, reason: `Godziny przyjęć: ${admissionResult.error}` };
+  const operation = operationResult?.ok ? operationResult.days : null;
+  const admission = admissionResult?.ok ? admissionResult.days : null;
   const parsedRequirements = requirements(value.requirements);
   const parsedAccessibility = accessibility(value.accessibility);
 
@@ -366,6 +331,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
     (email && !emailPattern.test(email)) ||
     website === null ||
     socialMedia === null ||
+    !publicationStatus ||
     !operationalStatus ||
     todayHoursLabel === null ||
     !audience ||
@@ -380,6 +346,9 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   ) {
     return { ok: false, reason: "invalid-fields" };
   }
+
+  const statusValidation = validatePlaceStatusCombination(publicationStatus, operationalStatus);
+  if (!statusValidation.ok) return { ok: false, reason: statusValidation.error };
 
   for (const candidate of [website, socialMedia]) {
     if (!candidate) continue;
@@ -416,6 +385,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
       email,
       website,
       socialMedia,
+      publicationStatus,
       operationalStatus,
       todayHoursLabel,
       audience,

@@ -102,6 +102,7 @@ function placePayload(id) {
     email: "test-place@example.com",
     website: "https://example.com/test-place",
     socialMedia: "",
+    publicationStatus: "DRAFT",
     operationalStatus: "OPEN_TODAY",
     todayHoursLabel: "Dzisiaj 18:00-22:00",
     audience: ["mężczyźni", "osoby w kryzysie bezdomności"],
@@ -178,11 +179,121 @@ async function publishDraft(cookie, submissionId, transform) {
   await submitAction(path, cookie, form, { items: JSON.stringify(items), note: "TEST publikacja integracyjna" });
 }
 
+async function testStaleDraft(cookie, place) {
+  const result = await submitJson("/api/submissions/place-update", {
+    requestId: crypto.randomUUID(),
+    placeId: place.id,
+    placeSlug: place.slug,
+    placeReference: place.name,
+    reportTypes: ["phone"],
+    description: "TEST konflikt wersji miejsca.",
+    proposedData: { phone: "+48509999888", hours: "", address: "", closedSince: "" },
+    source: { type: "phone", url: "" },
+    submitterContact: { name: "TEST Konflikt", email: "test@example.com", phone: "" },
+    protection: { contactWebsite: "" },
+  });
+  const path = `/admin/zgloszenia/${result.id}`;
+  const html = await getHtml(path, cookie);
+  const form = findForm(html, (fields, body) => fields.has("draftId") && fields.has("items") && body.includes('name="note"'));
+  const items = JSON.parse(form.get("items"));
+  const phone = items.find((item) => item.fieldKey === "phone");
+  phone.workingValue = "+48 509 999 888";
+  phone.decision = "INCLUDE";
+  await prisma.place.update({ where: { id: place.id }, data: { internalNote: `TEST konflikt ${stamp}` } });
+  await submitAction(path, cookie, form, { items: JSON.stringify(items), note: "TEST konflikt" });
+  const [submission, unchangedPlace, publicationLogs] = await Promise.all([
+    prisma.placeUpdateSubmission.findUniqueOrThrow({ where: { id: result.id }, include: { draft: { include: { items: true } } } }),
+    prisma.place.findUniqueOrThrow({ where: { id: place.id } }),
+    prisma.auditLog.count({ where: { sourceReferenceId: result.id, action: "SUBMISSION_PUBLISHED" } }),
+  ]);
+  assert.equal(submission.publicationStatus, "NOT_PUBLISHED");
+  assert.equal(submission.publishedPlaceId, null);
+  assert.equal(unchangedPlace.phone, place.phone);
+  assert.equal(publicationLogs, 0);
+  assert.equal(submission.draft.items.find((item) => item.fieldKey === "phone").workingValue, "+48 509 999 888");
+  const conflictHtml = await getHtml(path, cookie);
+  assert.match(conflictHtml, /Dane miejsca zmieniły się od czasu rozpoczęcia moderacji/u);
+  const rebaseForm = findForm(conflictHtml, (fields, body) => fields.get("draftId") === submission.draft.id && fields.has("items") && body.includes("rebase"));
+  await submitAction(path, cookie, rebaseForm);
+  const rebased = await prisma.submissionDraft.findUniqueOrThrow({ where: { id: submission.draft.id }, include: { items: true } });
+  assert.equal(rebased.basePlaceUpdatedAt.getTime(), unchangedPlace.updatedAt.getTime());
+  assert.equal(rebased.items.find((item) => item.fieldKey === "phone").workingValue, "+48 509 999 888");
+  return result.id;
+}
+
+async function testTransactionalRollback(cookie, place) {
+  const result = await submitJson("/api/submissions/place-update", {
+    requestId: crypto.randomUUID(),
+    placeId: place.id,
+    placeSlug: place.slug,
+    placeReference: place.name,
+    reportTypes: ["phone"],
+    description: "TEST rollback publikacji.",
+    proposedData: { phone: "+48507777666", hours: "", address: "", closedSince: "" },
+    source: { type: "phone", url: "" },
+    submitterContact: { name: "TEST Rollback", email: "test@example.com", phone: "" },
+    protection: { contactWebsite: "" },
+  });
+  const path = `/admin/zgloszenia/${result.id}`;
+  await getHtml(path, cookie);
+  const draft = await prisma.submissionDraft.findFirstOrThrow({ where: { placeUpdateSubmissionId: result.id }, include: { items: true } });
+  await prisma.submissionDraftItem.create({ data: {
+    submissionDraftId: draft.id,
+    fieldKey: "categorySlugs",
+    label: "Kategorie",
+    currentValueSnapshot: "nocleg\nhigiena",
+    userValueSnapshot: "nieistniejaca-kategoria-testowa",
+    workingValue: "nieistniejaca-kategoria-testowa",
+    decision: "INCLUDE",
+    sortOrder: 99,
+  } });
+  const html = await getHtml(path, cookie);
+  const form = findForm(html, (fields, body) => fields.has("draftId") && fields.has("items") && body.includes('name="note"'));
+  const items = JSON.parse(form.get("items"));
+  const phone = items.find((item) => item.fieldKey === "phone");
+  phone.workingValue = "+48 507 777 666";
+  phone.decision = "INCLUDE";
+  await submitAction(path, cookie, form, { items: JSON.stringify(items), note: "TEST rollback" });
+  const [submission, unchangedPlace, publicationLogs] = await Promise.all([
+    prisma.placeUpdateSubmission.findUniqueOrThrow({ where: { id: result.id } }),
+    prisma.place.findUniqueOrThrow({ where: { id: place.id } }),
+    prisma.auditLog.count({ where: { sourceReferenceId: result.id } }),
+  ]);
+  assert.equal(submission.publicationStatus, "NOT_PUBLISHED");
+  assert.equal(submission.publishedPlaceId, null);
+  assert.equal(unchangedPlace.phone, place.phone);
+  assert.equal(publicationLogs, 0);
+  return result.id;
+}
+
+async function testLegacyApprovedPreparation(cookie) {
+  const legacy = await prisma.placeUpdateSubmission.findFirst({
+    where: { moderationStatus: "APPROVED", publicationStatus: "NOT_PUBLISHED", publishedPlaceId: null },
+    include: { draft: true },
+    orderBy: { createdAt: "asc" },
+  });
+  assert.ok(legacy, "Expected an older approved, unpublished submission.");
+  const path = `/admin/zgloszenia/${legacy.id}`;
+  const html = await getHtml(path, cookie);
+  if (!legacy.draft) {
+    assert.match(html, /Przygotuj do publikacji/u);
+    const form = findForm(html, (fields) => fields.get("submissionId") === legacy.id);
+    await submitAction(path, cookie, form);
+  }
+  const prepared = await prisma.placeUpdateSubmission.findUniqueOrThrow({ where: { id: legacy.id }, include: { draft: true } });
+  assert.ok(prepared.draft);
+  assert.equal(prepared.moderationStatus, "APPROVED");
+  assert.equal(prepared.publicationStatus, "NOT_PUBLISHED");
+  assert.equal(prepared.publishedPlaceId, null);
+  return legacy.id;
+}
+
 async function main() {
   const cookie = await login();
 
   await savePlace(cookie, placePayload(), "/admin/miejsca/nowe");
   let manualPlace = await prisma.place.findUniqueOrThrow({ where: { slug: manualSlug }, include: { accommodation: { include: { capacityGroups: true, availabilityHistory: true } } } });
+  await prisma.place.update({ where: { id: manualPlace.id }, data: { recordKind: "TEST" } });
   const originalGroupId = manualPlace.accommodation.capacityGroups[0].id;
   const editedPayload = placePayload(manualPlace.id);
   editedPayload.accommodation.capacityGroups[0].id = originalGroupId;
@@ -200,14 +311,14 @@ async function main() {
   await submitAction(`/admin/miejsca/${manualPlace.id}`, cookie, publishForm);
   assert.equal((await prisma.place.findUniqueOrThrow({ where: { id: manualPlace.id } })).publicationStatus, "PUBLISHED");
 
-  const oldHours = manualPlace.todayHoursLabel;
+  const oldRequirements = manualPlace.requirements.map((item) => item.label);
   const updateResult = await submitJson("/api/submissions/place-update", {
     requestId: crypto.randomUUID(),
     placeId: manualPlace.id,
     placeSlug: manualSlug,
     placeReference: manualPlace.name,
-    reportTypes: ["phone", "hours"],
-    description: "TEST: nowy telefon i zgłoszone godziny.",
+    reportTypes: ["phone", "hours", "requirements"],
+    description: "TEST: nowy telefon, godziny i błędna propozycja warunku.",
     proposedData: { phone: "+48501111222", hours: "TEST niepublikowane godziny", address: "", closedSince: "" },
     source: { type: "phone", url: "" },
     submitterContact: { name: "TEST Zgłaszający", email: "test@example.com", phone: "" },
@@ -216,14 +327,20 @@ async function main() {
   await publishDraft(cookie, updateResult.id, (items) => {
     for (const item of items) {
       if (item.fieldKey === "phone") { item.workingValue = "+48 501 111 222"; item.decision = "INCLUDE"; }
-      if (item.fieldKey === "todayHoursLabel") item.decision = "REJECT";
+      if (item.fieldKey === "openingHours.operation") {
+        item.workingValue = days([{ opensAt: "09:00", closesAt: "13:00" }, { opensAt: "15:00", closesAt: "19:00" }]);
+        item.decision = "INCLUDE";
+      }
+      if (item.fieldKey === "requirementsText") item.decision = "REJECT";
     }
   });
-  const updatedPlace = await prisma.place.findUniqueOrThrow({ where: { id: manualPlace.id } });
+  const updatedPlace = await prisma.place.findUniqueOrThrow({ where: { id: manualPlace.id }, include: { openingHours: true, requirements: true } });
   const updateSubmission = await prisma.placeUpdateSubmission.findUniqueOrThrow({ where: { id: updateResult.id } });
   assert.equal(updatedPlace.phone, "+48 501 111 222");
-  assert.equal(updatedPlace.todayHoursLabel, oldHours);
+  assert.deepEqual(updatedPlace.openingHours.filter((row) => row.kind === "OPERATION" && row.weekday === "MONDAY").map((row) => [row.opensAt, row.closesAt]), [["09:00", "13:00"], ["15:00", "19:00"]]);
+  assert.deepEqual(updatedPlace.requirements.map((item) => item.label), oldRequirements);
   assert.equal(updateSubmission.moderationStatus, "APPROVED");
+  assert.equal(updateSubmission.publicationStatus, "PUBLISHED");
   assert.equal(updateSubmission.publishedPlaceId, manualPlace.id);
 
   const newResult = await submitJson("/api/submissions/new-place", {
@@ -246,11 +363,26 @@ async function main() {
     const address = items.find((item) => item.fieldKey === "addressLine");
     address.workingValue = "ul. Piotrkowska 120, Łódź";
     address.decision = "INCLUDE";
+    const hours = items.find((item) => item.fieldKey === "openingHours.operation");
+    if (hours) {
+      hours.workingValue = days([{ opensAt: "10:00", closesAt: "16:00" }]);
+      hours.decision = "INCLUDE";
+    }
   });
   const newSubmission = await prisma.newPlaceSubmission.findUniqueOrThrow({ where: { id: newResult.id }, include: { publishedPlace: true } });
   assert.equal(newSubmission.moderationStatus, "APPROVED");
+  assert.equal(newSubmission.publicationStatus, "PUBLISHED");
   assert.equal(newSubmission.publishedPlace.addressLine, "ul. Piotrkowska 120, Łódź");
   assert.equal(newSubmission.publishedPlace.publicationStatus, "PUBLISHED");
+  const publishedHours = await prisma.openingHours.findMany({ where: { placeId: newSubmission.publishedPlaceId, kind: "OPERATION", weekday: "MONDAY" }, orderBy: { sortOrder: "asc" } });
+  assert.deepEqual(publishedHours.map((row) => [row.opensAt, row.closesAt]), [["10:00", "16:00"]]);
+  await prisma.place.update({ where: { id: newSubmission.publishedPlaceId }, data: { recordKind: "TEST" } });
+
+  const publicationAudit = await prisma.auditLog.findFirstOrThrow({ where: { sourceReferenceId: updateResult.id, action: "SUBMISSION_PUBLISHED" } });
+  assert.deepEqual(publicationAudit.newValues.rejectedFields, ["requirementsText"]);
+  const staleSubmissionId = await testStaleDraft(cookie, updatedPlace);
+  const rollbackSubmissionId = await testTransactionalRollback(cookie, await prisma.place.findUniqueOrThrow({ where: { id: updatedPlace.id } }));
+  const legacyApprovedSubmissionId = await testLegacyApprovedPreparation(cookie);
 
   const auditCount = await prisma.auditLog.count({ where: { OR: [{ entityId: manualPlace.id }, { sourceReferenceId: { in: [updateResult.id, newResult.id] } }] } });
   assert.ok(auditCount >= 7);
@@ -261,9 +393,13 @@ async function main() {
     updateSubmissionId: updateResult.id,
     newPlaceSubmissionId: newResult.id,
     publishedNewPlaceId: newSubmission.publishedPlaceId,
-    partialApproval: { phonePublished: true, hoursRejected: true },
+    partialApproval: { phonePublished: true, structuredHoursPublished: true, requirementsRejected: true },
     availabilityHistory: manualPlace.accommodation.availabilityHistory.length,
     relatedAuditLogs: auditCount,
+    structuralOpeningHours: true,
+    staleDraftBlocked: staleSubmissionId,
+    transactionRolledBack: rollbackSubmissionId,
+    legacyApprovedPrepared: legacyApprovedSubmissionId,
   }, null, 2));
 }
 

@@ -48,7 +48,12 @@ export function SubmissionList({
               <time className="text-xs text-muted-foreground" dateTime={item.createdAt.toISOString()}>
                 {formatAdminDate(item.createdAt)}
               </time>
-              <StatusBadge status={item.status} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusBadge status={item.status} />
+                {item.status === "APPROVED" && item.publicationStatus === "NOT_PUBLISHED" ? (
+                  <span className="text-xs font-bold text-[#8c2d0c]">Nieopublikowane</span>
+                ) : null}
+              </div>
               <ArrowRight aria-hidden="true" className="hidden text-brand-strong md:block" size={19} />
             </Link>
           </li>

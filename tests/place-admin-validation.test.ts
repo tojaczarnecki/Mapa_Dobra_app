@@ -33,6 +33,7 @@ function validPayload() {
     email: "miejsce@example.com",
     website: "https://example.com",
     socialMedia: "",
+    publicationStatus: "DRAFT",
     operationalStatus: "UNKNOWN",
     todayHoursLabel: "Brak danych",
     audience: ["osoby potrzebujące pomocy"],
@@ -68,6 +69,30 @@ test("admin place validation accepts multiple opening intervals", () => {
   };
   const result = validatePlaceAdminPayload(payload);
   assert.equal(result.ok, true);
+});
+
+test("admin place validation rejects overlapping opening intervals", () => {
+  const payload = validPayload();
+  payload.openingHours.operation[0] = {
+    weekday: "MONDAY",
+    status: "OPEN",
+    periods: [
+      { opensAt: "08:00", closesAt: "14:00" },
+      { opensAt: "13:00", closesAt: "17:00" },
+    ],
+    note: "",
+  };
+  const result = validatePlaceAdminPayload(payload);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.match(result.reason, /nakładają/u);
+});
+
+test("admin place validation rejects contradictory publication and operational statuses", () => {
+  const payload = validPayload();
+  payload.publicationStatus = "TEMPORARILY_CLOSED";
+  payload.operationalStatus = "OPEN";
+  const result = validatePlaceAdminPayload(payload);
+  assert.equal(result.ok, false);
 });
 
 test("admin place validation rejects invalid URLs", () => {

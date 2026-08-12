@@ -149,6 +149,7 @@ export type PlaceAdminPayload = {
   email: string;
   website: string;
   socialMedia: string;
+  publicationStatus: PlacePublicationStatusValue;
   operationalStatus: PlaceOperationalStatusValue;
   todayHoursLabel: string;
   audience: string[];

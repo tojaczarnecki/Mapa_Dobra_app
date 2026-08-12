@@ -1,4 +1,4 @@
-import type { ModerationStatus } from "@/generated/prisma/enums";
+import type { ModerationStatus, SubmissionPublicationStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import {
   categoryLabels,
@@ -17,6 +17,7 @@ export type AdminSubmissionSummary = {
   source: string | null;
   createdAt: Date;
   status: ModerationStatus;
+  publicationStatus: SubmissionPublicationStatus;
 };
 
 export type SubmissionFilters = {
@@ -28,6 +29,7 @@ export type SubmissionFilters = {
 const summaryOrderSelect = {
   id: true,
   moderationStatus: true,
+  publicationStatus: true,
   sourceType: true,
   createdAt: true,
 } as const;
@@ -75,6 +77,7 @@ export async function getSubmissionSummaries({
       source: submission.sourceType ? sourceTypeLabels[submission.sourceType] : null,
       createdAt: submission.createdAt,
       status: submission.moderationStatus,
+      publicationStatus: submission.publicationStatus,
     })),
     ...newPlaces.map((submission) => ({
       id: submission.id,
@@ -85,6 +88,7 @@ export async function getSubmissionSummaries({
       source: submission.sourceType ? sourceTypeLabels[submission.sourceType] : null,
       createdAt: submission.createdAt,
       status: submission.moderationStatus,
+      publicationStatus: submission.publicationStatus,
     })),
   ];
 

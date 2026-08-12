@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ClipboardList, LayoutDashboard, LogOut, MapPinned } from "lucide-react";
 import { logoutAdmin } from "@/app/admin/actions";
+import { UnsavedChangesProvider } from "@/components/admin/unsaved-changes";
 
 type AdminShellProps = {
   displayName: string;
@@ -17,7 +18,8 @@ const roleLabels: Record<string, string> = {
 
 export function AdminShell({ displayName, role, children }: AdminShellProps) {
   return (
-    <div className="min-h-screen bg-[#f7f5ef] text-foreground">
+    <UnsavedChangesProvider>
+      <div className="min-h-screen bg-[#f7f5ef] text-foreground">
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-6 px-5 py-3 lg:px-8">
           <Link href="/admin" className="inline-flex rounded-md p-1" aria-label="Mapa Dobra - panel administratora">
@@ -73,6 +75,7 @@ export function AdminShell({ displayName, role, children }: AdminShellProps) {
         </aside>
         <div className="min-w-0 px-5 py-7 lg:px-8 lg:py-9">{children}</div>
       </div>
-    </div>
+      </div>
+    </UnsavedChangesProvider>
   );
 }

@@ -17,8 +17,9 @@ import {
   updateTypeLabels,
 } from "@/lib/admin/labels";
 import { getSubmissionDetail } from "@/lib/admin/submissions";
-import { getOrCreateSubmissionDraft } from "@/lib/admin/submission-drafts";
+import { getOrCreateSubmissionDraft, getSubmissionDraft } from "@/lib/admin/submission-drafts";
 import { requireAdmin } from "@/lib/admin/session";
+import { prepareApprovedSubmissionDraft } from "../draft-actions";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -116,14 +117,14 @@ export default async function AdminSubmissionDetailPage({
   if (!uuidPattern.test(id)) notFound();
 
   const session = await requireAdmin();
-  const [detail, draft] = await Promise.all([
-    getSubmissionDetail(id),
-    getOrCreateSubmissionDraft(id, session.user.id),
-  ]);
+  const detail = await getSubmissionDetail(id);
   if (!detail) notFound();
 
   const isPlaceUpdate = detail.kind === "place-update";
   const submission = detail.submission;
+  const draft = submission.moderationStatus === "APPROVED" && submission.publicationStatus === "NOT_PUBLISHED"
+    ? await getSubmissionDraft(id)
+    : await getOrCreateSubmissionDraft(id, session.user.id);
   const title = isPlaceUpdate ? detail.submission.placeNameSnapshot : detail.submission.name;
 
   return (
@@ -142,6 +143,13 @@ export default async function AdminSubmissionDetailPage({
             {isPlaceUpdate ? "Zgłoszenie zmiany" : "Zgłoszenie nowego miejsca"}
           </span>
           <StatusBadge status={submission.moderationStatus} />
+          {submission.publicationStatus === "PUBLISHED" ? (
+            <span className="rounded-full border border-brand/40 bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-strong">Zatwierdzone i opublikowane</span>
+          ) : submission.moderationStatus === "APPROVED" ? (
+            <span className="rounded-full border border-urgent/45 bg-urgent-soft px-2.5 py-1 text-xs font-bold text-[#8c2d0c]">Zatwierdzone, ale nieopublikowane</span>
+          ) : (
+            <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">Nieopublikowane</span>
+          )}
         </div>
         <h1 className="mt-3 text-2xl font-bold sm:text-3xl">{title}</h1>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -155,7 +163,18 @@ export default async function AdminSubmissionDetailPage({
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="order-2 min-w-0 space-y-5 lg:order-1">
-          {draft ? <SubmissionDraftEditor draft={draft} status={submission.moderationStatus} /> : null}
+          {draft ? (
+            <SubmissionDraftEditor key={draft.updatedAt} draft={draft} status={submission.moderationStatus} publicationStatus={submission.publicationStatus} />
+          ) : submission.moderationStatus === "APPROVED" && submission.publicationStatus === "NOT_PUBLISHED" ? (
+            <section className="rounded-lg border border-urgent/40 bg-white p-4 sm:p-5">
+              <h2 className="text-lg font-bold">Zatwierdzone, ale nieopublikowane</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">To starsze zgłoszenie zachowuje swoją historię zatwierdzenia. Przygotuj nową wersję roboczą i świadomie wybierz dane do publikacji.</p>
+              <form action={prepareApprovedSubmissionDraft} className="mt-4">
+                <input type="hidden" name="submissionId" value={submission.id} />
+                <button type="submit" className="inline-flex min-h-11 items-center rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Przygotuj do publikacji</button>
+              </form>
+            </section>
+          ) : null}
           {detail.kind === "place-update" ? (
             <PlaceUpdateDetails submission={detail.submission} />
           ) : (

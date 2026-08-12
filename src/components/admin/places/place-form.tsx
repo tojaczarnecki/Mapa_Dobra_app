@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
+import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
@@ -13,6 +14,7 @@ import {
   verificationSourceLabels,
   weekdayOptions,
 } from "@/lib/places/constants";
+import { deriveTodayHoursLabel, validateOpeningSchedule } from "@/lib/places/opening-hours";
 import type {
   AdminAccommodation,
   AdminOpeningDay,
@@ -141,15 +143,18 @@ function FormSection({
   );
 }
 
-function OpeningEditor({
+export function OpeningEditor({
   label,
   days,
   onChange,
+  disabled = false,
 }: {
   label: string;
   days: AdminOpeningDay[];
   onChange: (days: AdminOpeningDay[]) => void;
+  disabled?: boolean;
 }) {
+  const validation = validateOpeningSchedule(days);
   function updateDay(index: number, changes: Partial<AdminOpeningDay>) {
     onChange(days.map((day, dayIndex) => (dayIndex === index ? { ...day, ...changes } : day)));
   }
@@ -157,6 +162,7 @@ function OpeningEditor({
   return (
     <div>
       <h3 className="mb-2 text-sm font-bold">{label}</h3>
+      {!validation.ok ? <p role="alert" className="mb-2 rounded-lg border border-urgent/40 bg-urgent-soft px-3 py-2 text-sm font-semibold text-[#8c2d0c]">{validation.error}</p> : null}
       <div className="divide-y divide-border rounded-lg border border-border">
         {days.map((day, dayIndex) => {
           const dayLabel = weekdayOptions.find((option) => option.value === day.weekday)?.label ?? day.weekday;
@@ -165,6 +171,7 @@ function OpeningEditor({
               <span className="pt-2 text-sm font-bold">{dayLabel}</span>
               <select
                 className={fieldClass}
+                disabled={disabled}
                 value={day.status}
                 aria-label={`${label}, ${dayLabel}: status`}
                 onChange={(event) => {
@@ -186,6 +193,7 @@ function OpeningEditor({
                       <div key={`${day.weekday}-${periodIndex}`} className="grid grid-cols-[1fr_1fr_44px] gap-2">
                         <input
                           className={fieldClass}
+                          disabled={disabled}
                           type="time"
                           aria-label={`${dayLabel}: od`}
                           value={period.opensAt}
@@ -195,6 +203,7 @@ function OpeningEditor({
                         />
                         <input
                           className={fieldClass}
+                          disabled={disabled}
                           type="time"
                           aria-label={`${dayLabel}: do`}
                           value={period.closesAt}
@@ -205,7 +214,7 @@ function OpeningEditor({
                         <button
                           type="button"
                           aria-label={`Usuń przedział ${dayLabel}`}
-                          disabled={day.periods.length === 1}
+                          disabled={disabled || day.periods.length === 1}
                           className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-muted disabled:opacity-35"
                           onClick={() => updateDay(dayIndex, { periods: day.periods.filter((_, index) => index !== periodIndex) })}
                         >
@@ -213,9 +222,10 @@ function OpeningEditor({
                         </button>
                       </div>
                     ))}
-                    {day.periods.length < 3 ? (
+                    {day.periods.length < 8 ? (
                       <button
                         type="button"
+                        disabled={disabled}
                         className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"
                         onClick={() => updateDay(dayIndex, { periods: [...day.periods, { opensAt: "", closesAt: "" }] })}
                       >
@@ -227,6 +237,7 @@ function OpeningEditor({
                 ) : (
                   <input
                     className={fieldClass}
+                    disabled={disabled}
                     value={day.note}
                     aria-label={`${dayLabel}: notatka`}
                     placeholder={day.status === "CLOSED" ? "Opcjonalna notatka" : "Co wiadomo o godzinach?"}
@@ -269,14 +280,7 @@ export function PlaceForm({
   const [state, formAction] = useActionState(savePlace, initialActionState);
   const isEditing = Boolean(initialData.id);
 
-  useEffect(() => {
-    function warn(event: BeforeUnloadEvent) {
-      if (!dirty) return;
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useUnsavedChanges(dirty);
 
   useEffect(() => {
     if (state.placeId && state.success) {
@@ -397,7 +401,7 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection title="Godziny" description="Każdy dzień może mieć do trzech przedziałów. Brak danych pozostaje osobnym stanem.">
+      <FormSection title="Godziny" description="Każdy dzień może mieć kilka przedziałów. Brak danych pozostaje osobnym stanem.">
         <div className="space-y-5">
           <OpeningEditor label="Godziny działania" days={payload.openingHours.operation} onChange={(operation) => update({ openingHours: { ...payload.openingHours, operation } })} />
           {payload.isAccommodation ? (
@@ -413,7 +417,11 @@ export function PlaceForm({
                 <option value="UNKNOWN">Brak potwierdzenia</option>
               </select>
             </label>
-            <Field label="Skrót godzin na dziś" value={payload.todayHoursLabel} onChange={(todayHoursLabel) => update({ todayHoursLabel })} />
+            <label className="block text-sm font-bold">
+              <span className="mb-1.5 block">Skrót godzin na dziś</span>
+              <input className={`${fieldClass} bg-surface-muted`} readOnly value={deriveTodayHoursLabel(payload.openingHours.operation)} />
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Wyliczany automatycznie z godzin działania.</span>
+            </label>
           </div>
         </div>
       </FormSection>

@@ -95,6 +95,18 @@ export function PlaceStatusActions({
             >
               <input type="hidden" name="placeId" value={placeId} />
               <input type="hidden" name="status" value={action.status} />
+              {action.status === "PUBLISHED" && (currentStatus === "TEMPORARILY_CLOSED" || currentStatus === "PERMANENTLY_CLOSED") ? (
+                <label className="mb-2 block text-sm font-bold">
+                  <span className="mb-1 block">Aktualny stan operacyjny</span>
+                  <select name="operationalStatus" required defaultValue="" className="min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/25">
+                    <option value="" disabled>Wybierz stan</option>
+                    <option value="OPEN">Otwarte</option>
+                    <option value="OPEN_TODAY">Otwarte dzisiaj</option>
+                    <option value="CLOSED">Zamknięte</option>
+                    <option value="UNKNOWN">Brak potwierdzenia</option>
+                  </select>
+                </label>
+              ) : null}
               <SubmitButton action={action} />
             </form>
           ))}
