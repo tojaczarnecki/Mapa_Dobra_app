@@ -270,6 +270,7 @@ export async function savePlace(
               ...scalarData,
               publicationStatus: "DRAFT",
               verificationStatus: payload.markVerified ? "VERIFIED" : "UNVERIFIED",
+              recordKind: "PRODUCTION",
               isDemo: false,
             },
           });

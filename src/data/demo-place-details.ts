@@ -2,6 +2,7 @@ import {
   demoAccommodations,
   type AccommodationAvailabilityState,
 } from "@/data/demo-accommodations";
+import type { InformationState } from "@/lib/accommodations/types";
 import { demoPlaces } from "@/data/demo-places";
 
 export type DetailTone = "positive" | "warning" | "neutral" | "unknown";
@@ -613,36 +614,54 @@ const detailedAccommodationIds = new Set(
   accommodationPlaces.map((place) => place.id),
 );
 
+function demoRequirement(
+  state: InformationState,
+  requiredLabel: string,
+  notRequiredLabel: string,
+  unknownLabel: string,
+): DetailListItem {
+  if (state === "YES") return { label: requiredLabel, status: "warning" };
+  if (state === "NO") return { label: notRequiredLabel, status: "positive" };
+  return { label: unknownLabel, status: "unknown" };
+}
+
 const additionalAccommodationPlaces: PlaceDetail[] = demoAccommodations
   .filter((place) => !detailedAccommodationIds.has(place.id))
   .map((place) => {
     const statusConfig = accommodationStatusConfig[place.availability.state];
     const accessibility: DetailListItem[] = [
-      place.accessibility === "yes"
+      place.accessibility === "YES"
         ? { label: "Miejsce dla osoby na wózku", status: "positive" }
-        : place.accessibility === "partial"
-          ? {
-              label: "Częściowa dostępność dla osoby na wózku",
+        : place.accessibility === "NO"
+          ? { label: "Brak dostępności dla wózka", status: "warning" }
+          : {
+              label: "Dostępność dla osoby na wózku wymaga potwierdzenia",
               status: "unknown",
-            }
-          : { label: "Brak dostępności dla wózka", status: "warning" },
+            },
     ];
     const admissionRequirements: DetailListItem[] = [
+      demoRequirement(
+        place.lodzRegistrationRequired,
+        "Wymagany ostatni meldunek w Łodzi",
+        "Ostatnie zameldowanie w Łodzi niewymagane",
+        "Wymóg ostatniego meldunku wymaga potwierdzenia",
+      ),
+      demoRequirement(
+        place.referralRequired,
+        "Wymagane skierowanie",
+        "Bez skierowania",
+        "Wymóg skierowania wymaga potwierdzenia",
+      ),
+      demoRequirement(
+        place.documentRequired,
+        "Wymagany dokument",
+        "Dokument niewymagany",
+        "Wymóg dokumentu wymaga potwierdzenia",
+      ),
       {
-        label: place.lodzRegistrationRequired
-          ? "Wymagany ostatni meldunek w Łodzi"
-          : "Ostatnie zameldowanie w Łodzi niewymagane",
-        status: place.lodzRegistrationRequired ? "warning" : "positive",
+        label: place.sobrietyRule,
+        status: place.sobrietyPolicy === "UNKNOWN" ? "unknown" : "warning",
       },
-      {
-        label: place.referralRequired ? "Wymagane skierowanie" : "Bez skierowania",
-        status: place.referralRequired ? "warning" : "positive",
-      },
-      {
-        label: place.documentRequired ? "Wymagany dokument" : "Dokument niewymagany",
-        status: place.documentRequired ? "warning" : "positive",
-      },
-      { label: place.sobrietyRule, status: "warning" },
     ];
 
     return {
@@ -693,18 +712,27 @@ const additionalAccommodationPlaces: PlaceDetail[] = demoAccommodations
         sobriety: { label: place.sobrietyRule, status: "warning" },
         animals: [
           {
-            label:
-              place.petPolicy === "none"
-                ? "Nieprzyjmowane"
-                : place.petPolicy === "dogByArrangement"
-                  ? "Pies po uzgodnieniu"
-                  : "Po uzgodnieniu",
-            status: place.petPolicy === "none" ? "warning" : "neutral",
+            label: ({
+              ACCEPTED: "Przyjmowane",
+              NOT_ACCEPTED: "Nieprzyjmowane",
+              DOG_ONLY: "Przyjmowany tylko pies",
+              BY_ARRANGEMENT: "Po uzgodnieniu",
+              ASSISTANCE_DOG_ONLY: "Przyjmowany pies asystujący",
+              UNKNOWN: "Brak potwierdzonych danych",
+            } as const)[place.petPolicy],
+            status:
+              place.petPolicy === "UNKNOWN"
+                ? "unknown"
+                : place.petPolicy === "NOT_ACCEPTED"
+                  ? "warning"
+                  : "neutral",
           },
         ],
         accessibility,
-        overnightInfo: place.careServices
+        overnightInfo: place.careServices === "YES"
           ? [{ label: "Usługi opiekuńcze", value: "dostępne na miejscu" }]
+          : place.careServices === "UNKNOWN"
+            ? [{ label: "Usługi opiekuńcze", value: "wymagają potwierdzenia" }]
           : [],
         importantNote:
           place.availability.note ??

@@ -36,8 +36,8 @@ export type MapPlace = {
   address: string;
   phone?: string;
   detailsHref: string;
-  openNow: boolean;
-  free: boolean;
+  openNow: boolean | null;
+  free: boolean | null;
   searchTerms: string[];
   status: StandardMapStatus | AccommodationMapStatus;
 };
@@ -50,10 +50,10 @@ const categoryBySlug: Record<string, MapCategory> = {
   "pomoc-prawna": "legal",
 };
 
-function isConfirmedFree(placeId: string) {
+function isConfirmedFree(placeId: string): boolean | null {
   const detail = demoPlaceDetails.find((place) => place.id === placeId);
 
-  return Boolean(
+  const confirmedFree = Boolean(
     detail?.requirements.some(
       (requirement) => requirement.label.toLocaleLowerCase("pl-PL") === "bezpłatnie",
     ) ||
@@ -63,6 +63,8 @@ function isConfirmedFree(placeId: string) {
           item.value.toLocaleLowerCase("pl-PL") === "bezpłatnie",
       ),
   );
+
+  return confirmedFree ? true : null;
 }
 
 const standardPlaces: MapPlace[] = demoPlaces
@@ -85,7 +87,12 @@ const standardPlaces: MapPlace[] = demoPlaces
     address: place.address,
     phone: place.phone,
     detailsHref: `/lodz/${place.categorySlug}/${place.slug}`,
-    openNow: place.status === "open",
+    openNow:
+      place.status === "open"
+        ? true
+        : place.status === "closed"
+          ? false
+          : null,
     free: isConfirmedFree(place.id),
     searchTerms: [place.name, ...place.helpTypes, ...place.conditions],
     status: {
@@ -115,10 +122,11 @@ const accommodationPlaces: MapPlace[] = demoAccommodations
       demoPlaceDetails.find((detail) => detail.id === place.id)?.address ?? "Łódź",
     phone: place.phone,
     detailsHref: `/lodz/${place.categorySlug}/${place.slug}`,
-    openNow:
-      place.acceptsToday &&
-      place.availability.state !== "none" &&
-      place.availability.state !== "suspended",
+    openNow: place.acceptsToday === "UNKNOWN"
+      ? null
+      : place.acceptsToday === "YES" &&
+        place.availability.state !== "none" &&
+        place.availability.state !== "suspended",
     free: isConfirmedFree(place.id),
     searchTerms: [
       place.name,

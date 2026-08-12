@@ -26,22 +26,12 @@ import {
   type RegistrationAnswer,
   type WheelchairNeed,
 } from "@/data/demo-accommodations";
+import {
+  rankAccommodations,
+  type WizardAnswers,
+} from "@/lib/accommodations/matching";
 
 type WizardStep = "profile" | "wheelchair" | "registration" | "pet" | "needs";
-
-type WizardAnswers = {
-  profile?: AccommodationProfile;
-  wheelchair?: WheelchairNeed;
-  registration?: RegistrationAnswer;
-  pet?: PetAnswer;
-  needs: AccommodationNeed[];
-};
-
-type MatchResult = {
-  accommodation: Accommodation;
-  score: number;
-  unmetConditions: string[];
-};
 
 const steps: Array<{
   id: WizardStep;
@@ -127,143 +117,6 @@ const profileLabel = Object.fromEntries(
   profileOptions.map((option) => [option.value, option.label]),
 ) as Record<AccommodationProfile, string>;
 
-function isAvailableNow(accommodation: Accommodation) {
-  return accommodation.availability.state === "fresh" || accommodation.availability.state === "few";
-}
-
-function availabilityScore(accommodation: Accommodation) {
-  switch (accommodation.availability.state) {
-    case "fresh":
-      return 70;
-    case "few":
-      return 55;
-    case "stale":
-      return 12;
-    case "unknown":
-      return 4;
-    case "none":
-      return -90;
-    case "suspended":
-      return -120;
-  }
-}
-
-function getUnmetConditions(accommodation: Accommodation, answers: WizardAnswers) {
-  const unmet: string[] = [];
-
-  if (
-    answers.profile &&
-    answers.profile !== "other" &&
-    !accommodation.acceptedProfiles.includes(answers.profile)
-  ) {
-    unmet.push("Miejsce nie jest wskazane dla wybranej grupy.");
-  }
-
-  if (answers.wheelchair === "yes" && accommodation.accessibility !== "yes") {
-    unmet.push("Brak potwierdzonej pełnej dostępności dla osoby na wózku.");
-  }
-
-  if (
-    (answers.registration === "no" || answers.registration === "unknown") &&
-    accommodation.lodzRegistrationRequired
-  ) {
-    unmet.push("Wymaga ostatniego meldunku w Łodzi.");
-  }
-
-  if (answers.pet === "dog" && accommodation.petPolicy === "none") {
-    unmet.push("Nie przyjmuje psa.");
-  }
-
-  if (answers.pet === "other" && accommodation.petPolicy !== "byArrangement") {
-    unmet.push("Nie potwierdzono przyjęcia tego zwierzęcia.");
-  }
-
-  if (answers.needs.includes("noReferral") && accommodation.referralRequired) {
-    unmet.push("Wymaga skierowania.");
-  }
-
-  if (answers.needs.includes("noDocuments") && accommodation.documentRequired) {
-    unmet.push("Wymaga dokumentu.");
-  }
-
-  if (answers.needs.includes("careServices") && !accommodation.careServices) {
-    unmet.push("Brak usług opiekuńczych.");
-  }
-
-  if (
-    answers.needs.includes("partialDependency") &&
-    !accommodation.partialDependencySupport
-  ) {
-    unmet.push("Nie potwierdzono wsparcia dla osoby częściowo niesamodzielnej.");
-  }
-
-  if (accommodation.availability.state === "none") {
-    unmet.push("Brak wolnych miejsc.");
-  }
-
-  if (accommodation.availability.state === "unknown") {
-    unmet.push("Brak aktualnego potwierdzenia wolnych miejsc.");
-  }
-
-  if (accommodation.availability.state === "stale") {
-    unmet.push("Dane o wolnych miejscach mogą być nieaktualne.");
-  }
-
-  if (accommodation.availability.state === "suspended" || !accommodation.acceptsToday) {
-    unmet.push("Nie potwierdzono przyjęć dzisiaj.");
-  }
-
-  return unmet;
-}
-
-function rankAccommodations(accommodations: Accommodation[], answers: WizardAnswers): MatchResult[] {
-  return accommodations
-    .map((accommodation) => {
-      const unmetConditions = getUnmetConditions(accommodation, answers);
-      const groupMatch =
-        !answers.profile ||
-        answers.profile === "other" ||
-        accommodation.acceptedProfiles.includes(answers.profile);
-      const baseConditionsMet =
-        unmetConditions.filter(
-          (condition) =>
-            !condition.includes("wolnych miejsc") &&
-            !condition.includes("przyjęć dzisiaj") &&
-            !condition.includes("nieaktualne"),
-        ).length === 0;
-      let score = 0;
-
-      score += groupMatch ? 180 : -160;
-      score += baseConditionsMet ? 70 : -unmetConditions.length * 24;
-      score += accommodation.acceptsToday ? 50 : -80;
-      score += availabilityScore(accommodation);
-      score += isAvailableNow(accommodation) ? 35 : 0;
-      score += answers.needs.includes("careServices") && accommodation.careServices ? 35 : 0;
-      score +=
-        answers.needs.includes("partialDependency") &&
-        accommodation.partialDependencySupport
-          ? 30
-          : 0;
-      score -= accommodation.distanceKm * 4;
-
-      return {
-        accommodation,
-        score,
-        unmetConditions,
-      };
-    })
-    .sort((first, second) => {
-      const firstExact = first.unmetConditions.length === 0;
-      const secondExact = second.unmetConditions.length === 0;
-
-      if (firstExact !== secondExact) {
-        return firstExact ? -1 : 1;
-      }
-
-      return second.score - first.score;
-    });
-}
-
 function optionClasses(isSelected: boolean, compact = false) {
   return [
     "group flex w-full min-w-0 items-center gap-3 rounded-xl border bg-surface text-left font-extrabold text-foreground shadow-[0_8px_22px_rgb(17_24_39_/_5%)] transition hover:border-brand hover:bg-brand-soft focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
@@ -303,7 +156,10 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
     (step.id === "registration" && answers.registration) ||
     (step.id === "pet" && answers.pet);
   const matches = rankAccommodations(accommodations, answers);
-  const exactMatches = matches.filter((match) => match.unmetConditions.length === 0);
+  const exactMatches = matches.filter(
+    (match) =>
+      match.unmetConditions.length === 0 && match.confirmationConditions.length === 0,
+  );
   const visibleMatches = exactMatches.length > 0 ? exactMatches : matches.slice(0, 6);
 
   function goNext() {
@@ -630,11 +486,11 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               {exactMatches.length === 0 ? (
                 <div className="rounded-xl border border-urgent-border bg-urgent-soft p-4 sm:p-5">
                   <h2 className="text-xl font-extrabold leading-tight text-foreground">
-                    Nie znaleźliśmy miejsca spełniającego wszystkie wybrane warunki.
+                    Nie znaleźliśmy miejsca z potwierdzonym spełnieniem wszystkich warunków.
                   </h2>
                   <p className="mt-2 text-sm font-semibold leading-6 text-foreground">
                     Poniżej pokazujemy najbliższe możliwe opcje i wyraźnie
-                    zaznaczamy, które warunki nie są spełnione.
+                    zaznaczamy warunki niespełnione lub wymagające potwierdzenia.
                   </p>
                 </div>
               ) : null}
@@ -644,8 +500,13 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                   <AccommodationCard
                     key={match.accommodation.id}
                     accommodation={match.accommodation}
-                    isBestMatch={index === 0 && match.unmetConditions.length === 0}
+                    isBestMatch={
+                      index === 0 &&
+                      match.unmetConditions.length === 0 &&
+                      match.confirmationConditions.length === 0
+                    }
                     unmetConditions={match.unmetConditions}
+                    confirmationConditions={match.confirmationConditions}
                   />
                 ))}
               </div>

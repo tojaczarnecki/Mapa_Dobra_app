@@ -176,21 +176,6 @@ function accommodationType(label: string) {
   return "OTHER" as const;
 }
 
-function sobrietyPolicy(label: string) {
-  const value = label.toLocaleLowerCase("pl-PL");
-  if (value.includes("0,0")) return "ZERO_TOLERANCE" as const;
-  if (value.includes("indywidual") || value.includes("rozmowa")) return "INDIVIDUAL_ASSESSMENT" as const;
-  if (value.includes("osobna procedura")) return "SEPARATE_PROCEDURE" as const;
-  if (value.includes("trzeźwo")) return "SOBRIETY_REQUIRED" as const;
-  return "UNKNOWN" as const;
-}
-
-function petPolicy(value: "none" | "dogByArrangement" | "byArrangement") {
-  if (value === "none") return "NOT_ACCEPTED" as const;
-  if (value === "dogByArrangement") return "DOG_ONLY" as const;
-  return "BY_ARRANGEMENT" as const;
-}
-
 function availabilityState(value: string) {
   return ({
     fresh: "AVAILABLE",
@@ -237,10 +222,10 @@ async function main() {
   for (const detail of demoPlaceDetails) {
     const existing = await prisma.place.findUnique({
       where: { slug: detail.slug },
-      select: { id: true, isDemo: true },
+      select: { id: true, recordKind: true },
     });
     if (existing) {
-      if (!existing.isDemo) throw new Error(`Refusing to overwrite non-demo place: ${detail.slug}`);
+      if (existing.recordKind !== "DEMO") throw new Error(`Refusing to overwrite non-demo place: ${detail.slug}`);
       skipped += 1;
       continue;
     }
@@ -296,6 +281,7 @@ async function main() {
         audience: detail.audience,
         services: detail.services,
         distanceLabel: searchPlace?.distance ?? accommodation?.distanceLabel ?? detail.distanceLabel.replace(/\s+od Ciebie$/u, ""),
+        recordKind: "DEMO",
         isDemo: true,
         categories: {
           create: categorySlugs.map((slug, sortOrder) => ({
@@ -336,22 +322,17 @@ async function main() {
                   targetGroups: detail.accommodation.audience,
                   acceptedProfiles: accommodation.acceptedProfiles,
                   admissionHoursDescription: accommodation.admissionsToday,
-                  acceptsToday: accommodation.acceptsToday ? "YES" : "NO",
-                  lodzRegistrationRequired: accommodation.lodzRegistrationRequired ? "YES" : "NO",
-                  referralRequired: accommodation.referralRequired ? "YES" : "NO",
-                  documentRequired: accommodation.documentRequired ? "YES" : "NO",
-                  sobrietyPolicy: sobrietyPolicy(accommodation.sobrietyRule),
+                  acceptsToday: accommodation.acceptsToday,
+                  lodzRegistrationRequired: accommodation.lodzRegistrationRequired,
+                  referralRequired: accommodation.referralRequired,
+                  documentRequired: accommodation.documentRequired,
+                  sobrietyPolicy: accommodation.sobrietyPolicy,
                   sobrietyNote: detail.accommodation.sobriety.note,
-                  petPolicy: petPolicy(accommodation.petPolicy),
+                  petPolicy: accommodation.petPolicy,
                   petNote: detail.accommodation.animals.map((item) => item.label).join(", "),
-                  wheelchairAccessibility:
-                    accommodation.accessibility === "yes"
-                      ? "YES"
-                      : accommodation.accessibility === "no"
-                        ? "NO"
-                        : "UNKNOWN",
-                  careServices: accommodation.careServices ? "YES" : "NO",
-                  partialDependencySupport: accommodation.partialDependencySupport ? "YES" : "NO",
+                  wheelchairAccessibility: accommodation.accessibility,
+                  careServices: accommodation.careServices,
+                  partialDependencySupport: accommodation.partialDependencySupport,
                   mealsInfo: overnightValue(detail.accommodation.overnightInfo, "wyżywienie"),
                   hygieneInfo: overnightValue(detail.accommodation.overnightInfo, "higien"),
                   luggageInfo: overnightValue(detail.accommodation.overnightInfo, "bagaż"),
@@ -414,7 +395,7 @@ async function main() {
   }
 
   const migratedPlaces = await prisma.place.findMany({
-    where: { isDemo: true },
+    where: { recordKind: "DEMO" },
     select: {
       id: true,
       legacyId: true,

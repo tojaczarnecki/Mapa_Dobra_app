@@ -15,6 +15,12 @@ import type { Accommodation, AccommodationAvailabilityState, AccommodationProfil
 import type { DetailListItem, OpeningDay, PlaceDetail } from "@/data/demo-place-details";
 import type { MapCategory, MapPlace } from "@/data/demo-map-places";
 import type { DemoPlace, PlaceStatus } from "@/data/demo-places";
+import {
+  normalizeInformationState,
+  normalizePetPolicy,
+  normalizeSobrietyPolicy,
+} from "@/lib/accommodations/types";
+import { PUBLIC_RECORD_KINDS } from "@/lib/places/public-visibility";
 import { prisma } from "@/lib/prisma";
 
 const publicPlaceInclude = {
@@ -68,6 +74,7 @@ const todayWeekday = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "F
 function visibleWhere(): Prisma.PlaceWhereInput {
   return {
     citySlug: "lodz",
+    recordKind: { in: [...PUBLIC_RECORD_KINDS] },
     publicationStatus: { in: ["PUBLISHED", "TEMPORARILY_CLOSED", "PERMANENTLY_CLOSED"] },
   };
 }
@@ -76,7 +83,7 @@ async function publicPlaces() {
   return prisma.place.findMany({
     where: visibleWhere(),
     include: publicPlaceInclude,
-    orderBy: [{ isDemo: "desc" }, { name: "asc" }],
+    orderBy: [{ recordKind: "asc" }, { name: "asc" }],
   });
 }
 
@@ -268,16 +275,18 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
       confirmed: relativeAge(accommodation.availabilityConfirmedAt),
       note: accommodation.availabilityNote ?? undefined,
     },
-    acceptsToday: accommodation.acceptsToday === "YES",
+    acceptsToday: normalizeInformationState(accommodation.acceptsToday),
     admissionsToday: accommodation.admissionHoursDescription ?? "Godziny przyjęć wymagają potwierdzenia",
-    lodzRegistrationRequired: accommodation.lodzRegistrationRequired === "YES",
-    referralRequired: accommodation.referralRequired === "YES",
-    documentRequired: accommodation.documentRequired === "YES",
+    lodzRegistrationRequired: normalizeInformationState(accommodation.lodzRegistrationRequired),
+    referralRequired: normalizeInformationState(accommodation.referralRequired),
+    documentRequired: normalizeInformationState(accommodation.documentRequired),
+    sobrietyPolicy: normalizeSobrietyPolicy(accommodation.sobrietyPolicy),
     sobrietyRule: ({ SOBRIETY_REQUIRED: "Wymagana trzeźwość", ZERO_TOLERANCE: "Wymagane 0,0", INDIVIDUAL_ASSESSMENT: "Przyjęcie po indywidualnej ocenie", SEPARATE_PROCEDURE: "Osobna procedura dla osób po spożyciu", UNKNOWN: "Brak potwierdzonych zasad" } as const)[accommodation.sobrietyPolicy],
-    petPolicy: accommodation.petPolicy === "NOT_ACCEPTED" ? "none" : accommodation.petPolicy === "DOG_ONLY" ? "dogByArrangement" : "byArrangement",
-    accessibility: accommodation.wheelchairAccessibility === "YES" ? "yes" : accommodation.wheelchairAccessibility === "NO" ? "no" : "partial",
-    careServices: accommodation.careServices === "YES",
-    partialDependencySupport: accommodation.partialDependencySupport === "YES",
+    petPolicy: normalizePetPolicy(accommodation.petPolicy),
+    petPolicyNote: accommodation.petNote ?? undefined,
+    accessibility: normalizeInformationState(accommodation.wheelchairAccessibility),
+    careServices: normalizeInformationState(accommodation.careServices),
+    partialDependencySupport: normalizeInformationState(accommodation.partialDependencySupport),
     distanceKm: distanceNumber(place.distanceLabel),
     distanceLabel: place.distanceLabel ?? "Odległość nieznana",
     phone: place.phone ?? undefined,
@@ -290,6 +299,18 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   if (place.latitude === null || place.longitude === null) return null;
   const categories = Array.from(new Set(place.categories.map((item) => categoryMap[item.category.slug]).filter((item): item is MapCategory => Boolean(item))));
   if (!categories.length) return null;
+  const openNow = place.accommodation
+    ? place.accommodation.acceptsToday === "UNKNOWN"
+      ? null
+      : place.accommodation.acceptsToday === "YES" &&
+        !["FULL", "SUSPENDED"].includes(place.accommodation.availabilityState)
+    : place.operationalStatus === "UNKNOWN" || place.operationalStatus === "OPEN_TODAY"
+      ? null
+      : place.operationalStatus === "OPEN";
+  const feeRequirement = place.requirements.find((item) => item.kind === "FEE");
+  const free = !feeRequirement || feeRequirement.state === "UNKNOWN"
+    ? null
+    : feeRequirement.state === "NO" || /bezpłat/iu.test(feeRequirement.label);
   const base = {
     id: place.legacyId ?? place.id,
     name: place.name,
@@ -301,8 +322,8 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
     address: place.addressLine,
     phone: place.phone ?? undefined,
     detailsHref: `/lodz/${place.primaryCategory.slug}/${place.slug}`,
-    openNow: place.accommodation ? place.accommodation.acceptsToday === "YES" && !["FULL", "SUSPENDED"].includes(place.accommodation.availabilityState) : place.operationalStatus === "OPEN",
-    free: place.requirements.some((item) => item.kind === "FEE" && (item.state === "NO" || /bezpłat/iu.test(item.label))),
+    openNow,
+    free,
     searchTerms: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)],
   };
   if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: place.todayHoursLabel ?? "Brak potwierdzonych godzin" } };

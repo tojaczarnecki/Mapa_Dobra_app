@@ -257,6 +257,7 @@ async function publishNewPlace(
       verificationStatus: "VERIFIED",
       verifiedAt: new Date(),
       lastEditedByAdminUserId: adminUserId,
+      recordKind: "PRODUCTION",
       isDemo: false,
     },
   });

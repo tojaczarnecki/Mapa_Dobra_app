@@ -1,60 +1,17 @@
-export type AccommodationProfile =
-  | "woman"
-  | "man"
-  | "womanWithChildren"
-  | "family"
-  | "disability"
-  | "other";
+import type { Accommodation } from "@/lib/accommodations/types";
 
-export type WheelchairNeed = "yes" | "no" | "unknown";
-export type RegistrationAnswer = "yes" | "no" | "unknown";
-export type PetAnswer = "none" | "dog" | "other";
+export type {
+  Accommodation,
+  AccommodationAvailabilityState,
+  AccommodationNeed,
+  AccommodationProfile,
+  InformationState,
+  PetAnswer,
+  RegistrationAnswer,
+  WheelchairNeed,
+} from "@/lib/accommodations/types";
 
-export type AccommodationNeed =
-  | "noReferral"
-  | "noDocuments"
-  | "careServices"
-  | "partialDependency";
-
-export type AccommodationAvailabilityState =
-  | "fresh"
-  | "few"
-  | "none"
-  | "unknown"
-  | "stale"
-  | "suspended";
-
-export type Accommodation = {
-  id: string;
-  categorySlug: "nocleg";
-  slug: string;
-  name: string;
-  typeLabel: string;
-  audienceLabel: string;
-  acceptedProfiles: AccommodationProfile[];
-  availability: {
-    state: AccommodationAvailabilityState;
-    freePlaces?: number;
-    label: string;
-    confirmed: string;
-    note?: string;
-  };
-  acceptsToday: boolean;
-  admissionsToday: string;
-  lodzRegistrationRequired: boolean;
-  referralRequired: boolean;
-  documentRequired: boolean;
-  sobrietyRule: string;
-  petPolicy: "none" | "dogByArrangement" | "byArrangement";
-  accessibility: "yes" | "partial" | "no";
-  careServices: boolean;
-  partialDependencySupport: boolean;
-  distanceKm: number;
-  distanceLabel: string;
-  phone?: string;
-  latitude: number;
-  longitude: number;
-};
+const state = (value: boolean): "YES" | "NO" => (value ? "YES" : "NO");
 
 // Dane demonstracyjne do zaprojektowania UX/UI kreatora noclegu.
 // Nie są podłączone do bazy danych, API, synchronizacji łóżek ani finalnego rankingu.
@@ -73,16 +30,17 @@ export const demoAccommodations: Accommodation[] = [
       label: "4 wolne miejsca",
       confirmed: "Potwierdzone 35 min temu",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia dzisiaj do 22:00",
-    lodzRegistrationRequired: false,
-    referralRequired: false,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(false),
+    documentRequired: state(false),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "dogByArrangement",
-    accessibility: "partial",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "DOG_ONLY",
+    accessibility: "UNKNOWN",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 1.4,
     distanceLabel: "1,4 km",
     phone: "+48123123123",
@@ -104,16 +62,17 @@ export const demoAccommodations: Accommodation[] = [
       confirmed: "Potwierdzone 20 min temu",
       note: "Zadzwoń przed przyjazdem, miejsce może szybko przestać być dostępne.",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia dzisiaj do 21:00",
-    lodzRegistrationRequired: false,
-    referralRequired: false,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(false),
+    documentRequired: state(false),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "none",
-    accessibility: "no",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "NOT_ACCEPTED",
+    accessibility: "NO",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 2.1,
     distanceLabel: "2,1 km",
     phone: "+48123456789",
@@ -135,16 +94,17 @@ export const demoAccommodations: Accommodation[] = [
       confirmed: "Dane sprzed 14 godzin",
       note: "Dane mogą być już nieaktualne. Zadzwoń przed przyjazdem.",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia dzisiaj do 20:00",
-    lodzRegistrationRequired: false,
-    referralRequired: true,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(true),
+    documentRequired: state(false),
+    sobrietyPolicy: "INDIVIDUAL_ASSESSMENT",
     sobrietyRule: "Rozmowa na miejscu",
-    petPolicy: "none",
-    accessibility: "partial",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "NOT_ACCEPTED",
+    accessibility: "UNKNOWN",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 2.8,
     distanceLabel: "2,8 km",
     phone: "+48555123123",
@@ -164,16 +124,17 @@ export const demoAccommodations: Accommodation[] = [
       label: "Brak miejsc",
       confirmed: "Potwierdzone 10 min temu",
     },
-    acceptsToday: false,
+    acceptsToday: state(false),
     admissionsToday: "Brak przyjęć bez wolnych miejsc",
-    lodzRegistrationRequired: true,
-    referralRequired: false,
-    documentRequired: true,
+    lodzRegistrationRequired: state(true),
+    referralRequired: state(false),
+    documentRequired: state(true),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "none",
-    accessibility: "no",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "NOT_ACCEPTED",
+    accessibility: "NO",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 0.9,
     distanceLabel: "900 m",
     phone: "+48222123123",
@@ -194,16 +155,17 @@ export const demoAccommodations: Accommodation[] = [
       label: "2 wolne miejsca",
       confirmed: "Potwierdzone 55 min temu",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia dzisiaj do 23:00",
-    lodzRegistrationRequired: false,
-    referralRequired: false,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(false),
+    documentRequired: state(false),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "byArrangement",
-    accessibility: "yes",
-    careServices: false,
-    partialDependencySupport: true,
+    petPolicy: "BY_ARRANGEMENT",
+    accessibility: "YES",
+    careServices: state(false),
+    partialDependencySupport: state(true),
     distanceKm: 3.6,
     distanceLabel: "3,6 km",
     phone: "+48777123123",
@@ -224,16 +186,17 @@ export const demoAccommodations: Accommodation[] = [
       label: "1 wolne miejsce",
       confirmed: "Potwierdzone 2 godziny temu",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia dzisiaj do 18:00",
-    lodzRegistrationRequired: true,
-    referralRequired: true,
-    documentRequired: true,
+    lodzRegistrationRequired: state(true),
+    referralRequired: state(true),
+    documentRequired: state(true),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "none",
-    accessibility: "yes",
-    careServices: true,
-    partialDependencySupport: true,
+    petPolicy: "NOT_ACCEPTED",
+    accessibility: "YES",
+    careServices: state(true),
+    partialDependencySupport: state(true),
     distanceKm: 4.3,
     distanceLabel: "4,3 km",
     phone: "+48666123123",
@@ -254,16 +217,17 @@ export const demoAccommodations: Accommodation[] = [
       confirmed: "Ostatnia weryfikacja wczoraj",
       note: "Nie traktuj tego jako potwierdzenia miejsca. Zadzwoń przed przyjazdem.",
     },
-    acceptsToday: true,
+    acceptsToday: state(true),
     admissionsToday: "Przyjęcia zwykle do 21:30",
-    lodzRegistrationRequired: false,
-    referralRequired: false,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(false),
+    documentRequired: state(false),
+    sobrietyPolicy: "INDIVIDUAL_ASSESSMENT",
     sobrietyRule: "Rozmowa na miejscu",
-    petPolicy: "byArrangement",
-    accessibility: "partial",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "BY_ARRANGEMENT",
+    accessibility: "UNKNOWN",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 1.7,
     distanceLabel: "1,7 km",
     phone: "+48444123123",
@@ -284,16 +248,17 @@ export const demoAccommodations: Accommodation[] = [
       confirmed: "Aktualizacja 40 min temu",
       note: "Placówka prosi o kontakt telefoniczny w nagłych sytuacjach.",
     },
-    acceptsToday: false,
+    acceptsToday: state(false),
     admissionsToday: "Przyjęcia czasowo wstrzymane",
-    lodzRegistrationRequired: false,
-    referralRequired: false,
-    documentRequired: false,
+    lodzRegistrationRequired: state(false),
+    referralRequired: state(false),
+    documentRequired: state(false),
+    sobrietyPolicy: "SOBRIETY_REQUIRED",
     sobrietyRule: "Wymagana trzeźwość",
-    petPolicy: "none",
-    accessibility: "no",
-    careServices: false,
-    partialDependencySupport: false,
+    petPolicy: "NOT_ACCEPTED",
+    accessibility: "NO",
+    careServices: state(false),
+    partialDependencySupport: state(false),
     distanceKm: 1.1,
     distanceLabel: "1,1 km",
     phone: "+48333123123",

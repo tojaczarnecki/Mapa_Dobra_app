@@ -109,6 +109,12 @@ enum PlaceOperationalStatus {
   UNKNOWN
 }
 
+enum PlaceRecordKind {
+  PRODUCTION
+  DEMO
+  TEST
+}
+
 enum Weekday {
   MONDAY
   TUESDAY
@@ -334,6 +340,7 @@ model Place {
   audience                String[]
   services                String[]
   distanceLabel           String?                 @db.VarChar(80)
+  recordKind              PlaceRecordKind         @default(PRODUCTION)
   isDemo                  Boolean                 @default(false)
   lastEditedByAdminUserId String?                 @db.Uuid
   createdAt               DateTime                @default(now()) @db.Timestamptz(3)
@@ -351,7 +358,7 @@ model Place {
   publishedNewPlaces      NewPlaceSubmission[]    @relation("PublishedNewPlace")
   submissionDrafts        SubmissionDraft[]
 
-  @@index([publicationStatus, city])
+  @@index([recordKind, publicationStatus, city])
   @@index([primaryCategoryId])
   @@index([name])
   @@map("places")

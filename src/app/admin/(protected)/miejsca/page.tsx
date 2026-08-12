@@ -111,7 +111,11 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
                   <div className="min-w-0">
                     <span className="mb-1 block text-xs font-bold text-brand-strong">{place.accommodation ? "Nocleg" : place.organization?.name ?? "Miejsce pomocy"}</span>
                     <strong className="block truncate text-sm">{place.name}</strong>
-                    {place.isDemo ? <span className="mt-1 block text-xs text-muted-foreground">Rekord DEMO</span> : null}
+                    {place.recordKind !== "PRODUCTION" ? (
+                      <span className="mt-1 block text-xs font-bold text-muted-foreground">
+                        Rekord {place.recordKind}
+                      </span>
+                    ) : null}
                   </div>
                   <p className="line-clamp-2 text-sm text-muted-foreground">{place.addressLine}</p>
                   <p className="text-sm font-semibold">{place.primaryCategory.name}</p>

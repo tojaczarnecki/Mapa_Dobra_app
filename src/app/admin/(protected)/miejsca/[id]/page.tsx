@@ -45,7 +45,9 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
       <header className="rounded-lg border border-border bg-white p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
           <PlacePublicationBadge status={place.publicationStatus} />
-          {place.isDemo ? <span className="text-xs font-bold text-muted-foreground">DEMO</span> : null}
+          {place.recordKind !== "PRODUCTION" ? (
+            <span className="text-xs font-bold text-muted-foreground">{place.recordKind}</span>
+          ) : null}
         </div>
         <h1 className="mt-3 text-2xl font-bold sm:text-3xl">{place.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{place.addressLine}</p>
