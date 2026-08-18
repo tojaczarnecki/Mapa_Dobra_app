@@ -85,15 +85,18 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
       <Link href="/admin/miejsca" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft">
         <ArrowLeft aria-hidden="true" size={18} /> Wróć do miejsc
       </Link>
-      <header className={`rounded-lg border bg-white p-5 sm:p-6 ${place.recordKind === "TEST" ? "border-urgent/70" : "border-border"}`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <PlacePublicationBadge status={place.publicationStatus} />
-          <PlaceRecordBadge kind={place.recordKind} />
-          <span className="inline-flex min-h-7 items-center rounded-full border border-border bg-white px-2.5 py-1 text-xs font-bold">{operationalStatusLabels[place.operationalStatus]}</span>
-        </div>
-        <h1 className="mt-3 text-2xl font-bold sm:text-3xl">{place.name}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{place.addressLine}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
+      <header className={`rounded-lg border border-border p-4 sm:p-5 ${place.recordKind === "TEST" ? "bg-urgent-soft/20" : "bg-white"}`}>
+        <div className="sm:flex sm:items-end sm:justify-between sm:gap-5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <PlacePublicationBadge status={place.publicationStatus} />
+              <PlaceRecordBadge kind={place.recordKind} />
+              <span className="inline-flex min-h-7 items-center rounded-full border border-border bg-white px-2.5 py-1 text-xs font-bold">{operationalStatusLabels[place.operationalStatus]}</span>
+            </div>
+            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{place.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{place.addressLine}</p>
+          </div>
+          <div className="mt-3 flex shrink-0 flex-wrap gap-2 sm:mt-0 sm:justify-end">
           <Link href={`/admin/miejsca/${place.id}/edytuj`} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">
             <Pencil aria-hidden="true" size={17} /> Edytuj miejsce
           </Link>
@@ -102,6 +105,7 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
               <ExternalLink aria-hidden="true" size={17} /> Otwórz publicznie
             </Link>
           ) : null}
+          </div>
         </div>
       </header>
 

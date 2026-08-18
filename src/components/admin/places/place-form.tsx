@@ -27,6 +27,19 @@ import type {
 
 type CategoryOption = { id: string; slug: string; name: string };
 
+const formSections = [
+  { id: "podstawowe", label: "Podstawowe" },
+  { id: "adres", label: "Adres" },
+  { id: "kontakt", label: "Kontakt" },
+  { id: "godziny", label: "Godziny" },
+  { id: "warunki", label: "Warunki" },
+  { id: "dostepnosc", label: "Dostępność" },
+  { id: "nocleg", label: "Nocleg" },
+  { id: "weryfikacja", label: "Weryfikacja" },
+  { id: "status", label: "Status" },
+] as const;
+type FormSectionId = (typeof formSections)[number]["id"];
+
 const initialActionState: PlaceFormActionState = {};
 const fieldClass =
   "min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25";
@@ -128,20 +141,88 @@ function TriStateSelect({
 }
 
 function FormSection({
+  id,
   title,
   description,
   children,
 }: {
+  id: string;
   title: string;
   description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
+    <section id={id} className="scroll-mt-20 rounded-lg border border-border bg-white p-4 sm:p-5 xl:scroll-mt-5">
       <h2 className="text-lg font-bold">{title}</h2>
       {description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+function FormSectionNavigation() {
+  const [activeSection, setActiveSection] = useState<FormSectionId>(formSections[0].id);
+
+  useEffect(() => {
+    const elements = formSections
+      .map((section) => document.getElementById(section.id))
+      .filter((element): element is HTMLElement => Boolean(element));
+    const firstSection = elements[0];
+    if (!firstSection) return;
+    let animationFrame = 0;
+
+    const updateActiveSection = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        const probeLine = window.innerHeight * 0.35;
+        const current = elements.reduce<HTMLElement>((active, element) => (
+          element.getBoundingClientRect().top <= probeLine ? element : active
+        ), firstSection);
+        if (current?.id) setActiveSection(current.id as FormSectionId);
+      });
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, []);
+
+  useEffect(() => {
+    const navigation = document.querySelector<HTMLElement>('nav[aria-label="Sekcje formularza"]');
+    const activeLink = navigation?.querySelector<HTMLElement>(`a[href="#${activeSection}"]`);
+    if (!navigation || !activeLink || navigation.scrollWidth <= navigation.clientWidth) return;
+    navigation.scrollTo({
+      left: activeLink.offsetLeft - (navigation.clientWidth - activeLink.clientWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [activeSection]);
+
+  return (
+    <nav aria-label="Sekcje formularza" className="sticky top-0 z-20 self-start overflow-x-auto border-y border-border bg-[#f7f5ef]/95 py-2 backdrop-blur xl:top-4 xl:overflow-visible xl:rounded-lg xl:border xl:bg-white xl:p-2">
+      <ul className="flex w-max gap-1 xl:w-auto xl:flex-col">
+        {formSections.map((section) => (
+          <li key={section.id}>
+            <a
+              href={`#${section.id}`}
+              aria-current={activeSection === section.id ? "location" : undefined}
+              className={`inline-flex min-h-11 w-full items-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-bold transition ${activeSection === section.id ? "bg-brand-soft text-brand-strong" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"}`}
+              onClick={(event) => {
+                event.preventDefault();
+                setActiveSection(section.id);
+                document.getElementById(section.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              {section.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -327,7 +408,11 @@ export function PlaceForm({
     >
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
 
-      <FormSection title="Podstawowe">
+      <div className="xl:grid xl:grid-cols-[170px_minmax(0,1fr)] xl:items-start xl:gap-4">
+        <FormSectionNavigation />
+        <div className="min-w-0 space-y-4 pb-20 pt-4 xl:pt-0">
+
+      <FormSection id="podstawowe" title="Podstawowe">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Nazwa"
@@ -349,11 +434,11 @@ export function PlaceForm({
         </div>
         <fieldset className="mt-4">
           <legend className="mb-2 text-sm font-bold">Kategorie *</legend>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((category) => {
               const checked = payload.categorySlugs.includes(category.slug);
               return (
-                <label key={category.id} className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-brand-soft/40">
+                <label key={category.id} className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm font-semibold hover:bg-brand-soft/40">
                   <input
                     type="checkbox"
                     checked={checked}
@@ -398,7 +483,7 @@ export function PlaceForm({
         <p className="mt-3 text-xs text-muted-foreground">Wybrane: {selectedCategoryNames.join(", ") || "brak"}</p>
       </FormSection>
 
-      <FormSection title="Adres">
+      <FormSection id="adres" title="Adres">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ulica" value={payload.street} onChange={(street) => update({ street })} />
           <Field label="Numer" value={payload.buildingNumber} onChange={(buildingNumber) => update({ buildingNumber })} />
@@ -412,7 +497,7 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection title="Kontakt">
+      <FormSection id="kontakt" title="Kontakt">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Telefon" type="tel" value={payload.phone} onChange={(phone) => update({ phone })} />
           <Field label="E-mail" type="email" value={payload.email} onChange={(email) => update({ email })} />
@@ -421,24 +506,7 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection title="Statusy" description="Status publikacji steruje widocznością miejsca. Stan działania opisuje jego bieżące funkcjonowanie.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Status publikacji</span>
-            <input className={`${fieldClass} bg-surface-muted`} readOnly value={placeStatusLabels[payload.publicationStatus]} />
-            <span className="mt-1 block text-xs font-normal text-muted-foreground">Zmienisz go świadomie na ekranie szczegółów miejsca.</span>
-          </label>
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Stan działania</span>
-            <select className={fieldClass} value={payload.operationalStatus} onChange={(event) => update({ operationalStatus: event.target.value as PlaceAdminPayload["operationalStatus"] })}>
-              {Object.entries(operationalStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <span className="mt-1 block text-xs font-normal text-muted-foreground">Nie zmienia automatycznie statusu publikacji.</span>
-          </label>
-        </div>
-      </FormSection>
-
-      <FormSection title="Godziny" description="Każdy dzień może mieć kilka przedziałów. Brak danych pozostaje osobnym stanem.">
+      <FormSection id="godziny" title="Godziny" description="Każdy dzień może mieć kilka przedziałów. Brak danych pozostaje osobnym stanem.">
         <div className="space-y-5">
           <OpeningEditor label="Godziny działania" days={payload.openingHours.operation} onChange={(operation) => update({ openingHours: { ...payload.openingHours, operation } })} />
           {payload.isAccommodation ? (
@@ -454,7 +522,7 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection title="Warunki pomocy" description="Tak oznacza, że warunek jest wymagany. Nie oznacza, że nie jest wymagany.">
+      <FormSection id="warunki" title="Warunki pomocy" description="Tak oznacza, że warunek jest wymagany. Nie oznacza, że nie jest wymagany.">
         <div className="divide-y divide-border">
           {payload.requirements.map((item, index) => (
             <div key={`${item.kind}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
@@ -475,7 +543,7 @@ export function PlaceForm({
         </button>
       </FormSection>
 
-      <FormSection title="Dostępność">
+      <FormSection id="dostepnosc" title="Dostępność">
         <div className="divide-y divide-border">
           {payload.accessibility.map((item, index) => (
             <div key={`${item.feature}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
@@ -490,7 +558,7 @@ export function PlaceForm({
         <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => update({ accessibility: [...payload.accessibility, { feature: "OTHER", state: "UNKNOWN", label: "", note: "" }] })}><Plus aria-hidden="true" size={17} /> Dodaj inną cechę</button>
       </FormSection>
 
-      <FormSection title="Nocleg" description="Włącz tylko dla schroniska, noclegowni, hostelu, ogrzewalni lub podobnej placówki.">
+      <FormSection id="nocleg" title="Nocleg" description="Włącz tylko dla schroniska, noclegowni, hostelu, ogrzewalni lub podobnej placówki.">
         <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
           <input
             type="checkbox"
@@ -566,7 +634,7 @@ export function PlaceForm({
         ) : null}
       </FormSection>
 
-      <FormSection title="Weryfikacja i notatka wewnętrzna">
+      <FormSection id="weryfikacja" title="Weryfikacja i notatka wewnętrzna">
         <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
           <input type="checkbox" checked={payload.markVerified} onChange={(event) => update({ markVerified: event.target.checked })} />
           Dane zweryfikowane z placówką
@@ -586,7 +654,26 @@ export function PlaceForm({
         </label>
       </FormSection>
 
+      <FormSection id="status" title="Statusy" description="Status publikacji steruje widocznością miejsca. Stan działania opisuje jego bieżące funkcjonowanie.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-bold">
+            <span className="mb-1.5 block">Status publikacji</span>
+            <input className={`${fieldClass} bg-surface-muted`} readOnly value={placeStatusLabels[payload.publicationStatus]} />
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Zmienisz go świadomie na ekranie szczegółów miejsca.</span>
+          </label>
+          <label className="block text-sm font-bold">
+            <span className="mb-1.5 block">Stan działania</span>
+            <select className={fieldClass} value={payload.operationalStatus} onChange={(event) => update({ operationalStatus: event.target.value as PlaceAdminPayload["operationalStatus"] })}>
+              {Object.entries(operationalStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Nie zmienia automatycznie statusu publikacji.</span>
+          </label>
+        </div>
+      </FormSection>
+
       {state.error ? <p role="alert" className="rounded-lg border border-urgent/40 bg-urgent-soft px-4 py-3 text-sm font-semibold">{state.error}</p> : null}
+        </div>
+      </div>
       <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-[#f7f5ef]/95 px-1 py-3 backdrop-blur">
         <p className="text-xs text-muted-foreground">Zmiany zostaną zapisane dopiero po użyciu przycisku.</p>
         <SubmitButton isEditing={isEditing} />

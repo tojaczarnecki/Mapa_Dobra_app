@@ -38,9 +38,9 @@ export function AdminShell({ displayName, role, children }: AdminShellProps) {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-[1200px] lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="border-b border-border bg-white px-4 py-3 lg:min-h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
-          <nav aria-label="Panel administratora" className="flex gap-2 lg:flex-col">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1200px] lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="min-w-0 border-b border-border bg-white px-4 py-3 lg:min-h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+          <nav aria-label="Panel administratora" className="grid min-w-0 grid-cols-2 gap-1 min-[380px]:grid-cols-3 sm:flex sm:flex-wrap sm:gap-2 lg:flex-col lg:flex-nowrap">
             <Link
               href="/admin"
               className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
@@ -62,7 +62,7 @@ export function AdminShell({ displayName, role, children }: AdminShellProps) {
               <MapPinned aria-hidden="true" size={19} />
               Miejsca
             </Link>
-            <form action={logoutAdmin} className="lg:mt-5 lg:border-t lg:border-border lg:pt-5">
+            <form action={logoutAdmin} className="col-span-2 min-[380px]:col-span-3 sm:col-span-1 sm:w-auto lg:mt-5 lg:w-full lg:border-t lg:border-border lg:pt-5">
               <button
                 type="submit"
                 className="inline-flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"

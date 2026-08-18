@@ -43,7 +43,7 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
   const query = (first(params.q) ?? "").trim().slice(0, 200);
   const publicationValue = first(params.publication) ?? "all";
   const operationalValue = first(params.operational) ?? "all";
-  const recordKindValue = first(params.recordKind) ?? "all";
+  const recordKindValue = first(params.recordKind) ?? "without-test";
   const categoryValue = first(params.category) ?? "all";
   const accommodationValue = first(params.accommodation) ?? "all";
   const sortValue = optionalEnum(first(params.sort) ?? "updated", sortValues) ?? "updated";
@@ -63,7 +63,7 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
       : {}),
     ...(publicationStatus ? { publicationStatus } : {}),
     ...(operationalStatus ? { operationalStatus } : {}),
-    ...(recordKind ? { recordKind } : {}),
+    ...(recordKind ? { recordKind } : recordKindValue === "all" ? {} : { recordKind: { not: "TEST" } }),
     ...(categoryValue !== "all"
       ? { categories: { some: { category: { slug: categoryValue } } } }
       : {}),
@@ -109,9 +109,9 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
         </Link>
       </header>
 
-      <form method="get" className="grid gap-2.5 rounded-lg border border-border bg-white p-3 sm:grid-cols-2 xl:grid-cols-4 xl:items-end">
-        <label className="text-sm font-bold sm:col-span-2">
-          <span className="mb-1.5 block">Szukaj</span>
+      <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-2 xl:grid-cols-[180px_repeat(5,minmax(0,1fr))_150px] xl:items-end">
+        <label className="text-sm font-bold sm:col-span-2 xl:col-span-1">
+          <span className="mb-1 block">Szukaj</span>
           <span className="relative block">
             <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input name="q" defaultValue={query} className="min-h-11 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 font-normal" placeholder="Nazwa, adres lub organizacja" />
@@ -120,49 +120,50 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
         <SelectFilter label="Publikacja" name="publication" value={publicationValue} options={publicationStatuses.map((value) => ({ value, label: placeStatusLabels[value] }))} />
         <SelectFilter label="Stan działania" name="operational" value={operationalValue} options={operationalStatuses.map((value) => ({ value, label: operationalStatusLabels[value] }))} />
         <SelectFilter label="Kategoria" name="category" value={categoryValue} options={categories.map((category) => ({ value: category.slug, label: category.name }))} />
-        <SelectFilter label="Rodzaj rekordu" name="recordKind" value={recordKindValue} options={recordKinds.map((value) => ({ value, label: recordKindLabels[value] }))} />
+        <SelectFilter label="Rodzaj rekordu" name="recordKind" value={recordKindValue} includeAll={false} options={[{ value: "without-test", label: "Bez TEST" }, { value: "all", label: "Wszystkie" }, ...recordKinds.map((value) => ({ value, label: recordKindLabels[value] }))]} />
         <SelectFilter label="Typ miejsca" name="accommodation" value={accommodationValue} options={[{ value: "yes", label: "Noclegi" }, { value: "no", label: "Pozostałe miejsca" }]} />
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <SelectFilter label="Sortowanie" name="sort" value={sortValue} options={[{ value: "updated", label: "Ostatnio zmienione" }, { value: "verified", label: "Ostatnio zweryfikowane" }, { value: "name", label: "Nazwa A-Z" }]} />
-          <button type="submit" title="Zastosuj filtry" className="mt-[26px] inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-bold hover:bg-brand-soft xl:px-3">
+          <button type="submit" title="Zastosuj filtry" className="mt-[22px] inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-bold hover:bg-brand-soft xl:px-3">
             <Filter aria-hidden="true" size={18} /> <span className="xl:sr-only">Zastosuj</span>
           </button>
         </div>
       </form>
 
       {places.length ? (
-        <ol className="space-y-2.5">
+        <div>
+          <div className="mb-1.5 hidden grid-cols-[minmax(150px,1.2fr)_minmax(115px,.9fr)_100px_105px_70px_105px_160px] gap-2 px-3 text-[11px] font-bold uppercase text-muted-foreground xl:grid">
+            <span>Miejsce</span><span>Adres</span><span>Publikacja</span><span>Stan działania</span><span>Rodzaj</span><span>Daty</span><span>Akcje</span>
+          </div>
+          <ol className="space-y-1.5">
           {places.map((place) => {
             const canOpenPublicly = isPubliclyVisiblePlace(place);
             const publicHref = `/lodz/${place.primaryCategory.slug}/${place.slug}`;
             return (
-              <li key={place.id} className={`rounded-lg border bg-white p-4 ${place.recordKind === "TEST" ? "border-urgent/70" : "border-border"}`}>
-                <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(160px,1.2fr)_minmax(130px,.9fr)_120px_125px_125px_auto] xl:items-center">
+              <li key={place.id} className={`rounded-md border border-border px-3 py-3 xl:py-2.5 ${place.recordKind === "TEST" ? "bg-urgent-soft/20" : "bg-white"}`}>
+                <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(150px,1.2fr)_minmax(115px,.9fr)_100px_105px_70px_105px_160px] xl:items-center xl:gap-2">
                   <div className="min-w-0">
-                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-brand-strong">{place.accommodation ? "Nocleg" : place.primaryCategory.name}</span>
-                      <PlaceRecordBadge kind={place.recordKind} />
-                    </div>
                     <strong className="block text-sm leading-5">{place.name}</strong>
-                    {place.organization?.name ? <span className="mt-1 block text-xs text-muted-foreground">{place.organization.name}</span> : null}
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{place.primaryCategory.name}{place.organization?.name ? ` · ${place.organization.name}` : ""}</span>
                   </div>
                   <div className="min-w-0 text-sm">
                     <span className="block line-clamp-2">{place.addressLine}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">Kategoria: {place.primaryCategory.name}</span>
                   </div>
-                  <div className="space-y-1"><span className="block text-xs font-bold text-muted-foreground">Publikacja</span><PlacePublicationBadge status={place.publicationStatus} /></div>
-                  <div className="text-sm"><span className="block text-xs font-bold text-muted-foreground">Stan działania</span><strong>{operationalStatusLabels[place.operationalStatus]}</strong></div>
-                  <div className="text-xs text-muted-foreground"><span className="block"><strong>Weryfikacja:</strong> {formatDate(place.verifiedAt)}</span><span className="mt-1 block"><strong>Edycja:</strong> {formatDate(place.updatedAt)}</span></div>
-                  <div className="flex flex-wrap gap-1.5 xl:justify-end">
+                  <div className="space-y-1"><span className="block text-xs font-bold text-muted-foreground xl:hidden">Publikacja</span><PlacePublicationBadge status={place.publicationStatus} /></div>
+                  <div className="text-sm"><span className="block text-xs font-bold text-muted-foreground xl:hidden">Stan działania</span><strong>{operationalStatusLabels[place.operationalStatus]}</strong></div>
+                  <div><span className="mb-1 block text-xs font-bold text-muted-foreground xl:hidden">Rodzaj rekordu</span><PlaceRecordBadge kind={place.recordKind} /></div>
+                  <div className="text-xs text-muted-foreground"><span className="block"><strong className="xl:sr-only">Weryfikacja: </strong>{formatDate(place.verifiedAt)}</span><span className="mt-0.5 block"><strong className="xl:sr-only">Edycja: </strong>{formatDate(place.updatedAt)}</span></div>
+                  <div className="flex flex-wrap gap-1.5 xl:flex-nowrap xl:justify-end">
                     <ActionLink href={`/admin/miejsca/${place.id}`} label="Podgląd" icon={Eye} />
                     <ActionLink href={`/admin/miejsca/${place.id}/edytuj`} label="Edytuj" icon={Pencil} />
-                    {canOpenPublicly ? <ActionLink href={publicHref} label="Otwórz publicznie" icon={ExternalLink} external /> : null}
+                    {canOpenPublicly ? <ActionLink href={publicHref} label="Otwórz publicznie" icon={ExternalLink} external compact /> : null}
                   </div>
                 </div>
               </li>
             );
           })}
-        </ol>
+          </ol>
+        </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border bg-white px-5 py-10 text-center text-sm text-muted-foreground">Brak miejsc pasujących do wybranych filtrów.</div>
       )}
@@ -170,22 +171,22 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
   );
 }
 
-function SelectFilter({ label, name, value, options }: { label: string; name: string; value: string; options: Array<{ value: string; label: string }> }) {
+function SelectFilter({ label, name, value, options, includeAll = true }: { label: string; name: string; value: string; options: Array<{ value: string; label: string }>; includeAll?: boolean }) {
   return (
     <label className="min-w-0 text-sm font-bold">
-      <span className="mb-1.5 block">{label}</span>
-      <select name={name} defaultValue={value} className="min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2 font-normal">
-        <option value="all">Wszystkie</option>
+      <span className="mb-1 block text-xs">{label}</span>
+      <select name={name} defaultValue={value} className="min-h-11 w-full rounded-lg border border-border bg-white px-2.5 py-1.5 font-normal">
+        {includeAll ? <option value="all">Wszystkie</option> : null}
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
   );
 }
 
-function ActionLink({ href, label, icon: Icon, external = false }: { href: string; label: string; icon: typeof Eye; external?: boolean }) {
+function ActionLink({ href, label, icon: Icon, external = false, compact = false }: { href: string; label: string; icon: typeof Eye; external?: boolean; compact?: boolean }) {
   return (
-    <Link href={href} target={external ? "_blank" : undefined} title={label} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border bg-white px-2.5 text-brand-strong hover:bg-brand-soft">
-      <Icon aria-hidden="true" size={18} /><span className="sr-only">{label}</span>
+    <Link href={href} target={external ? "_blank" : undefined} title={label} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-2.5 text-sm font-bold text-brand-strong hover:bg-brand-soft">
+      <Icon aria-hidden="true" size={17} /><span className={compact ? "sr-only" : ""}>{label}</span>
     </Link>
   );
 }
