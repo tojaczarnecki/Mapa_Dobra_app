@@ -7,7 +7,7 @@ export type VerificationQueueItem = {
   name: string;
   address: string | null;
   categories: string[];
-  queueStatus: "PENDING" | "IN_PROGRESS" | "READY" | "VERIFIED" | "SKIPPED";
+  queueStatus: "PENDING" | "IN_PROGRESS" | "CONTACT_REQUIRED" | "READY" | "VERIFIED" | "SKIPPED";
   issueType: "NEW_PLACE" | "POSSIBLE_DUPLICATE" | "MATCH_EXISTING" | "IMPORT_CONFLICT";
   sourceLabel: string;
   sourceBatchId: string;
@@ -90,7 +90,7 @@ export async function getVerificationQueueItems() {
     updatedAt: candidate.updatedAt,
   }));
   return [...placeItems, ...candidateItems].sort((left, right) => {
-    const statusOrder = ["IN_PROGRESS", "PENDING", "READY", "VERIFIED", "SKIPPED"];
+    const statusOrder = ["CONTACT_REQUIRED", "IN_PROGRESS", "PENDING", "READY", "VERIFIED", "SKIPPED"];
     return statusOrder.indexOf(left.queueStatus) - statusOrder.indexOf(right.queueStatus) || left.name.localeCompare(right.name, "pl");
   });
 }

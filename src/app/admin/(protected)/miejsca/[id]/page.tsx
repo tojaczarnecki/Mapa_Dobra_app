@@ -53,6 +53,8 @@ const auditActionLabels = {
   IMPORT_CANDIDATE_SKIPPED: "Pominięcie kandydata importu",
   LOCATION_UPDATED: "Ustawienie lokalizacji",
   PLACE_VERIFIED: "Weryfikacja miejsca",
+  VERIFICATION_CONTACT_REQUIRED: "Wymagany kontakt",
+  VERIFICATION_CONTACT_RECORDED: "Zapis kontaktu",
 } as const;
 const originLabels = {
   DEMO_MIGRATION: "migracja danych demonstracyjnych",

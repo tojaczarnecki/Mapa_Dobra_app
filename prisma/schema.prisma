@@ -97,6 +97,8 @@ enum AuditAction {
   IMPORT_CANDIDATE_SKIPPED
   LOCATION_UPDATED
   PLACE_VERIFIED
+  VERIFICATION_CONTACT_REQUIRED
+  VERIFICATION_CONTACT_RECORDED
 }
 
 enum AuditEntityType {
@@ -242,6 +244,7 @@ enum ImportCandidateStatus {
 enum VerificationQueueStatus {
   PENDING
   IN_PROGRESS
+  CONTACT_REQUIRED
   READY
   VERIFIED
   SKIPPED
@@ -256,6 +259,23 @@ enum ImportCandidateResolution {
 enum PlaceLocationSource {
   GEOCODER
   MANUAL
+}
+
+enum VerificationContactReason {
+  MISSING_CURRENT_HOURS
+  UNCERTAIN_ADDRESS
+  OUTDATED_PHONE
+  CONFLICTING_SOURCES
+  REQUIREMENTS_CONFIRMATION
+  POSSIBLY_CLOSED_OR_MOVED
+  NO_RELIABLE_ONLINE_SOURCE
+  OTHER
+}
+
+enum VerificationContactMethod {
+  PHONE
+  EMAIL
+  IN_PERSON
 }
 
 enum VerificationSource {
@@ -274,26 +294,28 @@ enum DraftFieldDecision {
 }
 
 model AdminUser {
-  id                           String                             @id @default(uuid()) @db.Uuid
-  email                        String                             @unique @db.VarChar(320)
-  passwordHash                 String                             @db.VarChar(512)
-  displayName                  String                             @db.VarChar(160)
-  role                         AdminRole                          @default(MODERATOR)
-  active                       Boolean                            @default(true)
-  createdAt                    DateTime                           @default(now()) @db.Timestamptz(3)
-  updatedAt                    DateTime                           @updatedAt @db.Timestamptz(3)
-  lastLoginAt                  DateTime?                          @db.Timestamptz(3)
-  sessions                     AdminSession[]
-  auditLogs                    AuditLog[]
-  moderatedPlaceUpdates        PlaceUpdateSubmission[]            @relation("PlaceUpdateModerator")
-  moderatedNewPlaceSubmissions NewPlaceSubmission[]               @relation("NewPlaceModerator")
-  editedPlaces                 Place[]                            @relation("PlaceLastEditor")
-  verifiedPlaces               Place[]                            @relation("PlaceVerifier")
-  capacityUpdates              AccommodationCapacityGroup[]
-  availabilityHistory          AccommodationAvailabilityHistory[]
-  createdDrafts                SubmissionDraft[]                  @relation("DraftCreator")
-  updatedDrafts                SubmissionDraft[]                  @relation("DraftUpdater")
-  resolvedImportCandidates     ImportCandidate[]                  @relation("ImportCandidateResolver")
+  id                            String                             @id @default(uuid()) @db.Uuid
+  email                         String                             @unique @db.VarChar(320)
+  passwordHash                  String                             @db.VarChar(512)
+  displayName                   String                             @db.VarChar(160)
+  role                          AdminRole                          @default(MODERATOR)
+  active                        Boolean                            @default(true)
+  createdAt                     DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt                     DateTime                           @updatedAt @db.Timestamptz(3)
+  lastLoginAt                   DateTime?                          @db.Timestamptz(3)
+  sessions                      AdminSession[]
+  auditLogs                     AuditLog[]
+  moderatedPlaceUpdates         PlaceUpdateSubmission[]            @relation("PlaceUpdateModerator")
+  moderatedNewPlaceSubmissions  NewPlaceSubmission[]               @relation("NewPlaceModerator")
+  editedPlaces                  Place[]                            @relation("PlaceLastEditor")
+  verifiedPlaces                Place[]                            @relation("PlaceVerifier")
+  capacityUpdates               AccommodationCapacityGroup[]
+  availabilityHistory           AccommodationAvailabilityHistory[]
+  createdDrafts                 SubmissionDraft[]                  @relation("DraftCreator")
+  updatedDrafts                 SubmissionDraft[]                  @relation("DraftUpdater")
+  resolvedImportCandidates      ImportCandidate[]                  @relation("ImportCandidateResolver")
+  requiredVerificationContacts  PlaceVerificationContact[]         @relation("VerificationContactRequiredBy")
+  completedVerificationContacts PlaceVerificationContact[]         @relation("VerificationContactCompletedBy")
 
   @@index([active])
   @@map("admin_users")
@@ -369,69 +391,91 @@ model Category {
 }
 
 model Place {
-  id                      String                   @id @default(uuid()) @db.Uuid
-  legacyId                String?                  @unique @db.VarChar(200)
-  citySlug                String                   @default("lodz") @db.VarChar(120)
-  slug                    String                   @unique @db.VarChar(200)
-  name                    String                   @db.VarChar(250)
-  organizationId          String?                  @db.Uuid
-  primaryCategoryId       String                   @db.Uuid
-  typeLabel               String?                  @db.VarChar(160)
-  description             String?                  @db.VarChar(4000)
-  street                  String?                  @db.VarChar(300)
-  buildingNumber          String?                  @db.VarChar(40)
-  addressLine             String                   @db.VarChar(400)
-  postalCode              String?                  @db.VarChar(20)
-  city                    String                   @default("Łódź") @db.VarChar(120)
-  district                String?                  @db.VarChar(120)
-  latitude                Decimal?                 @db.Decimal(9, 6)
-  longitude               Decimal?                 @db.Decimal(9, 6)
+  id                      String                    @id @default(uuid()) @db.Uuid
+  legacyId                String?                   @unique @db.VarChar(200)
+  citySlug                String                    @default("lodz") @db.VarChar(120)
+  slug                    String                    @unique @db.VarChar(200)
+  name                    String                    @db.VarChar(250)
+  organizationId          String?                   @db.Uuid
+  primaryCategoryId       String                    @db.Uuid
+  typeLabel               String?                   @db.VarChar(160)
+  description             String?                   @db.VarChar(4000)
+  street                  String?                   @db.VarChar(300)
+  buildingNumber          String?                   @db.VarChar(40)
+  addressLine             String                    @db.VarChar(400)
+  postalCode              String?                   @db.VarChar(20)
+  city                    String                    @default("Łódź") @db.VarChar(120)
+  district                String?                   @db.VarChar(120)
+  latitude                Decimal?                  @db.Decimal(9, 6)
+  longitude               Decimal?                  @db.Decimal(9, 6)
   locationSource          PlaceLocationSource?
-  locationUpdatedAt       DateTime?                @db.Timestamptz(3)
-  phone                   String?                  @db.VarChar(50)
-  email                   String?                  @db.VarChar(320)
-  website                 String?                  @db.VarChar(2048)
-  socialMedia             String?                  @db.VarChar(2048)
-  publicationStatus       PlacePublicationStatus   @default(DRAFT)
-  verificationStatus      PlaceVerificationStatus  @default(UNVERIFIED)
-  operationalStatus       PlaceOperationalStatus   @default(UNKNOWN)
-  todayHoursLabel         String?                  @db.VarChar(240)
-  verificationNote        String?                  @db.VarChar(1000)
+  locationUpdatedAt       DateTime?                 @db.Timestamptz(3)
+  phone                   String?                   @db.VarChar(50)
+  email                   String?                   @db.VarChar(320)
+  website                 String?                   @db.VarChar(2048)
+  socialMedia             String?                   @db.VarChar(2048)
+  publicationStatus       PlacePublicationStatus    @default(DRAFT)
+  verificationStatus      PlaceVerificationStatus   @default(UNVERIFIED)
+  operationalStatus       PlaceOperationalStatus    @default(UNKNOWN)
+  todayHoursLabel         String?                   @db.VarChar(240)
+  verificationNote        String?                   @db.VarChar(1000)
   verificationSource      VerificationSource?
-  verificationSourceUrl   String?                  @db.VarChar(2048)
-  verifiedAt              DateTime?                @db.Timestamptz(3)
-  verifiedByAdminUserId   String?                  @db.Uuid
-  internalNote            String?                  @db.VarChar(2000)
+  verificationSourceUrl   String?                   @db.VarChar(2048)
+  verifiedAt              DateTime?                 @db.Timestamptz(3)
+  verifiedByAdminUserId   String?                   @db.Uuid
+  internalNote            String?                   @db.VarChar(2000)
   audience                String[]
   services                String[]
-  distanceLabel           String?                  @db.VarChar(80)
-  recordKind              PlaceRecordKind          @default(PRODUCTION)
+  distanceLabel           String?                   @db.VarChar(80)
+  recordKind              PlaceRecordKind           @default(PRODUCTION)
   verificationQueueStatus VerificationQueueStatus?
-  isDemo                  Boolean                  @default(false)
-  lastEditedByAdminUserId String?                  @db.Uuid
-  createdAt               DateTime                 @default(now()) @db.Timestamptz(3)
-  updatedAt               DateTime                 @updatedAt @db.Timestamptz(3)
-  organization            Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  primaryCategory         Category                 @relation("PrimaryPlaceCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  isDemo                  Boolean                   @default(false)
+  lastEditedByAdminUserId String?                   @db.Uuid
+  createdAt               DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                  @updatedAt @db.Timestamptz(3)
+  organization            Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  primaryCategory         Category                  @relation("PrimaryPlaceCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
   categories              PlaceCategory[]
   openingHours            OpeningHours[]
   requirements            PlaceRequirement[]
   accessibility           PlaceAccessibility[]
   accommodation           AccommodationDetails?
-  lastEditedBy            AdminUser?               @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
-  verifiedBy              AdminUser?               @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
-  updateSubmissions       PlaceUpdateSubmission[]  @relation("SubmissionTargetPlace")
-  publishedUpdates        PlaceUpdateSubmission[]  @relation("PublishedUpdatePlace")
-  publishedNewPlaces      NewPlaceSubmission[]     @relation("PublishedNewPlace")
+  lastEditedBy            AdminUser?                @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
+  verifiedBy              AdminUser?                @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
+  updateSubmissions       PlaceUpdateSubmission[]   @relation("SubmissionTargetPlace")
+  publishedUpdates        PlaceUpdateSubmission[]   @relation("PublishedUpdatePlace")
+  publishedNewPlaces      NewPlaceSubmission[]      @relation("PublishedNewPlace")
   submissionDrafts        SubmissionDraft[]
-  createdFromImport       ImportCandidate?         @relation("CreatedImportPlace")
-  importMatchCandidates   ImportCandidate[]        @relation("MatchedImportPlace")
+  createdFromImport       ImportCandidate?          @relation("CreatedImportPlace")
+  importMatchCandidates   ImportCandidate[]         @relation("MatchedImportPlace")
+  verificationContact     PlaceVerificationContact?
 
   @@index([recordKind, publicationStatus, city])
   @@index([verificationQueueStatus, recordKind, publicationStatus])
   @@index([primaryCategoryId])
   @@index([name])
   @@map("places")
+}
+
+model PlaceVerificationContact {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  placeId                String                      @unique @db.Uuid
+  reasons                VerificationContactReason[]
+  requiredNote           String?                     @db.VarChar(1000)
+  requiredAt             DateTime                    @default(now()) @db.Timestamptz(3)
+  requiredByAdminUserId  String                      @db.Uuid
+  contactedAt            DateTime?                   @db.Timestamptz(3)
+  contactMethod          VerificationContactMethod?
+  contactResult          String?                     @db.VarChar(2000)
+  contactedByAdminUserId String?                     @db.Uuid
+  createdAt              DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                    @updatedAt @db.Timestamptz(3)
+  place                  Place                       @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  requiredByAdminUser    AdminUser                   @relation("VerificationContactRequiredBy", fields: [requiredByAdminUserId], references: [id], onDelete: Restrict)
+  contactedByAdminUser   AdminUser?                  @relation("VerificationContactCompletedBy", fields: [contactedByAdminUserId], references: [id], onDelete: SetNull)
+
+  @@index([contactedAt, requiredAt])
+  @@map("place_verification_contacts")
 }
 
 model ImportBatch {

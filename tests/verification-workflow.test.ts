@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { geocodingResultMatchesAddress, normalizeGeocodingQuery, parseNominatimResults } from "../src/lib/geocoding/results.ts";
+import { geocodingResultMatchesAddress, normalizeGeocodingQuery, parseNominatimResults, scoreGeocodingSuggestion } from "../src/lib/geocoding/results.ts";
+import { buildGeocodingAttempts, prepareGeocodingAddress } from "../src/lib/geocoding/query.ts";
 import { getVerificationCompleteness } from "../src/lib/verification/completeness.ts";
+import { parseVerificationContactMethod, parseVerificationContactReasons } from "../src/lib/verification/contact.ts";
+import { resolveLocationSource } from "../src/lib/verification/location.ts";
 
 function completeInput() {
   return {
@@ -69,4 +72,49 @@ test("geocoder marks a mismatched single result as ambiguous", () => {
 test("geocoder recognizes a result containing the street and building number", () => {
   const [matching] = parseNominatimResults([{ display_name: "104, ulica Piotrkowska, Łódź, Polska", lat: "51.7592", lon: "19.455" }]);
   assert.equal(geocodingResultMatchesAddress(matching, "Piotrkowska", "104"), true);
+});
+
+test("geocoding query removes only technical street prefixes and adds city and country", () => {
+  const input = { name: "TEST Punkt", addressLine: "ul. Wólczańska 108, Łódź", street: "ul. Wólczańska", buildingNumber: "108", postalCode: "90-522", city: "Łódź" };
+  const prepared = prepareGeocodingAddress(input);
+  assert.equal(prepared.street, "Wólczańska");
+  assert.equal(prepared.buildingNumber, "108");
+  const attempts = buildGeocodingAttempts(input);
+  assert.deepEqual(attempts[0].params, { street: "Wólczańska 108", city: "Łódź", postalcode: "90-522", country: "Polska" });
+  assert.equal(attempts[1].query, "Wólczańska 108, Łódź, Polska");
+});
+
+test("geocoding query removes floor text without inventing a missing building number", () => {
+  const withFloor = prepareGeocodingAddress({ name: "TEST", addressLine: "al. A. Mickiewicza 15a, IV p, Łódź", street: "al. A. Mickiewicza 15a, IV p", buildingNumber: null, postalCode: null, city: "Łódź" });
+  assert.equal(withFloor.street, "A. Mickiewicza");
+  assert.equal(withFloor.simplifiedStreet, "Mickiewicza");
+  assert.equal(withFloor.buildingNumber, "15a");
+  const withoutNumber = prepareGeocodingAddress({ name: "TEST", addressLine: "ul. Piotrkowska, Łódź", street: "ul. Piotrkowska", buildingNumber: null, postalCode: null, city: "Łódź" });
+  assert.equal(withoutNumber.buildingNumber, "");
+});
+
+test("quality scoring distinguishes a Lodz match from an out-of-city result", () => {
+  const [lodz] = parseNominatimResults([{ place_id: 1, display_name: "108, Wólczańska, Łódź, Polska", lat: "51.752", lon: "19.451", address: { city: "Łódź", road: "Wólczańska", house_number: "108", postcode: "90-522", country_code: "pl" } }]);
+  const [outside] = parseNominatimResults([{ place_id: 2, display_name: "Wólczańska 108, Pabianice", lat: "51.665", lon: "19.35", address: { city: "Pabianice", road: "Wólczańska", house_number: "108", country_code: "pl" } }]);
+  assert.equal(scoreGeocodingSuggestion(lodz, { street: "Wólczańska", buildingNumber: "108", postalCode: "90-522", city: "Łódź" }).quality, "HIGH");
+  assert.equal(scoreGeocodingSuggestion(outside, { street: "Wólczańska", buildingNumber: "108", postalCode: "", city: "Łódź" }).quality, "IMPROBABLE");
+});
+
+test("missing number remains reviewable rather than a high-confidence match", () => {
+  const [suggestion] = parseNominatimResults([{ place_id: 1, display_name: "Wólczańska, Łódź, Polska", lat: "51.752", lon: "19.451", address: { city: "Łódź", road: "Wólczańska" } }]);
+  const result = scoreGeocodingSuggestion(suggestion, { street: "Wólczańska", buildingNumber: "108", postalCode: "", city: "Łódź" });
+  assert.equal(result.quality, "REVIEW");
+  assert.match(result.reasons.join(" "), /numeru budynku/iu);
+});
+
+test("location provenance requires an explicit geocoder confirmation or manual choice", () => {
+  assert.equal(resolveLocationSource("GEOCODER_CONFIRMED"), "GEOCODER");
+  assert.equal(resolveLocationSource("MANUAL"), "MANUAL");
+  assert.equal(resolveLocationSource(""), null);
+});
+
+test("contact workflow validates controlled reasons and methods", () => {
+  assert.deepEqual(parseVerificationContactReasons(["UNCERTAIN_ADDRESS", "INVALID", "UNCERTAIN_ADDRESS"]), ["UNCERTAIN_ADDRESS"]);
+  assert.equal(parseVerificationContactMethod("PHONE"), "PHONE");
+  assert.equal(parseVerificationContactMethod("SMS"), null);
 });

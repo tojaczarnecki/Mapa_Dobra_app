@@ -3,18 +3,26 @@
 import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { geocodePublicAddress, geocodingResultMatchesAddress, type GeocodingSuggestion } from "@/lib/geocoding/geocoder";
+import { geocodePublicAddress, type GeocodingSuggestion } from "@/lib/geocoding/geocoder";
 import { requireAdmin } from "@/lib/admin/session";
-import { normalizeComparable, slugifyImportValue } from "@/lib/imports/caritas-gdzie-parser";
+import { slugifyImportValue } from "@/lib/imports/caritas-gdzie-parser";
 import { prisma } from "@/lib/prisma";
 import { deriveTodayHoursLabel, openingRows, validateOpeningSchedule } from "@/lib/places/opening-hours";
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
+import { parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
+import { resolveLocationSource } from "@/lib/verification/location";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const verificationSources = ["PHONE_CALL", "ORGANIZATION_EMAIL", "VISIT", "OFFICIAL_WEBSITE", "SOCIAL_MEDIA", "OTHER"] as const;
 
 export type VerificationActionState = { error?: string; success?: string };
-export type GeocodingActionState = { error?: string; suggestions?: GeocodingSuggestion[]; cached?: boolean; ambiguous?: boolean };
+export type GeocodingActionState = {
+  error?: string;
+  suggestions?: GeocodingSuggestion[];
+  cached?: boolean;
+  ambiguous?: boolean;
+  attempts?: Array<{ id: "structured" | "normalized" | "place-context"; label: string; query: string; resultCount: number; cached: boolean }>;
+};
 
 function formText(formData: FormData, key: string, max: number, required = false) {
   const value = formData.get(key);
@@ -108,22 +116,113 @@ export async function startPlaceVerification(placeId: string) {
 export async function requestPlaceGeocoding(placeId: string): Promise<GeocodingActionState> {
   await requireAdmin();
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
-  const place = await prisma.place.findUnique({ where: { id: placeId }, select: { addressLine: true, street: true, buildingNumber: true, city: true } });
+  const place = await prisma.place.findUnique({ where: { id: placeId }, select: { name: true, addressLine: true, street: true, buildingNumber: true, postalCode: true, city: true } });
   if (!place) return { error: "Nie znaleziono miejsca." };
-  const normalizedAddress = normalizeComparable(place.addressLine);
-  const addressIncludesCity = normalizedAddress.includes(normalizeComparable(place.city));
-  const query = [
-    place.addressLine,
-    addressIncludesCity ? null : place.city,
-    "Polska",
-  ].filter(Boolean).join(", ");
   try {
-    const result = await geocodePublicAddress(query);
-    if (!result.suggestions.length) return { error: "Nie udało się jednoznacznie ustalić lokalizacji. Ustaw punkt ręcznie." };
-    const hasAddressMatch = result.suggestions.some((suggestion) => geocodingResultMatchesAddress(suggestion, place.street, place.buildingNumber));
-    return { ...result, ambiguous: !hasAddressMatch };
+    const result = await geocodePublicAddress({ ...place, country: "Polska" });
+    if (!result.suggestions.length) return { ...result, error: "Nie udało się ustalić lokalizacji. Ustaw punkt ręcznie." };
+    return { ...result, ambiguous: !result.suggestions.some((suggestion) => suggestion.quality === "HIGH") };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Nie udało się pobrać propozycji lokalizacji." };
+  }
+}
+
+export async function markVerificationContactRequired(
+  placeId: string,
+  _previousState: VerificationActionState,
+  formData: FormData,
+): Promise<VerificationActionState> {
+  const session = await requireAdmin();
+  if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
+  const reasons = parseVerificationContactReasons(formData.getAll("contactReasons"));
+  const note = formText(formData, "requiredNote", 1000);
+  if (!reasons.length) return { error: "Wybierz przynajmniej jeden powód wymagania kontaktu." };
+  if (note === null) return { error: "Notatka jest zbyt długa." };
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const current = await transaction.place.findUnique({
+        where: { id: placeId },
+        select: { verificationQueueStatus: true, verificationContact: { select: { reasons: true, requiredNote: true } } },
+      });
+      if (!current) throw new Error("NOT_FOUND");
+      const now = new Date();
+      await transaction.placeVerificationContact.upsert({
+        where: { placeId },
+        create: { placeId, reasons, requiredNote: note || null, requiredAt: now, requiredByAdminUserId: session.user.id },
+        update: {
+          reasons,
+          requiredNote: note || null,
+          requiredAt: now,
+          requiredByAdminUserId: session.user.id,
+          contactedAt: null,
+          contactMethod: null,
+          contactResult: null,
+          contactedByAdminUserId: null,
+        },
+      });
+      await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: "CONTACT_REQUIRED", lastEditedByAdminUserId: session.user.id } });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "VERIFICATION_CONTACT_REQUIRED",
+          entityType: "PLACE",
+          entityId: placeId,
+          changedFields: ["verificationQueueStatus", "verificationContact.reasons", "verificationContact.requiredNote"],
+          previousValues: { verificationQueueStatus: current.verificationQueueStatus, reasons: current.verificationContact?.reasons ?? [], note: current.verificationContact?.requiredNote ?? null },
+          newValues: { verificationQueueStatus: "CONTACT_REQUIRED", reasons, note: note || null },
+          changeOrigin: "ADMIN_MANUAL",
+          note: "Miejsce odłożono do kolejki wymagającej kontaktu.",
+        },
+      });
+    });
+    revalidateVerification(placeId);
+    return { success: "Miejsce dodano do kolejki wymagającej kontaktu." };
+  } catch {
+    return { error: "Nie udało się zapisać stanu kontaktu. Spróbuj ponownie." };
+  }
+}
+
+export async function recordVerificationContact(
+  placeId: string,
+  _previousState: VerificationActionState,
+  formData: FormData,
+): Promise<VerificationActionState> {
+  const session = await requireAdmin();
+  if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
+  const method = parseVerificationContactMethod(formData.get("contactMethod"));
+  const result = formText(formData, "contactResult", 2000, true);
+  const contactedAtValue = formText(formData, "contactedAt", 40, true);
+  const contactedAt = contactedAtValue ? new Date(contactedAtValue) : null;
+  if (!method) return { error: "Wybierz formę kontaktu." };
+  if (!result) return { error: "Krótko zapisz rezultat kontaktu." };
+  if (!contactedAt || Number.isNaN(contactedAt.getTime()) || contactedAt.getTime() > Date.now() + 5 * 60 * 1000) return { error: "Podaj prawidłową datę kontaktu." };
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const current = await transaction.placeVerificationContact.findUnique({ where: { placeId } });
+      if (!current) throw new Error("NOT_FOUND");
+      await transaction.placeVerificationContact.update({
+        where: { placeId },
+        data: { contactedAt, contactMethod: method, contactResult: result, contactedByAdminUserId: session.user.id },
+      });
+      await transaction.place.update({ where: { id: placeId }, data: { lastEditedByAdminUserId: session.user.id } });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "VERIFICATION_CONTACT_RECORDED",
+          entityType: "PLACE",
+          entityId: placeId,
+          changedFields: ["verificationContact.contactedAt", "verificationContact.contactMethod", "verificationContact.contactResult"],
+          previousValues: { contactedAt: current.contactedAt, contactMethod: current.contactMethod, contactResult: current.contactResult },
+          newValues: { contactedAt, contactMethod: method, contactResult: result },
+          changeOrigin: "ADMIN_MANUAL",
+          note: "Zapisano rezultat kontaktu. Miejsce nie zostało automatycznie oznaczone jako zweryfikowane.",
+        },
+      });
+    });
+    revalidateVerification(placeId);
+    return { success: "Rezultat kontaktu zapisano. Weryfikację zakończ osobną akcją." };
+  } catch {
+    return { error: "Nie udało się zapisać rezultatu kontaktu. Spróbuj ponownie." };
   }
 }
 
@@ -136,7 +235,8 @@ export async function savePlaceLocation(
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const latitude = Number(formData.get("latitude"));
   const longitude = Number(formData.get("longitude"));
-  const source = formData.get("locationSource") === "GEOCODER" ? "GEOCODER" : "MANUAL";
+  const source = resolveLocationSource(formData.get("locationSource"));
+  if (!source) return { error: "Wybierz propozycję geokodera albo ustaw lokalizację ręcznie." };
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < 49 || latitude > 55 || longitude < 14 || longitude > 25) {
     return { error: "Podaj prawidłowe współrzędne lokalizacji w Polsce." };
   }

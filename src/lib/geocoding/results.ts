@@ -6,6 +6,21 @@ export type GeocodingSuggestion = {
   city: string | null;
   district: string | null;
   importance: number | null;
+  road: string | null;
+  houseNumber: string | null;
+  postalCode: string | null;
+  countryCode: string | null;
+  resultType: string | null;
+  quality: "HIGH" | "REVIEW" | "LOW" | "IMPROBABLE";
+  qualityScore: number;
+  qualityReasons: string[];
+};
+
+export type GeocodingExpectedAddress = {
+  street: string;
+  buildingNumber: string;
+  postalCode: string;
+  city: string;
 };
 
 type NominatimResult = {
@@ -17,6 +32,8 @@ type NominatimResult = {
   lon?: string;
   importance?: number;
   address?: Record<string, string>;
+  type?: string;
+  category?: string;
 };
 
 export function normalizeGeocodingQuery(value: string) {
@@ -34,6 +51,65 @@ function normalizeAddressPart(value: string) {
     .replace(/ł/g, "l")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function meaningfulTokens(value: string) {
+  return normalizeAddressPart(value)
+    .split(" ")
+    .filter((token) => token.length > 1 && !["ul", "ulica", "al", "aleja", "plac", "pl", "marsz", "gen", "prof", "dr"].includes(token));
+}
+
+function canonicalBuildingNumber(value: string | null) {
+  return normalizeAddressPart(value ?? "").replace(/\s+/gu, "");
+}
+
+function isInLodz(latitude: number, longitude: number, city: string | null) {
+  const normalizedCity = normalizeAddressPart(city ?? "");
+  const coordinatesInLodz = latitude >= 51.65 && latitude <= 51.86 && longitude >= 19.3 && longitude <= 19.7;
+  return coordinatesInLodz && (!normalizedCity || normalizedCity === "lodz" || normalizedCity.includes("lodz"));
+}
+
+export function scoreGeocodingSuggestion(
+  suggestion: Omit<GeocodingSuggestion, "quality" | "qualityScore" | "qualityReasons">,
+  expected: GeocodingExpectedAddress,
+) {
+  const reasons: string[] = [];
+  if (!isInLodz(suggestion.latitude, suggestion.longitude, suggestion.city)) {
+    return { quality: "IMPROBABLE" as const, score: 0, reasons: ["Wynik znajduje się poza Łodzią lub wskazuje inne miasto."] };
+  }
+
+  let score = 40;
+  reasons.push("Lokalizacja znajduje się w Łodzi.");
+  const expectedStreetTokens = meaningfulTokens(expected.street);
+  const resultStreet = suggestion.road ?? suggestion.displayName;
+  const resultStreetTokens = new Set(meaningfulTokens(resultStreet));
+  const matchingStreetTokens = expectedStreetTokens.filter((token) => resultStreetTokens.has(token)).length;
+  const streetRatio = expectedStreetTokens.length ? matchingStreetTokens / expectedStreetTokens.length : 0;
+  score += Math.round(streetRatio * 30);
+  if (streetRatio >= 0.8) reasons.push("Nazwa ulicy jest zgodna.");
+  else if (expectedStreetTokens.length) reasons.push("Nazwa ulicy wymaga sprawdzenia.");
+
+  const expectedNumber = canonicalBuildingNumber(expected.buildingNumber);
+  const resultNumber = canonicalBuildingNumber(suggestion.houseNumber);
+  if (expectedNumber) {
+    if (resultNumber === expectedNumber) {
+      score += 25;
+      reasons.push("Numer budynku jest zgodny.");
+    } else {
+      reasons.push(resultNumber ? "Numer budynku jest inny." : "Geokoder nie potwierdził numeru budynku.");
+    }
+  }
+  if (expected.postalCode && suggestion.postalCode === expected.postalCode) {
+    score += 5;
+    reasons.push("Kod pocztowy jest zgodny.");
+  }
+
+  const quality = score >= 85 && (!expectedNumber || resultNumber === expectedNumber)
+    ? "HIGH" as const
+    : score >= 60
+      ? "REVIEW" as const
+      : "LOW" as const;
+  return { quality, score, reasons };
 }
 
 export function geocodingResultMatchesAddress(suggestion: GeocodingSuggestion, street: string | null, buildingNumber: string | null) {
@@ -60,6 +136,14 @@ export function parseNominatimResults(value: unknown): GeocodingSuggestion[] {
       city: address.city ?? address.town ?? address.village ?? null,
       district: address.city_district ?? address.suburb ?? address.neighbourhood ?? null,
       importance: typeof raw.importance === "number" ? raw.importance : null,
+      road: address.road ?? address.pedestrian ?? address.footway ?? null,
+      houseNumber: address.house_number ?? null,
+      postalCode: address.postcode ?? null,
+      countryCode: address.country_code ?? null,
+      resultType: raw.type ?? raw.category ?? null,
+      quality: "LOW",
+      qualityScore: 0,
+      qualityReasons: [],
     });
   }
   return parsed;

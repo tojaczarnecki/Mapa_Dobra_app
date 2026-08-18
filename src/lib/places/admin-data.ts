@@ -45,6 +45,12 @@ export const adminPlaceInclude = {
       sources: { include: { sourceEntry: true } },
     },
   },
+  verificationContact: {
+    include: {
+      requiredByAdminUser: { select: { displayName: true } },
+      contactedByAdminUser: { select: { displayName: true } },
+    },
+  },
 } satisfies Prisma.PlaceInclude;
 
 export async function getAdminPlace(id: string) {

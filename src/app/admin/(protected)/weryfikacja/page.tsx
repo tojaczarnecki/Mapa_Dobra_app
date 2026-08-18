@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getVerificationQueueItems } from "@/lib/verification/queue";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const statusValues = ["PENDING", "IN_PROGRESS", "READY", "VERIFIED", "SKIPPED"] as const;
+const statusValues = ["PENDING", "IN_PROGRESS", "CONTACT_REQUIRED", "READY", "VERIFIED", "SKIPPED"] as const;
 const typeValues = ["NEW_PLACE", "POSSIBLE_DUPLICATE", "MATCH_EXISTING", "IMPORT_CONFLICT"] as const;
 const dataValues = ["missing-coordinates", "missing-phone", "missing-hours", "missing-primary-category", "accommodation", "manual-decision"] as const;
-const statusLabels = { PENDING: "Wymaga weryfikacji", IN_PROGRESS: "W trakcie", READY: "Gotowe", VERIFIED: "Zweryfikowane", SKIPPED: "Odrzucone / pominięte" } as const;
+const statusLabels = { PENDING: "Wymaga weryfikacji", IN_PROGRESS: "W trakcie", CONTACT_REQUIRED: "Wymaga kontaktu", READY: "Gotowe", VERIFIED: "Zweryfikowane", SKIPPED: "Odrzucone / pominięte" } as const;
 const typeLabels = { NEW_PLACE: "Nowe miejsce", POSSIBLE_DUPLICATE: "Możliwy duplikat", MATCH_EXISTING: "Dopasowanie do istniejącego", IMPORT_CONFLICT: "Inny konflikt importowy" } as const;
 
 function first(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
@@ -42,6 +42,7 @@ export default async function VerificationQueuePage({ searchParams }: { searchPa
     { label: "Wszystkie do weryfikacji", value: active.length, icon: SearchCheck },
     { label: "Nowe miejsca", value: active.filter((item) => item.entityKind === "PLACE").length, icon: CheckCircle2 },
     { label: "Konflikty / duplikaty", value: active.filter((item) => item.entityKind === "CANDIDATE").length, icon: AlertTriangle },
+    { label: "Wymaga kontaktu", value: items.filter((item) => item.queueStatus === "CONTACT_REQUIRED").length, icon: AlertTriangle },
     { label: "Brak współrzędnych", value: active.filter((item) => item.entityKind === "PLACE" && item.missingCoordinates).length, icon: MapPinOff },
     { label: "Gotowe do publikacji", value: items.filter((item) => item.queueStatus === "READY").length, icon: CheckCircle2 },
     { label: "Zweryfikowane dzisiaj", value: items.filter((item) => item.verifiedAt && item.verifiedAt >= today).length, icon: CheckCircle2 },
@@ -49,7 +50,7 @@ export default async function VerificationQueuePage({ searchParams }: { searchPa
   return (
     <div className="space-y-5">
       <header><p className="mb-1 text-sm font-bold text-brand-strong">Jakość danych</p><h1 className="text-3xl font-bold">Weryfikacja</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Źródło → porównanie → poprawka → lokalizacja → aktualne potwierdzenie → świadoma publikacja.</p></header>
-      <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">{stats.map(({ label, value, icon: Icon }) => <div key={label} className="rounded-lg border border-border bg-white p-3"><dt className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><Icon aria-hidden="true" size={16} />{label}</dt><dd className="mt-1 text-2xl font-bold">{value}</dd></div>)}</dl>
+      <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">{stats.map(({ label, value, icon: Icon }) => <div key={label} className="rounded-lg border border-border bg-white p-3"><dt className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><Icon aria-hidden="true" size={16} />{label}</dt><dd className="mt-1 text-2xl font-bold">{value}</dd></div>)}</dl>
       <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
         <FilterSelect label="Status" name="status" value={status ?? "all"} options={statusValues.map((value) => ({ value, label: statusLabels[value] }))} />
         <FilterSelect label="Typ" name="type" value={type ?? "all"} options={typeValues.map((value) => ({ value, label: typeLabels[value] }))} />
