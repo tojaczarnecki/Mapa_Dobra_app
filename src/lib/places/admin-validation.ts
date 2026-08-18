@@ -235,7 +235,13 @@ function accommodation(value: unknown) {
     ) {
       return null;
     }
-    capacityGroups.push({ id: id || undefined, label, totalBeds, availableBeds });
+    capacityGroups.push({
+      id: id || undefined,
+      label,
+      totalBeds,
+      availableBeds,
+      active: rawGroup.active !== false,
+    });
   }
   return {
     type,

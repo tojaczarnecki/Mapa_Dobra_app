@@ -2,7 +2,9 @@ import type {
   AccessibilityFeatureValue,
   AccommodationTypeValue,
   PetPolicyValue,
+  PlaceOperationalStatusValue,
   PlacePublicationStatusValue,
+  PlaceRecordKindValue,
   RequirementKindValue,
   SobrietyPolicyValue,
   VerificationSourceValue,
@@ -88,4 +90,17 @@ export const placeStatusLabels: Record<PlacePublicationStatusValue, string> = {
   TEMPORARILY_CLOSED: "Czasowo zamknięte",
   PERMANENTLY_CLOSED: "Zamknięte na stałe",
   ARCHIVED: "Zarchiwizowane",
+};
+
+export const operationalStatusLabels: Record<PlaceOperationalStatusValue, string> = {
+  OPEN: "Otwarte",
+  CLOSED: "Zamknięte",
+  OPEN_TODAY: "Otwarte dzisiaj",
+  UNKNOWN: "Brak potwierdzenia",
+};
+
+export const recordKindLabels: Record<PlaceRecordKindValue, string> = {
+  PRODUCTION: "PRODUCTION",
+  DEMO: "DEMO",
+  TEST: "TEST",
 };

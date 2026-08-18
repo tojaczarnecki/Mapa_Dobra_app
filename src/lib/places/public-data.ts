@@ -32,7 +32,7 @@ const publicPlaceInclude = {
   accessibility: { orderBy: { sortOrder: "asc" as const } },
   accommodation: {
     include: {
-      capacityGroups: { orderBy: { sortOrder: "asc" as const } },
+      capacityGroups: { where: { active: true }, orderBy: { sortOrder: "asc" as const } },
       availabilityHistory: { orderBy: { reportedAt: "desc" as const }, take: 1 },
     },
   },

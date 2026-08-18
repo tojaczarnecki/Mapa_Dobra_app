@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "node --test tests/*.test.ts",
     "test:integration": "node scripts/test-admin-place-workflow.mjs",
+    "test:cms": "node scripts/test-admin-place-cms.mjs",
     "postinstall": "prisma generate",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",

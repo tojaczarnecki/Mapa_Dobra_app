@@ -38,10 +38,27 @@ export const adminPlaceInclude = {
     },
   },
   lastEditedBy: { select: { displayName: true } },
+  verifiedBy: { select: { displayName: true } },
 } satisfies Prisma.PlaceInclude;
 
 export async function getAdminPlace(id: string) {
   return prisma.place.findUnique({ where: { id }, include: adminPlaceInclude });
+}
+
+export async function getAdminPlaceHistory(placeId: string, capacityGroupIds: string[]) {
+  return prisma.auditLog.findMany({
+    where: {
+      OR: [
+        { entityType: "PLACE", entityId: placeId },
+        ...(capacityGroupIds.length
+          ? [{ entityType: "ACCOMMODATION_CAPACITY_GROUP" as const, entityId: { in: capacityGroupIds } }]
+          : []),
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 80,
+    include: { adminUser: { select: { displayName: true } } },
+  });
 }
 
 export async function getAdminPlaceFormOptions() {
@@ -179,6 +196,7 @@ function accommodationPayload(
       label: group.label,
       totalBeds: group.totalBeds,
       availableBeds: group.availableBeds,
+      active: group.active,
     })),
   };
 }

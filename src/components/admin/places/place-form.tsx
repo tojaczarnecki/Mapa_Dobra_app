@@ -3,13 +3,15 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Power, RotateCcw, Save, Trash2 } from "lucide-react";
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
+  operationalStatusLabels,
   petPolicyLabels,
+  placeStatusLabels,
   sobrietyPolicyLabels,
   verificationSourceLabels,
   weekdayOptions,
@@ -312,6 +314,16 @@ export function PlaceForm({
       action={formAction}
       className="space-y-4"
       onChange={() => setDirty(true)}
+      onSubmit={(event) => {
+        if (
+          isEditing &&
+          initialData.publicationStatus === "PUBLISHED" &&
+          payload.slug !== initialData.slug &&
+          !window.confirm("Zmiana slugu zmieni publiczny adres URL miejsca. Zapisać zmianę?")
+        ) {
+          event.preventDefault();
+        }
+      }}
     >
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
 
@@ -323,7 +335,15 @@ export function PlaceForm({
             required
             onChange={(name) => update({ name, ...(!isEditing && !payload.slug ? { slug: slugify(name) } : {}) })}
           />
-          <Field label="Slug" value={payload.slug} required onChange={(slug) => update({ slug: slugify(slug) })} />
+          <div>
+            <Field label="Slug" value={payload.slug} required onChange={(slug) => update({ slug: slugify(slug) })} />
+            {isEditing && initialData.publicationStatus === "PUBLISHED" && payload.slug !== initialData.slug ? (
+              <p className="mt-2 flex gap-2 rounded-md border border-urgent/35 bg-urgent-soft px-3 py-2 text-xs font-semibold text-[#8c2d0c]">
+                <AlertTriangle aria-hidden="true" className="shrink-0" size={16} />
+                Zmiana slugu zmieni publiczny adres URL tego miejsca.
+              </p>
+            ) : null}
+          </div>
           <Field label="Organizacja" value={payload.organizationName} onChange={(organizationName) => update({ organizationName })} />
           <Field label="Typ miejsca" value={payload.typeLabel} onChange={(typeLabel) => update({ typeLabel })} />
         </div>
@@ -401,6 +421,23 @@ export function PlaceForm({
         </div>
       </FormSection>
 
+      <FormSection title="Statusy" description="Status publikacji steruje widocznością miejsca. Stan działania opisuje jego bieżące funkcjonowanie.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-bold">
+            <span className="mb-1.5 block">Status publikacji</span>
+            <input className={`${fieldClass} bg-surface-muted`} readOnly value={placeStatusLabels[payload.publicationStatus]} />
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Zmienisz go świadomie na ekranie szczegółów miejsca.</span>
+          </label>
+          <label className="block text-sm font-bold">
+            <span className="mb-1.5 block">Stan działania</span>
+            <select className={fieldClass} value={payload.operationalStatus} onChange={(event) => update({ operationalStatus: event.target.value as PlaceAdminPayload["operationalStatus"] })}>
+              {Object.entries(operationalStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Nie zmienia automatycznie statusu publikacji.</span>
+          </label>
+        </div>
+      </FormSection>
+
       <FormSection title="Godziny" description="Każdy dzień może mieć kilka przedziałów. Brak danych pozostaje osobnym stanem.">
         <div className="space-y-5">
           <OpeningEditor label="Godziny działania" days={payload.openingHours.operation} onChange={(operation) => update({ openingHours: { ...payload.openingHours, operation } })} />
@@ -408,16 +445,7 @@ export function PlaceForm({
             <OpeningEditor label="Godziny przyjęć" days={payload.openingHours.admission} onChange={(admission) => update({ openingHours: { ...payload.openingHours, admission } })} />
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-bold">
-              <span className="mb-1.5 block">Bieżący status</span>
-              <select className={fieldClass} value={payload.operationalStatus} onChange={(event) => update({ operationalStatus: event.target.value as PlaceAdminPayload["operationalStatus"] })}>
-                <option value="OPEN">Otwarte</option>
-                <option value="CLOSED">Zamknięte</option>
-                <option value="OPEN_TODAY">Otwarte dzisiaj</option>
-                <option value="UNKNOWN">Brak potwierdzenia</option>
-              </select>
-            </label>
-            <label className="block text-sm font-bold">
+            <label className="block text-sm font-bold sm:col-start-2">
               <span className="mb-1.5 block">Skrót godzin na dziś</span>
               <input className={`${fieldClass} bg-surface-muted`} readOnly value={deriveTodayHoursLabel(payload.openingHours.operation)} />
               <span className="mt-1 block text-xs font-normal text-muted-foreground">Wyliczany automatycznie z godzin działania.</span>
@@ -429,11 +457,12 @@ export function PlaceForm({
       <FormSection title="Warunki pomocy" description="Tak oznacza, że warunek jest wymagany. Nie oznacza, że nie jest wymagany.">
         <div className="divide-y divide-border">
           {payload.requirements.map((item, index) => (
-            <div key={`${item.kind}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+            <div key={`${item.kind}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
               <input className={fieldClass} value={item.label} aria-label={`Warunek ${index + 1}`} onChange={(event) => update({ requirements: payload.requirements.map((current, itemIndex) => itemIndex === index ? { ...current, label: event.target.value } : current) })} />
               <select className={fieldClass} value={item.state} aria-label={`${item.label}: stan`} onChange={(event) => update({ requirements: payload.requirements.map((current, itemIndex) => itemIndex === index ? { ...current, state: event.target.value as TriState } : current) })}>
                 <option value="YES">Tak</option><option value="NO">Nie</option><option value="UNKNOWN">Brak danych</option>
               </select>
+              <input className={`${fieldClass} sm:col-span-2 lg:col-span-1`} value={item.note} aria-label={`${item.label}: notatka`} placeholder="Opcjonalna informacja" onChange={(event) => update({ requirements: payload.requirements.map((current, itemIndex) => itemIndex === index ? { ...current, note: event.target.value } : current) })} />
             </div>
           ))}
         </div>
@@ -449,14 +478,16 @@ export function PlaceForm({
       <FormSection title="Dostępność">
         <div className="divide-y divide-border">
           {payload.accessibility.map((item, index) => (
-            <TriStateSelect
-              key={`${item.feature}-${index}`}
-              label={item.label || accessibilityOptions.find((option) => option.feature === item.feature)?.label || item.feature}
-              value={item.state}
-              onChange={(state) => update({ accessibility: payload.accessibility.map((current, itemIndex) => itemIndex === index ? { ...current, state } : current) })}
-            />
+            <div key={`${item.feature}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
+              <input className={fieldClass} value={item.label || accessibilityOptions.find((option) => option.feature === item.feature)?.label || item.feature} aria-label={`Cecha dostępności ${index + 1}`} onChange={(event) => update({ accessibility: payload.accessibility.map((current, itemIndex) => itemIndex === index ? { ...current, label: event.target.value } : current) })} />
+              <select className={fieldClass} value={item.state} aria-label={`${item.label}: stan`} onChange={(event) => update({ accessibility: payload.accessibility.map((current, itemIndex) => itemIndex === index ? { ...current, state: event.target.value as TriState } : current) })}>
+                <option value="YES">Tak</option><option value="NO">Nie</option><option value="UNKNOWN">Brak danych</option>
+              </select>
+              <input className={`${fieldClass} sm:col-span-2 lg:col-span-1`} value={item.note} aria-label={`${item.label}: notatka`} placeholder="Opcjonalna informacja" onChange={(event) => update({ accessibility: payload.accessibility.map((current, itemIndex) => itemIndex === index ? { ...current, note: event.target.value } : current) })} />
+            </div>
           ))}
         </div>
+        <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => update({ accessibility: [...payload.accessibility, { feature: "OTHER", state: "UNKNOWN", label: "", note: "" }] })}><Plus aria-hidden="true" size={17} /> Dodaj inną cechę</button>
       </FormSection>
 
       <FormSection title="Nocleg" description="Włącz tylko dla schroniska, noclegowni, hostelu, ogrzewalni lub podobnej placówki.">
@@ -508,6 +539,7 @@ export function PlaceForm({
               <Field label="Godzina powrotu" value={accommodation.returnTimeInfo} onChange={(returnTimeInfo) => updateAccommodation({ returnTimeInfo })} />
               <Field label="Maksymalny pobyt" value={accommodation.maxStayInfo} onChange={(maxStayInfo) => updateAccommodation({ maxStayInfo })} />
               <Field label="Odpłatność" value={accommodation.feeInfo} onChange={(feeInfo) => updateAccommodation({ feeInfo })} />
+              <div className="sm:col-span-2"><Field label="Dodatkowe informacje noclegowe" value={accommodation.importantNote} onChange={(importantNote) => updateAccommodation({ importantNote })} /></div>
             </div>
             <div className="border-t border-border pt-4">
               <h3 className="text-sm font-bold">Dostępność miejsc</h3>
@@ -518,15 +550,17 @@ export function PlaceForm({
               </div>
               <div className="mt-4 space-y-2">
                 {accommodation.capacityGroups.map((group, index) => (
-                  <div key={group.id ?? index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_120px_120px_44px] sm:items-end">
+                  <div key={group.id ?? index} className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_120px_120px_44px] sm:items-end ${group.active ? "border-border" : "border-dashed border-border bg-surface-muted/70"}`}>
                     <Field label="Pula" value={group.label} onChange={(label) => updateAccommodation({ capacityGroups: accommodation.capacityGroups.map((item, itemIndex) => itemIndex === index ? { ...item, label } : item) })} />
                     <Field label="Wszystkich" type="number" value={group.totalBeds ?? ""} onChange={(value) => updateAccommodation({ capacityGroups: accommodation.capacityGroups.map((item, itemIndex) => itemIndex === index ? { ...item, totalBeds: value ? Number(value) : null } : item) })} />
                     <Field label="Wolnych" type="number" value={group.availableBeds ?? ""} onChange={(value) => updateAccommodation({ capacityGroups: accommodation.capacityGroups.map((item, itemIndex) => itemIndex === index ? { ...item, availableBeds: value ? Number(value) : null } : item) })} />
-                    <button type="button" aria-label={`Usuń pulę ${group.label}`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-urgent/40 text-[#8c2d0c] hover:bg-urgent-soft" onClick={() => { if (window.confirm("Usunąć tę pulę miejsc? Historia zmian pozostanie w bazie.")) updateAccommodation({ capacityGroups: accommodation.capacityGroups.filter((_, itemIndex) => itemIndex !== index) }); }}><Trash2 aria-hidden="true" size={17} /></button>
+                    <button type="button" title={group.active ? "Wyłącz pulę" : "Włącz pulę"} aria-label={`${group.active ? "Wyłącz" : "Włącz"} pulę ${group.label}`} className={`inline-flex min-h-11 items-center justify-center rounded-lg border ${group.active ? "border-urgent/40 text-[#8c2d0c] hover:bg-urgent-soft" : "border-brand/40 text-brand-strong hover:bg-brand-soft"}`} onClick={() => { if (!group.active || window.confirm("Wyłączyć tę pulę? Rekord i historia dostępności pozostaną w bazie.")) updateAccommodation({ capacityGroups: accommodation.capacityGroups.map((item, itemIndex) => itemIndex === index ? { ...item, active: !item.active } : item) }); }}>{group.active ? <Power aria-hidden="true" size={17} /> : <RotateCcw aria-hidden="true" size={17} />}</button>
+                    {!group.active ? <span className="text-xs font-bold text-muted-foreground sm:col-span-4">Pula wyłączona. Nie jest używana publicznie ani w szybkim podsumowaniu.</span> : null}
                   </div>
                 ))}
               </div>
-              <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => updateAccommodation({ capacityGroups: [...accommodation.capacityGroups, { label: "", totalBeds: null, availableBeds: null }] })}><Plus aria-hidden="true" size={17} /> Dodaj pulę</button>
+              <p className="mt-2 text-xs text-muted-foreground">Puste pole liczby miejsc oznacza brak aktualnych danych, nie zero.</p>
+              <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => updateAccommodation({ capacityGroups: [...accommodation.capacityGroups, { label: "", totalBeds: null, availableBeds: null, active: true }] })}><Plus aria-hidden="true" size={17} /> Dodaj pulę</button>
             </div>
           </div>
         ) : null}

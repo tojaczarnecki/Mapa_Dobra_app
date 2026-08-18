@@ -237,6 +237,7 @@ model AdminUser {
   moderatedPlaceUpdates        PlaceUpdateSubmission[]            @relation("PlaceUpdateModerator")
   moderatedNewPlaceSubmissions NewPlaceSubmission[]               @relation("NewPlaceModerator")
   editedPlaces                 Place[]                            @relation("PlaceLastEditor")
+  verifiedPlaces               Place[]                            @relation("PlaceVerifier")
   capacityUpdates              AccommodationCapacityGroup[]
   availabilityHistory          AccommodationAvailabilityHistory[]
   createdDrafts                SubmissionDraft[]                  @relation("DraftCreator")
@@ -342,6 +343,7 @@ model Place {
   verificationNote        String?                 @db.VarChar(1000)
   verificationSource      VerificationSource?
   verifiedAt              DateTime?               @db.Timestamptz(3)
+  verifiedByAdminUserId   String?                 @db.Uuid
   internalNote            String?                 @db.VarChar(2000)
   audience                String[]
   services                String[]
@@ -359,6 +361,7 @@ model Place {
   accessibility           PlaceAccessibility[]
   accommodation           AccommodationDetails?
   lastEditedBy            AdminUser?              @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
+  verifiedBy              AdminUser?              @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
   updateSubmissions       PlaceUpdateSubmission[] @relation("SubmissionTargetPlace")
   publishedUpdates        PlaceUpdateSubmission[] @relation("PublishedUpdatePlace")
   publishedNewPlaces      NewPlaceSubmission[]    @relation("PublishedNewPlace")
@@ -474,6 +477,7 @@ model AccommodationCapacityGroup {
   label                  String                             @db.VarChar(160)
   totalBeds              Int?
   availableBeds          Int?
+  active                 Boolean                            @default(true)
   availabilityUpdatedAt  DateTime?                          @db.Timestamptz(3)
   updatedByAdminUserId   String?                            @db.Uuid
   sortOrder              Int                                @default(0)

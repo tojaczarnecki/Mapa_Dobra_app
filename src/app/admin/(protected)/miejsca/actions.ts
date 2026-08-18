@@ -15,6 +15,7 @@ import type {
   PlaceFormActionState,
   PlaceOperationalStatusValue,
   PlacePublicationStatusValue,
+  QuickAvailabilityActionState,
 } from "@/types/place-admin";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -71,6 +72,7 @@ function placeScalarData(
       ? {
           verificationStatus: "VERIFIED" as const,
           verifiedAt: new Date(),
+          verifiedByAdminUserId: adminUserId,
           verificationSource: payload.verificationSource,
         }
       : {}),
@@ -285,7 +287,7 @@ export async function savePlace(
         const priorState = priorAccommodation?.availabilityState;
         const capacityChanged = payload.accommodation.capacityGroups.some((group) => {
           const previous = priorAccommodation?.capacityGroups.find((item) => item.id === group.id);
-          return !previous || previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds;
+          return !previous || previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds || previous.active !== group.active;
         });
         const availabilityChanged = priorState !== payload.accommodation.availabilityState || capacityChanged;
         const accommodationData = {
@@ -311,6 +313,7 @@ export async function savePlace(
                   label: group.label,
                   totalBeds: group.totalBeds,
                   availableBeds: group.availableBeds,
+                  active: group.active,
                   sortOrder,
                   ...(previous.availableBeds !== group.availableBeds || previous.totalBeds !== group.totalBeds
                     ? { availabilityUpdatedAt: new Date(), updatedByAdminUserId: session.user.id }
@@ -323,6 +326,7 @@ export async function savePlace(
                   label: group.label,
                   totalBeds: group.totalBeds,
                   availableBeds: group.availableBeds,
+                  active: group.active,
                   availabilityUpdatedAt: new Date(),
                   updatedByAdminUserId: session.user.id,
                   sortOrder,
@@ -365,11 +369,12 @@ export async function savePlace(
           }
         }
         if (priorAccommodation) {
-          await transaction.accommodationCapacityGroup.deleteMany({
+          await transaction.accommodationCapacityGroup.updateMany({
             where: {
               accommodationDetailsId: savedAccommodation.id,
               ...(retainedIds.length ? { id: { notIn: retainedIds } } : {}),
             },
+            data: { active: false },
           });
         }
         if (availabilityChanged && payload.accommodation.capacityGroups.length === 0) {
@@ -503,5 +508,174 @@ export async function changePlaceStatus(
       return { error: "Wybrany status publikacji jest sprzeczny ze stanem operacyjnym miejsca." };
     }
     return { error: "Nie udało się zmienić statusu miejsca." };
+  }
+}
+
+export async function updateAccommodationAvailability(
+  _previousState: QuickAvailabilityActionState,
+  formData: FormData,
+): Promise<QuickAvailabilityActionState> {
+  const session = await requireAdmin();
+  const placeId = formData.get("placeId");
+  const rawUpdates = formData.get("updates");
+  if (
+    typeof placeId !== "string" ||
+    !uuidPattern.test(placeId) ||
+    typeof rawUpdates !== "string" ||
+    rawUpdates.length > 20_000
+  ) {
+    return { error: "Nie udało się odczytać aktualizacji dostępności." };
+  }
+
+  let input: unknown;
+  try {
+    input = JSON.parse(rawUpdates);
+  } catch {
+    return { error: "Nie udało się odczytać aktualizacji dostępności." };
+  }
+  if (!Array.isArray(input) || input.length > 30) {
+    return { error: "Nieprawidłowa liczba aktualizowanych pul." };
+  }
+  const updates: Array<{ id: string; availableBeds: number | null }> = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") return { error: "Nieprawidłowe dane puli miejsc." };
+    const id = "id" in item ? item.id : null;
+    const availableBeds = "availableBeds" in item ? item.availableBeds : undefined;
+    if (
+      typeof id !== "string" ||
+      !uuidPattern.test(id) ||
+      !(
+        availableBeds === null ||
+        (typeof availableBeds === "number" && Number.isInteger(availableBeds) && availableBeds >= 0 && availableBeds <= 100_000)
+      )
+    ) {
+      return { error: "Liczba wolnych miejsc musi być liczbą nieujemną albo pozostać nieznana." };
+    }
+    updates.push({ id, availableBeds });
+  }
+  if (new Set(updates.map((item) => item.id)).size !== updates.length) {
+    return { error: "Ta sama pula została przesłana więcej niż raz." };
+  }
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const place = await transaction.place.findUnique({
+        where: { id: placeId },
+        select: {
+          id: true,
+          slug: true,
+          primaryCategory: { select: { slug: true } },
+          accommodation: {
+            select: {
+              id: true,
+              capacityGroups: {
+                where: { active: true },
+                orderBy: { sortOrder: "asc" },
+              },
+            },
+          },
+        },
+      });
+      if (!place?.accommodation) throw new Error("NOT_FOUND");
+      const currentById = new Map(place.accommodation.capacityGroups.map((group) => [group.id, group]));
+      if (updates.some((item) => !currentById.has(item.id))) throw new Error("INVALID_GROUP");
+      for (const update of updates) {
+        const current = currentById.get(update.id)!;
+        if (current.totalBeds !== null && update.availableBeds !== null && update.availableBeds > current.totalBeds) {
+          throw new Error("CAPACITY");
+        }
+      }
+
+      const changed = updates.filter((item) => currentById.get(item.id)!.availableBeds !== item.availableBeds);
+      if (!changed.length) return { changed: false, publicHref: null };
+      const now = new Date();
+      for (const update of changed) {
+        const current = currentById.get(update.id)!;
+        const groupState = update.availableBeds === null
+          ? "UNKNOWN" as const
+          : update.availableBeds === 0
+            ? "FULL" as const
+            : update.availableBeds === 1
+              ? "FEW" as const
+              : "AVAILABLE" as const;
+        await transaction.accommodationCapacityGroup.update({
+          where: { id: current.id },
+          data: {
+            availableBeds: update.availableBeds,
+            availabilityUpdatedAt: now,
+            updatedByAdminUserId: session.user.id,
+          },
+        });
+        await transaction.accommodationAvailabilityHistory.create({
+          data: {
+            accommodationDetailsId: place.accommodation.id,
+            capacityGroupId: current.id,
+            availabilityState: groupState,
+            availableBeds: update.availableBeds,
+            totalBeds: current.totalBeds,
+            reportedAt: now,
+            adminUserId: session.user.id,
+            origin: "ADMIN_MANUAL",
+            note: "Szybka aktualizacja dostępności w panelu administratora.",
+          },
+        });
+      }
+
+      const updateById = new Map(updates.map((item) => [item.id, item.availableBeds]));
+      const currentValues = place.accommodation.capacityGroups.map((group) =>
+        updateById.has(group.id) ? updateById.get(group.id)! : group.availableBeds,
+      );
+      const knownValues = currentValues.filter((value): value is number => value !== null);
+      const totalAvailable = knownValues.reduce((sum, value) => sum + value, 0);
+      const hasUnknown = knownValues.length !== currentValues.length;
+      const availabilityState = knownValues.length === 0
+        ? "UNKNOWN" as const
+        : totalAvailable === 0
+          ? "FULL" as const
+          : totalAvailable <= 2
+            ? "FEW" as const
+            : "AVAILABLE" as const;
+      const availabilityLabel = knownValues.length === 0
+        ? "Brak aktualnych danych"
+        : `${hasUnknown ? "Co najmniej " : ""}${totalAvailable} ${totalAvailable === 1 ? "wolne miejsce" : totalAvailable < 5 ? "wolne miejsca" : "wolnych miejsc"}`;
+      await transaction.accommodationDetails.update({
+        where: { id: place.accommodation.id },
+        data: { availabilityState, availabilityLabel, availabilityConfirmedAt: now },
+      });
+      await transaction.place.update({
+        where: { id: place.id },
+        data: { lastEditedByAdminUserId: session.user.id },
+      });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "AVAILABILITY_UPDATED",
+          entityType: "PLACE",
+          entityId: place.id,
+          changedFields: changed.map((item) => `capacityGroups.${currentById.get(item.id)!.label}.availableBeds`),
+          previousValues: Object.fromEntries(changed.map((item) => [currentById.get(item.id)!.label, currentById.get(item.id)!.availableBeds])),
+          newValues: Object.fromEntries(changed.map((item) => [currentById.get(item.id)!.label, item.availableBeds])),
+          changeOrigin: "ADMIN_MANUAL",
+          note: "Szybka aktualizacja dostępności noclegu.",
+        },
+      });
+      return {
+        changed: true,
+        publicHref: `/lodz/${place.primaryCategory.slug}/${place.slug}`,
+      };
+    });
+
+    if (!result.changed) return { success: "Nie było zmian do zapisania." };
+    revalidatePath(`/admin/miejsca/${placeId}`);
+    revalidatePath("/admin/miejsca");
+    revalidatePath("/znajdz-nocleg");
+    revalidatePath("/mapa");
+    if (result.publicHref) revalidatePath(result.publicHref);
+    return { success: "Dostępność została zaktualizowana." };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "CAPACITY") return { error: "Liczba wolnych miejsc nie może przekraczać pojemności puli." };
+    if (reason === "INVALID_GROUP") return { error: "Jedna z pul została wyłączona lub zmieniona. Odśwież stronę." };
+    return { error: "Nie udało się zapisać dostępności. Spróbuj ponownie." };
   }
 }

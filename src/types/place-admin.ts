@@ -6,6 +6,7 @@ export type PlacePublicationStatusValue =
   | "PERMANENTLY_CLOSED"
   | "ARCHIVED";
 export type PlaceOperationalStatusValue = "OPEN" | "CLOSED" | "OPEN_TODAY" | "UNKNOWN";
+export type PlaceRecordKindValue = "PRODUCTION" | "DEMO" | "TEST";
 export type WeekdayValue =
   | "MONDAY"
   | "TUESDAY"
@@ -96,6 +97,7 @@ export type AdminCapacityGroup = {
   label: string;
   totalBeds: number | null;
   availableBeds: number | null;
+  active: boolean;
 };
 
 export type AdminAccommodation = {
@@ -171,4 +173,9 @@ export type PlaceFormActionState = {
   error?: string;
   success?: string;
   placeId?: string;
+};
+
+export type QuickAvailabilityActionState = {
+  error?: string;
+  success?: string;
 };
