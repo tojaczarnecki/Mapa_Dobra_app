@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -18,6 +19,7 @@ function first(value: string | string[] | undefined) {
 }
 
 export default async function AdminImportBatchPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requirePermission("VIEW_IMPORTS");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const query = await searchParams;

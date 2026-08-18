@@ -4,7 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { geocodePublicAddress, type GeocodingSuggestion } from "@/lib/geocoding/geocoder";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import { slugifyImportValue } from "@/lib/imports/caritas-gdzie-parser";
 import { prisma } from "@/lib/prisma";
 import { deriveTodayHoursLabel, openingRows, validateOpeningSchedule } from "@/lib/places/opening-hours";
@@ -106,7 +106,7 @@ async function readiness(transaction: Prisma.TransactionClient, placeId: string,
 }
 
 export async function startPlaceVerification(placeId: string) {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return;
   await prisma.$transaction(async (transaction) => {
     const place = await transaction.place.findUnique({ where: { id: placeId }, select: { verificationQueueStatus: true } });
@@ -130,7 +130,7 @@ export async function startPlaceVerification(placeId: string) {
 }
 
 export async function requestPlaceGeocoding(placeId: string): Promise<GeocodingActionState> {
-  await requireAdmin();
+  await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const place = await prisma.place.findUnique({ where: { id: placeId }, select: { name: true, addressLine: true, street: true, buildingNumber: true, postalCode: true, city: true } });
   if (!place) return { error: "Nie znaleziono miejsca." };
@@ -148,7 +148,7 @@ export async function markVerificationContactRequired(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const reasons = parseVerificationContactReasons(formData.getAll("contactReasons"));
   const note = formText(formData, "requiredNote", 1000);
@@ -203,7 +203,7 @@ export async function recordVerificationContact(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const method = parseVerificationContactMethod(formData.get("contactMethod"));
   const result = formText(formData, "contactResult", 2000, true);
@@ -248,7 +248,7 @@ export async function savePlaceLocation(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const latitude = Number(formData.get("latitude"));
   const longitude = Number(formData.get("longitude"));
@@ -308,7 +308,7 @@ export async function saveVerificationWorkingData(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const name = formText(formData, "name", 250, true);
   const addressLine = formText(formData, "addressLine", 400, true);
@@ -420,7 +420,7 @@ export async function markPlaceVerified(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   const source = formData.get("verificationSource");
   const sourceUrl = formText(formData, "sourceUrl", 2048);
@@ -473,7 +473,7 @@ export async function markPlaceVerified(
 }
 
 export async function publishVerifiedPlace(placeId: string): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("PUBLISH_PLACES");
   if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowy identyfikator miejsca." };
   try {
     const publicPath = await prisma.$transaction(async (transaction) => {
@@ -516,7 +516,7 @@ export async function publishVerifiedPlace(placeId: string): Promise<Verificatio
 }
 
 export async function startCandidateVerification(candidateId: string) {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(candidateId)) return;
   await prisma.$transaction(async (transaction) => {
     const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, select: { queueStatus: true } });
@@ -532,7 +532,7 @@ export async function resolveCandidateSamePlace(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   const placeId = formText(formData, "placeId", 36, true);
   const note = formText(formData, "note", 1000);
   if (!uuidPattern.test(candidateId) || !placeId || !uuidPattern.test(placeId) || note === null) return { error: "Wybierz prawidłowe istniejące miejsce." };
@@ -630,7 +630,7 @@ export async function resolveCandidateDifferentPlace(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(candidateId)) return { error: "Nieprawidłowy identyfikator kandydata." };
   const name = formText(formData, "name", 250, true);
   const addressLine = formText(formData, "addressLine", 400, true);
@@ -742,7 +742,7 @@ export async function skipImportCandidate(
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("VERIFY_PLACES");
   const reason = formText(formData, "reason", 1000, true);
   if (!uuidPattern.test(candidateId) || !reason) return { error: "Podaj krótki powód pominięcia." };
   try {

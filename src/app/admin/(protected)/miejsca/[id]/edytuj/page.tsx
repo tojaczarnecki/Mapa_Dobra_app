@@ -3,10 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PlaceForm } from "@/components/admin/places/place-form";
 import { getAdminPlace, getAdminPlaceFormOptions, toPlaceAdminPayload } from "@/lib/places/admin-data";
+import { requirePermission } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export default async function EditAdminPlacePage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission("EDIT_PLACES");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const [place, options] = await Promise.all([getAdminPlace(id), getAdminPlaceFormOptions()]);

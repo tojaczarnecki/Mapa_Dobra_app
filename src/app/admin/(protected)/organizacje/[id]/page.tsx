@@ -7,6 +7,7 @@ import { PlacePublicationBadge } from "@/components/admin/places/place-publicati
 import { PlaceRecordBadge } from "@/components/admin/places/place-record-badge";
 import { operationalStatusLabels } from "@/lib/places/constants";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" }).format(value);
@@ -28,6 +29,7 @@ function placeCountLabel(count: number) {
 }
 
 export default async function OrganizationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission("VIEW_ORGANIZATIONS");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const [organization, history] = await Promise.all([

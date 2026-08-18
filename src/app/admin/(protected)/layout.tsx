@@ -7,7 +7,7 @@ export default async function ProtectedAdminLayout({
   const session = await requireAdmin();
 
   return (
-    <AdminShell displayName={session.user.displayName} role={session.user.role}>
+    <AdminShell displayName={session.user.displayName} role={session.user.role} permissions={session.user.permissions}>
       {children}
     </AdminShell>
   );

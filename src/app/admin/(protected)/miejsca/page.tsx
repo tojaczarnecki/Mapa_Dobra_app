@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { PlacePublicationBadge } from "@/components/admin/places/place-publication-badge";
 import { PlaceRecordBadge } from "@/components/admin/places/place-record-badge";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 import {
   operationalStatusLabels,
   placeStatusLabels,
@@ -45,6 +46,7 @@ function formatDate(value: Date | null) {
 }
 
 export default async function AdminPlacesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission("VIEW_PLACES");
   const params = await searchParams;
   const query = (first(params.q) ?? "").trim().slice(0, 200);
   const publicationValue = first(params.publication) ?? "all";

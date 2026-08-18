@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import {
   compareOrganizationNames,
   slugifyDirectoryValue,
@@ -26,7 +26,7 @@ export async function saveOrganization(
   _previousState: DirectoryActionState,
   formData: FormData,
 ): Promise<DirectoryActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("MANAGE_ORGANIZATIONS");
   const validation = validateOrganizationForm(formData);
   if (!validation.ok) return { error: validation.error };
   const input = validation.data;
@@ -99,7 +99,7 @@ export async function setOrganizationActive(
   _previousState: DirectoryActionState,
   formData: FormData,
 ): Promise<DirectoryActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("MANAGE_ORGANIZATIONS");
   const id = formData.get("id");
   const targetActive = formData.get("active") === "true";
   if (typeof id !== "string") return { error: "Nie udało się zmienić statusu organizacji." };

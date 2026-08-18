@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import {
   canPublishSubmission,
   hasPlaceVersionConflict,
@@ -132,7 +132,7 @@ function parseDraft(formData: FormData, validateIncludedHours = true): ReturnTyp
 }
 
 export async function saveSubmissionDraft(_state: DraftActionState, formData: FormData): Promise<DraftActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("MODERATE_SUBMISSIONS");
   let parsed: ReturnType<typeof parseItems>;
   try { parsed = parseDraft(formData); } catch (error) {
     return { error: error instanceof Error ? error.message.slice(6) : "Sprawdź godziny." };
@@ -344,7 +344,7 @@ async function publishNewPlace(transaction: Prisma.TransactionClient, included: 
 }
 
 export async function publishSubmissionDraft(_state: DraftActionState, formData: FormData): Promise<DraftActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("PUBLISH_SUBMISSIONS");
   let parsed: ReturnType<typeof parseItems>;
   try { parsed = parseDraft(formData); } catch (error) {
     return { error: error instanceof Error ? error.message.slice(6) : "Sprawdź godziny." };
@@ -410,7 +410,7 @@ export async function publishSubmissionDraft(_state: DraftActionState, formData:
 }
 
 export async function prepareApprovedSubmissionDraft(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requirePermission("MODERATE_SUBMISSIONS");
   const submissionId = formData.get("submissionId");
   if (typeof submissionId !== "string" || !uuidPattern.test(submissionId)) return;
   const [update, newPlace] = await Promise.all([
@@ -424,7 +424,7 @@ export async function prepareApprovedSubmissionDraft(formData: FormData) {
 }
 
 export async function rebaseSubmissionDraft(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requirePermission("MODERATE_SUBMISSIONS");
   let parsed: ReturnType<typeof parseItems>;
   try { parsed = parseDraft(formData, false); } catch { return; }
   if (!parsed) return;

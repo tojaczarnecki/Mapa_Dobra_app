@@ -13,7 +13,7 @@ const sourceOptions = [
   ["OTHER", "Inne wiarygodne źródło"],
 ] as const;
 
-export function VerificationActions({ placeId, canPublish, isProduction, publicationStatus }: { placeId: string; canPublish: boolean; isProduction: boolean; publicationStatus: string }) {
+export function VerificationActions({ placeId, canPublish, allowedToPublish, isProduction, publicationStatus }: { placeId: string; canPublish: boolean; allowedToPublish: boolean; isProduction: boolean; publicationStatus: string }) {
   const verifyAction = markPlaceVerified.bind(null, placeId);
   const [verifyState, verifyFormAction, verifyPending] = useActionState<VerificationActionState, FormData>(verifyAction, {});
   const [publishState, publishAction, publishPending] = useActionState<VerificationActionState, FormData>(async () => publishVerifiedPlace(placeId), {});
@@ -27,10 +27,10 @@ export function VerificationActions({ placeId, canPublish, isProduction, publica
         <label className="text-sm font-bold sm:col-span-2">Notatka wewnętrzna <span className="font-normal text-muted-foreground">(opcjonalnie)</span><textarea name="note" rows={3} maxLength={1000} className="mt-1 w-full rounded-lg border border-border px-3 py-2 font-normal" /></label>
         <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3"><div>{verifyState.error ? <p className="text-sm font-semibold text-urgent" role="alert">{verifyState.error}</p> : null}{verifyState.success ? <p className="text-sm font-semibold text-brand-strong" role="status">{verifyState.success}</p> : null}</div><button type="submit" disabled={verifyPending} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong hover:bg-brand-soft disabled:opacity-60"><CheckCircle2 aria-hidden="true" size={18} />{verifyPending ? "Zapisuję…" : "Oznacz jako zweryfikowane"}</button></div>
       </form>
-      <div className="mt-5 border-t border-border pt-4">
+      {allowedToPublish ? <div className="mt-5 border-t border-border pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold">Publikacja publiczna</h3><p className="mt-1 text-sm text-muted-foreground">{publicationStatus === "PUBLISHED" ? "Miejsce jest już opublikowane." : canPublish ? "Spełnia minimalne warunki publikacji." : "Najpierw uzupełnij wymagane dane i zakończ aktualną weryfikację."}</p></div>{publicationStatus !== "PUBLISHED" ? <form action={publishAction} onSubmit={(event) => { if (!window.confirm("Opublikować to miejsce w publicznej Mapie Dobra?")) event.preventDefault(); }}><button type="submit" disabled={!canPublish || !isProduction || publishPending} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-45"><Send aria-hidden="true" size={18} />{publishPending ? "Publikuję…" : "Opublikuj"}</button></form> : null}</div>
         {publishState.error ? <p className="mt-2 text-sm font-semibold text-urgent" role="alert">{publishState.error}</p> : null}{publishState.success ? <p className="mt-2 text-sm font-semibold text-brand-strong" role="status">{publishState.success}</p> : null}
-      </div>
+      </div> : <p className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">Publikacja wymaga osobnego uprawnienia.</p>}
     </section>
   );
 }

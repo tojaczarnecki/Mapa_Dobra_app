@@ -18,7 +18,7 @@ import {
 } from "@/lib/admin/labels";
 import { getSubmissionDetail } from "@/lib/admin/submissions";
 import { getOrCreateSubmissionDraft, getSubmissionDraft } from "@/lib/admin/submission-drafts";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import { prepareApprovedSubmissionDraft } from "../draft-actions";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -116,7 +116,7 @@ export default async function AdminSubmissionDetailPage({
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
 
-  const session = await requireAdmin();
+  const session = await requirePermission("MODERATE_SUBMISSIONS");
   const detail = await getSubmissionDetail(id);
   if (!detail) notFound();
 

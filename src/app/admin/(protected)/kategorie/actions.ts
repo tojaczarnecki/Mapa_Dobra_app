@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import { validateCategoryForm } from "@/lib/admin/directory-validation";
 import { prisma } from "@/lib/prisma";
 import type { DirectoryActionState } from "@/types/admin-directory";
@@ -11,7 +11,7 @@ export async function saveCategory(
   _previousState: DirectoryActionState,
   formData: FormData,
 ): Promise<DirectoryActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("MANAGE_CATEGORIES");
   const validation = validateCategoryForm(formData);
   if (!validation.ok) return { error: validation.error };
   const input = validation.data;

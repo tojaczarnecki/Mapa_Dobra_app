@@ -53,7 +53,7 @@ export async function loginAdmin(
   }
 
   const admin = await prisma.adminUser.findUnique({ where: { email } });
-  const passwordMatches = admin?.active
+  const passwordMatches = admin?.active && admin.passwordHash
     ? await verifyPassword(password, admin.passwordHash)
     : Boolean(await hashPassword(password)) && false;
 

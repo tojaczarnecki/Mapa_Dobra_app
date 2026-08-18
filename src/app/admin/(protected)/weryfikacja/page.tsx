@@ -4,6 +4,7 @@ import { VerificationStatusBadge } from "@/components/admin/verification/verific
 import { prisma } from "@/lib/prisma";
 import { verificationContactReasonLabel } from "@/lib/verification/contact";
 import { getVerificationQueueItems } from "@/lib/verification/queue";
+import { requirePermission } from "@/lib/admin/session";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const statusValues = ["PENDING", "IN_PROGRESS", "CONTACT_REQUIRED", "READY", "VERIFIED", "PUBLISHED", "SKIPPED"] as const;
@@ -16,6 +17,7 @@ function first(value: string | string[] | undefined) { return Array.isArray(valu
 function valid<T extends string>(value: string | undefined, values: readonly T[]) { return value && values.includes(value as T) ? value as T : undefined; }
 
 export default async function VerificationQueuePage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission("VERIFY_PLACES");
   const params = await searchParams;
   const status = valid(first(params.status), statusValues);
   const type = valid(first(params.type), typeValues);

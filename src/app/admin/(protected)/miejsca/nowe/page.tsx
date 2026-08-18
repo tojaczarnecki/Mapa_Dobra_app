@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PlaceForm } from "@/components/admin/places/place-form";
 import { emptyPlaceAdminPayload, getAdminPlaceFormOptions } from "@/lib/places/admin-data";
+import { requirePermission } from "@/lib/admin/session";
 
 export default async function NewAdminPlacePage() {
+  await requirePermission("CREATE_PLACES");
   const { categories, organizations } = await getAdminPlaceFormOptions();
   const primaryCategory = categories.find((category) => category.active)?.slug ?? "jedzenie";
 

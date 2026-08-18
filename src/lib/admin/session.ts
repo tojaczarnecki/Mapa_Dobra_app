@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { AdminPermission } from "@/generated/prisma/enums";
+import { hasPlaceScopedPermission, resolveEffectivePermissions } from "@/lib/admin/permissions";
 import { prisma } from "@/lib/prisma";
 
 export const ADMIN_SESSION_COOKIE = "mapa_dobra_admin_session";
@@ -50,6 +52,9 @@ export async function getCurrentAdmin() {
           displayName: true,
           role: true,
           active: true,
+          permissionOverrides: {
+            select: { permission: true, effect: true },
+          },
         },
       },
     },
@@ -59,11 +64,34 @@ export async function getCurrentAdmin() {
     return null;
   }
 
+  const permissions = resolveEffectivePermissions(
+    session.adminUser.role,
+    session.adminUser.permissionOverrides,
+  );
+
   return {
     sessionId: session.id,
     expiresAt: session.expiresAt,
-    user: session.adminUser,
+    user: { ...session.adminUser, permissions },
   };
+}
+
+export async function requirePermission(permission: AdminPermission) {
+  const session = await requireAdmin();
+  if (!session.user.permissions.includes(permission)) redirect("/admin/brak-dostepu");
+  return session;
+}
+
+export async function requirePlacePermission(permission: AdminPermission, placeId: string) {
+  const session = await requireAdmin();
+  if (session.user.permissions.includes(permission)) return session;
+
+  const access = await prisma.userPlaceAccess.findUnique({
+    where: { adminUserId_placeId: { adminUserId: session.user.id, placeId } },
+    select: { active: true, permissions: true },
+  });
+  if (!hasPlaceScopedPermission(session.user.permissions, access, permission)) redirect("/admin/brak-dostepu");
+  return session;
 }
 
 export async function requireAdmin() {

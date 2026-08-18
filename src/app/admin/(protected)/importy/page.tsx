@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ExternalLink, FileInput } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 const batchStatusLabels = {
   STAGED: "Przygotowana",
@@ -13,6 +14,7 @@ function formatDate(value: Date | null) {
 }
 
 export default async function AdminImportsPage() {
+  await requirePermission("VIEW_IMPORTS");
   const batches = await prisma.importBatch.findMany({
     orderBy: { createdAt: "desc" },
     include: { candidates: { select: { status: true } } },

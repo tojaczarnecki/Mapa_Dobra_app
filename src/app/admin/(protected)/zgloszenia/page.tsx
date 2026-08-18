@@ -2,6 +2,7 @@ import { Filter } from "lucide-react";
 import { SubmissionList } from "@/components/admin/submission-list";
 import { getSubmissionSummaries } from "@/lib/admin/submissions";
 import type { ModerationStatus } from "@/generated/prisma/enums";
+import { requirePermission } from "@/lib/admin/session";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -28,6 +29,7 @@ export default async function AdminSubmissionsPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await requirePermission("MODERATE_SUBMISSIONS");
   const params = await searchParams;
   const statusKey = firstValue(params.status) ?? "all";
   const typeKey = firstValue(params.type) ?? "all";

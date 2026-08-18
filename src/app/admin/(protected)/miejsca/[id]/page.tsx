@@ -19,6 +19,7 @@ import {
 } from "@/lib/places/constants";
 import { isPubliclyVisiblePlace } from "@/lib/places/public-visibility";
 import type { PlacePublicationStatusValue } from "@/types/place-admin";
+import { requirePermission } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const stateLabels = { YES: "Tak", NO: "Nie", UNKNOWN: "Brak danych" } as const;
@@ -26,7 +27,7 @@ const availabilityLabels = {
   AVAILABLE: "Są wolne miejsca", FEW: "Niewiele miejsc", FULL: "Brak miejsc",
   UNKNOWN: "Brak aktualnych danych", STALE: "Dane mogą być nieaktualne", SUSPENDED: "Przyjęcia wstrzymane",
 } as const;
-const auditActionLabels = {
+const auditActionLabels: Record<string, string> = {
   LOGIN: "Logowanie",
   STATUS_CHANGED: "Zmiana statusu zgłoszenia",
   APPROVED: "Zatwierdzenie zgłoszenia",
@@ -55,13 +56,14 @@ const auditActionLabels = {
   PLACE_VERIFIED: "Weryfikacja miejsca",
   VERIFICATION_CONTACT_REQUIRED: "Wymagany kontakt",
   VERIFICATION_CONTACT_RECORDED: "Zapis kontaktu",
-} as const;
-const originLabels = {
+};
+const originLabels: Record<string, string> = {
   DEMO_MIGRATION: "migracja danych demonstracyjnych",
   ADMIN_MANUAL: "ręczna zmiana administratora",
   USER_SUBMISSION: "zgłoszenie użytkownika",
   SOURCE_IMPORT: "import ze źródła",
-} as const;
+  FACILITY_REPRESENTATIVE: "aktualizacja placówki",
+};
 const fieldLabels: Record<string, string> = {
   name: "nazwa",
   slug: "slug",
@@ -87,6 +89,7 @@ function technicalJson(value: unknown) {
 }
 
 export default async function AdminPlaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission("VIEW_PLACES");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const place = await getAdminPlace(id);

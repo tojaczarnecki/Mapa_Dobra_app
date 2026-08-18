@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Building2, Eye, Pencil, Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -17,6 +18,7 @@ function placeCountLabel(count: number) {
 }
 
 export default async function AdminOrganizationsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requirePermission("VIEW_ORGANIZATIONS");
   const params = await searchParams;
   const query = (first(params.q) ?? "").trim().slice(0, 200);
   const sort = first(params.sort) ?? "name";

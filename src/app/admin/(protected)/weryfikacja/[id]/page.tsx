@@ -16,21 +16,23 @@ import { prisma } from "@/lib/prisma";
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication } from "@/lib/verification/contact";
 import { getCandidateComparisonOptions, getVerificationNavigation } from "@/lib/verification/queue";
+import { requirePermission } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export default async function VerificationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requirePermission("VERIFY_PLACES");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const place = await getAdminPlace(id);
   const navigation = await getVerificationNavigation(id);
-  if (place?.verificationQueueStatus) return <PlaceVerification place={place} navigation={navigation} />;
+  if (place?.verificationQueueStatus) return <PlaceVerification place={place} navigation={navigation} allowedToPublish={session.user.permissions.includes("PUBLISH_PLACES")} />;
   const candidate = await getCandidateWithRelations(id);
   if (!candidate?.queueStatus) notFound();
   return <CandidateVerification candidate={candidate} navigation={navigation} />;
 }
 
-async function PlaceVerification({ place, navigation }: { place: NonNullable<Awaited<ReturnType<typeof getAdminPlace>>>; navigation: Awaited<ReturnType<typeof getVerificationNavigation>> }) {
+async function PlaceVerification({ place, navigation, allowedToPublish }: { place: NonNullable<Awaited<ReturnType<typeof getAdminPlace>>>; navigation: Awaited<ReturnType<typeof getVerificationNavigation>>; allowedToPublish: boolean }) {
   const [options] = await Promise.all([getAdminPlaceFormOptions()]);
   const payload = toPlaceAdminPayload(place);
   const rawOpeningHours = place.createdFromImport?.sources.map((item) => item.sourceEntry.rawOpeningHours).filter(Boolean).join("\n") || null;
@@ -71,7 +73,7 @@ async function PlaceVerification({ place, navigation }: { place: NonNullable<Awa
         <LocationEditor placeId={place.id} nextId={navigation.nextId} address={place.addressLine} initialLatitude={place.latitude === null ? null : Number(place.latitude)} initialLongitude={place.longitude === null ? null : Number(place.longitude)} initialSource={place.locationSource} />
         <ContactWorkflow placeId={place.id} phone={place.phone} email={place.email} website={place.website} organization={place.organization?.name ?? null} contact={place.verificationContact ? { reasons: place.verificationContact.reasons, requiredNote: place.verificationContact.requiredNote, requiredAt: place.verificationContact.requiredAt.toISOString(), requiredBy: place.verificationContact.requiredByAdminUser.displayName, contactedAt: place.verificationContact.contactedAt?.toISOString() ?? null, contactMethod: place.verificationContact.contactMethod, contactResult: place.verificationContact.contactResult, contactedBy: place.verificationContact.contactedByAdminUser?.displayName ?? null } : null} />
         {place.accommodation ? <AccommodationReview accommodation={place.accommodation} admissionHours={scheduleFromRows(place.openingHours, "ADMISSION")} /> : null}
-        <VerificationActions placeId={place.id} canPublish={complete.readyToPublish && place.verificationQueueStatus === "READY"} isProduction={place.recordKind === "PRODUCTION"} publicationStatus={place.publicationStatus} />
+        <VerificationActions placeId={place.id} canPublish={complete.readyToPublish && place.verificationQueueStatus === "READY"} allowedToPublish={allowedToPublish} isProduction={place.recordKind === "PRODUCTION"} publicationStatus={place.publicationStatus} />
       </main><aside className="space-y-4 xl:sticky xl:top-4"><CompletenessPanel checks={complete.checks} ready={complete.readyToPublish} /><section className="rounded-lg border border-brand/25 bg-brand-soft/35 p-4"><h2 className="font-bold">Źródło historyczne</h2><p className="mt-2 text-sm leading-6">Przewodnik 2025/2026 służy jako pochodzenie importu. Dane wymagają aktualnego potwierdzenia w sierpniu 2026.</p></section></aside></div>
     </div>
   );

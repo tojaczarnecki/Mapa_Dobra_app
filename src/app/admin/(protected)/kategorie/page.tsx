@@ -1,7 +1,9 @@
 import { CategoryEditor, NewCategoryForm } from "@/components/admin/categories/category-manager";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 export default async function AdminCategoriesPage() {
+  await requirePermission("VIEW_CATEGORIES");
   const categories = await prisma.category.findMany({
     include: {
       _count: { select: { placeLinks: true, primaryPlaces: true } },

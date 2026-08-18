@@ -68,6 +68,46 @@ enum AdminRole {
   SUPER_ADMIN
   ADMIN
   MODERATOR
+  PLACE_MANAGER
+  VIEWER
+}
+
+enum AdminPermission {
+  VIEW_DASHBOARD
+  VIEW_PLACES
+  CREATE_PLACES
+  EDIT_PLACES
+  VERIFY_PLACES
+  PUBLISH_PLACES
+  CHANGE_PLACE_STATUS
+  UPDATE_BED_AVAILABILITY
+  UPDATE_ADMISSION_STATUS
+  UPDATE_ADMISSION_HOURS
+  UPDATE_PLACE_CONTACT
+  UPDATE_PLACE_BASIC
+  UPDATE_ACCOMMODATION_DETAILS
+  UPDATE_TOTAL_CAPACITY
+  MODERATE_SUBMISSIONS
+  PUBLISH_SUBMISSIONS
+  VIEW_ORGANIZATIONS
+  MANAGE_ORGANIZATIONS
+  VIEW_CATEGORIES
+  MANAGE_CATEGORIES
+  VIEW_IMPORTS
+  MANAGE_IMPORTS
+  VIEW_AUDIT_LOG
+  MANAGE_USERS
+  MANAGE_USER_PERMISSIONS
+}
+
+enum AdminPermissionEffect {
+  ALLOW
+  DENY
+}
+
+enum AdminTokenPurpose {
+  INVITATION
+  PASSWORD_RESET
 }
 
 enum AuditAction {
@@ -99,6 +139,21 @@ enum AuditAction {
   PLACE_VERIFIED
   VERIFICATION_CONTACT_REQUIRED
   VERIFICATION_CONTACT_RECORDED
+  USER_INVITED
+  USER_ACTIVATED
+  USER_ROLE_CHANGED
+  USER_PERMISSIONS_CHANGED
+  USER_PLACE_ACCESS_GRANTED
+  USER_PLACE_ACCESS_REVOKED
+  USER_DEACTIVATED
+  USER_REACTIVATED
+  USER_SESSIONS_REVOKED
+  PASSWORD_RESET_CREATED
+  PASSWORD_RESET_COMPLETED
+  BED_AVAILABILITY_UPDATED
+  ADMISSION_STATUS_UPDATED
+  ADMISSION_HOURS_UPDATED
+  PLACE_CONTACT_UPDATED
 }
 
 enum AuditEntityType {
@@ -111,6 +166,7 @@ enum AuditEntityType {
   ORGANIZATION
   CATEGORY
   IMPORT_CANDIDATE
+  USER_PLACE_ACCESS
 }
 
 enum PlacePublicationStatus {
@@ -225,6 +281,7 @@ enum ChangeOrigin {
   ADMIN_MANUAL
   USER_SUBMISSION
   SOURCE_IMPORT
+  FACILITY_REPRESENTATIVE
 }
 
 enum ImportBatchStatus {
@@ -296,7 +353,7 @@ enum DraftFieldDecision {
 model AdminUser {
   id                            String                             @id @default(uuid()) @db.Uuid
   email                         String                             @unique @db.VarChar(320)
-  passwordHash                  String                             @db.VarChar(512)
+  passwordHash                  String?                            @db.VarChar(512)
   displayName                   String                             @db.VarChar(160)
   role                          AdminRole                          @default(MODERATOR)
   active                        Boolean                            @default(true)
@@ -316,9 +373,64 @@ model AdminUser {
   resolvedImportCandidates      ImportCandidate[]                  @relation("ImportCandidateResolver")
   requiredVerificationContacts  PlaceVerificationContact[]         @relation("VerificationContactRequiredBy")
   completedVerificationContacts PlaceVerificationContact[]         @relation("VerificationContactCompletedBy")
+  permissionOverrides           AdminUserPermission[]
+  placeAccesses                 UserPlaceAccess[]                  @relation("UserPlaceAccessUser")
+  grantedPlaceAccesses          UserPlaceAccess[]                  @relation("UserPlaceAccessCreator")
+  accessTokens                  AdminAccessToken[]                 @relation("AdminAccessTokenUser")
+  createdAccessTokens           AdminAccessToken[]                 @relation("AdminAccessTokenCreator")
 
   @@index([active])
   @@map("admin_users")
+}
+
+model AdminUserPermission {
+  id          String                @id @default(uuid()) @db.Uuid
+  adminUserId String                @db.Uuid
+  permission  AdminPermission
+  effect      AdminPermissionEffect
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
+  adminUser   AdminUser             @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([adminUserId, permission])
+  @@index([permission, effect])
+  @@map("admin_user_permissions")
+}
+
+model UserPlaceAccess {
+  id               String            @id @default(uuid()) @db.Uuid
+  adminUserId      String            @db.Uuid
+  placeId          String            @db.Uuid
+  permissions      AdminPermission[]
+  active           Boolean           @default(true)
+  createdByAdminId String            @db.Uuid
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  adminUser        AdminUser         @relation("UserPlaceAccessUser", fields: [adminUserId], references: [id], onDelete: Cascade)
+  place            Place             @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  createdBy        AdminUser         @relation("UserPlaceAccessCreator", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+
+  @@unique([adminUserId, placeId])
+  @@index([placeId, active])
+  @@index([adminUserId, active])
+  @@map("user_place_access")
+}
+
+model AdminAccessToken {
+  id               String            @id @default(uuid()) @db.Uuid
+  adminUserId      String            @db.Uuid
+  purpose          AdminTokenPurpose
+  tokenHash        String            @unique @db.Char(64)
+  expiresAt        DateTime          @db.Timestamptz(3)
+  usedAt           DateTime?         @db.Timestamptz(3)
+  createdByAdminId String?           @db.Uuid
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  adminUser        AdminUser         @relation("AdminAccessTokenUser", fields: [adminUserId], references: [id], onDelete: Cascade)
+  createdBy        AdminUser?        @relation("AdminAccessTokenCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, purpose, expiresAt])
+  @@index([purpose, expiresAt, usedAt])
+  @@map("admin_access_tokens")
 }
 
 model AdminSession {
@@ -449,6 +561,7 @@ model Place {
   createdFromImport       ImportCandidate?          @relation("CreatedImportPlace")
   importMatchCandidates   ImportCandidate[]         @relation("MatchedImportPlace")
   verificationContact     PlaceVerificationContact?
+  userAccesses            UserPlaceAccess[]
 
   @@index([recordKind, publicationStatus, city])
   @@index([verificationQueueStatus, recordKind, publicationStatus])

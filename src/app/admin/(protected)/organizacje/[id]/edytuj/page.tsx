@@ -3,10 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { OrganizationForm } from "@/components/admin/organizations/organization-form";
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default async function EditOrganizationPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission("MANAGE_ORGANIZATIONS");
   const { id } = await params;
   if (!uuidPattern.test(id)) notFound();
   const organization = await prisma.organization.findUnique({ where: { id } });

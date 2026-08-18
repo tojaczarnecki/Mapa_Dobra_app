@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission } from "@/lib/admin/session";
 import {
   canTransitionModerationStatus,
   parseModerationInput,
@@ -19,7 +19,7 @@ export async function moderateSubmission(
   _previousState: ModerationActionState,
   formData: FormData,
 ): Promise<ModerationActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("MODERATE_SUBMISSIONS");
   const entityId = formData.get("entityId");
   const entityType = formData.get("entityType");
   const parsed = parseModerationInput({

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin/session";
+import { requirePermission, requirePlacePermission } from "@/lib/admin/session";
 import { validatePlaceAdminPayload } from "@/lib/places/admin-validation";
 import { deriveTodayHoursLabel, openingRows } from "@/lib/places/opening-hours";
 import {
@@ -153,7 +153,6 @@ export async function savePlace(
   _previousState: PlaceFormActionState,
   formData: FormData,
 ): Promise<PlaceFormActionState> {
-  const session = await requireAdmin();
   const rawPayload = formData.get("payload");
   if (typeof rawPayload !== "string" || rawPayload.length > 200_000) {
     return { error: "Nie udało się odczytać formularza." };
@@ -174,6 +173,7 @@ export async function savePlace(
     };
   }
   const payload = validation.data;
+  const session = await requirePermission(payload.id ? "EDIT_PLACES" : "CREATE_PLACES");
 
   try {
     const savedId = await prisma.$transaction(async (transaction) => {
@@ -435,7 +435,7 @@ export async function changePlaceStatus(
   _previousState: PlaceFormActionState,
   formData: FormData,
 ): Promise<PlaceFormActionState> {
-  const session = await requireAdmin();
+  const session = await requirePermission("CHANGE_PLACE_STATUS");
   const placeId = formData.get("placeId");
   const status = formData.get("status");
   const operationalStatus = formData.get("operationalStatus");
@@ -513,7 +513,6 @@ export async function updateAccommodationAvailability(
   _previousState: QuickAvailabilityActionState,
   formData: FormData,
 ): Promise<QuickAvailabilityActionState> {
-  const session = await requireAdmin();
   const placeId = formData.get("placeId");
   const rawUpdates = formData.get("updates");
   if (
@@ -524,6 +523,8 @@ export async function updateAccommodationAvailability(
   ) {
     return { error: "Nie udało się odczytać aktualizacji dostępności." };
   }
+  const session = await requirePlacePermission("UPDATE_BED_AVAILABILITY", placeId);
+  const facilityUpdate = session.user.role === "PLACE_MANAGER";
 
   let input: unknown;
   try {
@@ -613,8 +614,8 @@ export async function updateAccommodationAvailability(
             totalBeds: current.totalBeds,
             reportedAt: now,
             adminUserId: session.user.id,
-            origin: "ADMIN_MANUAL",
-            note: "Szybka aktualizacja dostępności w panelu administratora.",
+            origin: facilityUpdate ? "FACILITY_REPRESENTATIVE" : "ADMIN_MANUAL",
+            note: facilityUpdate ? "Aktualizacja przekazana przez uprawnionego pracownika placówki." : "Szybka aktualizacja dostępności w panelu administratora.",
           },
         });
       }
@@ -647,14 +648,14 @@ export async function updateAccommodationAvailability(
       await transaction.auditLog.create({
         data: {
           adminUserId: session.user.id,
-          action: "AVAILABILITY_UPDATED",
+          action: facilityUpdate ? "BED_AVAILABILITY_UPDATED" : "AVAILABILITY_UPDATED",
           entityType: "PLACE",
           entityId: place.id,
           changedFields: changed.map((item) => `capacityGroups.${currentById.get(item.id)!.label}.availableBeds`),
           previousValues: Object.fromEntries(changed.map((item) => [currentById.get(item.id)!.label, currentById.get(item.id)!.availableBeds])),
           newValues: Object.fromEntries(changed.map((item) => [currentById.get(item.id)!.label, item.availableBeds])),
-          changeOrigin: "ADMIN_MANUAL",
-          note: "Szybka aktualizacja dostępności noclegu.",
+          changeOrigin: facilityUpdate ? "FACILITY_REPRESENTATIVE" : "ADMIN_MANUAL",
+          note: facilityUpdate ? "Aktualizacja placówki." : "Szybka aktualizacja dostępności noclegu.",
         },
       });
       return {
@@ -665,6 +666,7 @@ export async function updateAccommodationAvailability(
 
     if (!result.changed) return { success: "Nie było zmian do zapisania." };
     revalidatePath(`/admin/miejsca/${placeId}`);
+    revalidatePath(`/admin/moje-miejsca/${placeId}`);
     revalidatePath("/admin/miejsca");
     revalidatePath("/znajdz-nocleg");
     revalidatePath("/mapa");
