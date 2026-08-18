@@ -92,6 +92,11 @@ enum AuditAction {
   CATEGORY_ACTIVATED
   CATEGORY_DEACTIVATED
   PLACE_IMPORTED
+  VERIFICATION_STARTED
+  IMPORT_CONFLICT_RESOLVED
+  IMPORT_CANDIDATE_SKIPPED
+  LOCATION_UPDATED
+  PLACE_VERIFIED
 }
 
 enum AuditEntityType {
@@ -103,6 +108,7 @@ enum AuditEntityType {
   SUBMISSION_DRAFT
   ORGANIZATION
   CATEGORY
+  IMPORT_CANDIDATE
 }
 
 enum PlacePublicationStatus {
@@ -233,6 +239,25 @@ enum ImportCandidateStatus {
   SKIPPED
 }
 
+enum VerificationQueueStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+  VERIFIED
+  SKIPPED
+}
+
+enum ImportCandidateResolution {
+  SAME_PLACE
+  DIFFERENT_PLACE
+  SKIPPED
+}
+
+enum PlaceLocationSource {
+  GEOCODER
+  MANUAL
+}
+
 enum VerificationSource {
   PHONE_CALL
   ORGANIZATION_EMAIL
@@ -268,6 +293,7 @@ model AdminUser {
   availabilityHistory          AccommodationAvailabilityHistory[]
   createdDrafts                SubmissionDraft[]                  @relation("DraftCreator")
   updatedDrafts                SubmissionDraft[]                  @relation("DraftUpdater")
+  resolvedImportCandidates     ImportCandidate[]                  @relation("ImportCandidateResolver")
 
   @@index([active])
   @@map("admin_users")
@@ -343,61 +369,66 @@ model Category {
 }
 
 model Place {
-  id                      String                  @id @default(uuid()) @db.Uuid
-  legacyId                String?                 @unique @db.VarChar(200)
-  citySlug                String                  @default("lodz") @db.VarChar(120)
-  slug                    String                  @unique @db.VarChar(200)
-  name                    String                  @db.VarChar(250)
-  organizationId          String?                 @db.Uuid
-  primaryCategoryId       String                  @db.Uuid
-  typeLabel               String?                 @db.VarChar(160)
-  description             String?                 @db.VarChar(4000)
-  street                  String?                 @db.VarChar(300)
-  buildingNumber          String?                 @db.VarChar(40)
-  addressLine             String                  @db.VarChar(400)
-  postalCode              String?                 @db.VarChar(20)
-  city                    String                  @default("Łódź") @db.VarChar(120)
-  district                String?                 @db.VarChar(120)
-  latitude                Decimal?                @db.Decimal(9, 6)
-  longitude               Decimal?                @db.Decimal(9, 6)
-  phone                   String?                 @db.VarChar(50)
-  email                   String?                 @db.VarChar(320)
-  website                 String?                 @db.VarChar(2048)
-  socialMedia             String?                 @db.VarChar(2048)
-  publicationStatus       PlacePublicationStatus  @default(DRAFT)
-  verificationStatus      PlaceVerificationStatus @default(UNVERIFIED)
-  operationalStatus       PlaceOperationalStatus  @default(UNKNOWN)
-  todayHoursLabel         String?                 @db.VarChar(240)
-  verificationNote        String?                 @db.VarChar(1000)
+  id                      String                   @id @default(uuid()) @db.Uuid
+  legacyId                String?                  @unique @db.VarChar(200)
+  citySlug                String                   @default("lodz") @db.VarChar(120)
+  slug                    String                   @unique @db.VarChar(200)
+  name                    String                   @db.VarChar(250)
+  organizationId          String?                  @db.Uuid
+  primaryCategoryId       String                   @db.Uuid
+  typeLabel               String?                  @db.VarChar(160)
+  description             String?                  @db.VarChar(4000)
+  street                  String?                  @db.VarChar(300)
+  buildingNumber          String?                  @db.VarChar(40)
+  addressLine             String                   @db.VarChar(400)
+  postalCode              String?                  @db.VarChar(20)
+  city                    String                   @default("Łódź") @db.VarChar(120)
+  district                String?                  @db.VarChar(120)
+  latitude                Decimal?                 @db.Decimal(9, 6)
+  longitude               Decimal?                 @db.Decimal(9, 6)
+  locationSource          PlaceLocationSource?
+  locationUpdatedAt       DateTime?                @db.Timestamptz(3)
+  phone                   String?                  @db.VarChar(50)
+  email                   String?                  @db.VarChar(320)
+  website                 String?                  @db.VarChar(2048)
+  socialMedia             String?                  @db.VarChar(2048)
+  publicationStatus       PlacePublicationStatus   @default(DRAFT)
+  verificationStatus      PlaceVerificationStatus  @default(UNVERIFIED)
+  operationalStatus       PlaceOperationalStatus   @default(UNKNOWN)
+  todayHoursLabel         String?                  @db.VarChar(240)
+  verificationNote        String?                  @db.VarChar(1000)
   verificationSource      VerificationSource?
-  verifiedAt              DateTime?               @db.Timestamptz(3)
-  verifiedByAdminUserId   String?                 @db.Uuid
-  internalNote            String?                 @db.VarChar(2000)
+  verificationSourceUrl   String?                  @db.VarChar(2048)
+  verifiedAt              DateTime?                @db.Timestamptz(3)
+  verifiedByAdminUserId   String?                  @db.Uuid
+  internalNote            String?                  @db.VarChar(2000)
   audience                String[]
   services                String[]
-  distanceLabel           String?                 @db.VarChar(80)
-  recordKind              PlaceRecordKind         @default(PRODUCTION)
-  isDemo                  Boolean                 @default(false)
-  lastEditedByAdminUserId String?                 @db.Uuid
-  createdAt               DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt               DateTime                @updatedAt @db.Timestamptz(3)
-  organization            Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  primaryCategory         Category                @relation("PrimaryPlaceCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  distanceLabel           String?                  @db.VarChar(80)
+  recordKind              PlaceRecordKind          @default(PRODUCTION)
+  verificationQueueStatus VerificationQueueStatus?
+  isDemo                  Boolean                  @default(false)
+  lastEditedByAdminUserId String?                  @db.Uuid
+  createdAt               DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                 @updatedAt @db.Timestamptz(3)
+  organization            Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  primaryCategory         Category                 @relation("PrimaryPlaceCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
   categories              PlaceCategory[]
   openingHours            OpeningHours[]
   requirements            PlaceRequirement[]
   accessibility           PlaceAccessibility[]
   accommodation           AccommodationDetails?
-  lastEditedBy            AdminUser?              @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
-  verifiedBy              AdminUser?              @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
-  updateSubmissions       PlaceUpdateSubmission[] @relation("SubmissionTargetPlace")
-  publishedUpdates        PlaceUpdateSubmission[] @relation("PublishedUpdatePlace")
-  publishedNewPlaces      NewPlaceSubmission[]    @relation("PublishedNewPlace")
+  lastEditedBy            AdminUser?               @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
+  verifiedBy              AdminUser?               @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
+  updateSubmissions       PlaceUpdateSubmission[]  @relation("SubmissionTargetPlace")
+  publishedUpdates        PlaceUpdateSubmission[]  @relation("PublishedUpdatePlace")
+  publishedNewPlaces      NewPlaceSubmission[]     @relation("PublishedNewPlace")
   submissionDrafts        SubmissionDraft[]
-  createdFromImport       ImportCandidate?        @relation("CreatedImportPlace")
-  importMatchCandidates   ImportCandidate[]       @relation("MatchedImportPlace")
+  createdFromImport       ImportCandidate?         @relation("CreatedImportPlace")
+  importMatchCandidates   ImportCandidate[]        @relation("MatchedImportPlace")
 
   @@index([recordKind, publicationStatus, city])
+  @@index([verificationQueueStatus, recordKind, publicationStatus])
   @@index([primaryCategoryId])
   @@index([name])
   @@map("places")
@@ -456,33 +487,55 @@ model ImportSourceEntry {
 }
 
 model ImportCandidate {
-  id                       String                  @id @default(uuid()) @db.Uuid
-  importBatchId            String                  @db.Uuid
-  candidateKey             String                  @db.VarChar(200)
+  id                       String                     @id @default(uuid()) @db.Uuid
+  importBatchId            String                     @db.Uuid
+  candidateKey             String                     @db.VarChar(200)
   status                   ImportCandidateStatus
-  proposedName             String                  @db.VarChar(500)
-  proposedAddress          String?                 @db.VarChar(1200)
-  proposedPhone            String?                 @db.VarChar(500)
-  proposedEmail            String?                 @db.VarChar(500)
-  proposedWebsite          String?                 @db.VarChar(2048)
-  proposedOrganizationName String?                 @db.VarChar(500)
+  proposedName             String                     @db.VarChar(500)
+  proposedAddress          String?                    @db.VarChar(1200)
+  proposedPhone            String?                    @db.VarChar(500)
+  proposedEmail            String?                    @db.VarChar(500)
+  proposedWebsite          String?                    @db.VarChar(2048)
+  proposedOrganizationName String?                    @db.VarChar(500)
   categorySlugs            String[]
-  primaryCategorySlug      String?                 @db.VarChar(120)
+  primaryCategorySlug      String?                    @db.VarChar(120)
   reviewReasons            String[]
   proposedData             Json
-  matchedPlaceId           String?                 @db.Uuid
-  createdPlaceId           String?                 @unique @db.Uuid
-  createdAt                DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime                @updatedAt @db.Timestamptz(3)
-  importBatch              ImportBatch             @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
-  matchedPlace             Place?                  @relation("MatchedImportPlace", fields: [matchedPlaceId], references: [id], onDelete: SetNull)
-  createdPlace             Place?                  @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
+  matchedPlaceId           String?                    @db.Uuid
+  createdPlaceId           String?                    @unique @db.Uuid
+  queueStatus              VerificationQueueStatus?
+  resolution               ImportCandidateResolution?
+  resolvedAt               DateTime?                  @db.Timestamptz(3)
+  resolvedByAdminUserId    String?                    @db.Uuid
+  resolutionNote           String?                    @db.VarChar(1000)
+  createdAt                DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                   @updatedAt @db.Timestamptz(3)
+  importBatch              ImportBatch                @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  matchedPlace             Place?                     @relation("MatchedImportPlace", fields: [matchedPlaceId], references: [id], onDelete: SetNull)
+  createdPlace             Place?                     @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
+  resolvedBy               AdminUser?                 @relation("ImportCandidateResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: SetNull)
   sources                  ImportCandidateSource[]
 
   @@unique([importBatchId, candidateKey])
   @@index([importBatchId, status])
   @@index([matchedPlaceId])
+  @@index([queueStatus, status])
   @@map("import_candidates")
+}
+
+model GeocodingCache {
+  id              String   @id @default(uuid()) @db.Uuid
+  provider        String   @db.VarChar(80)
+  normalizedQuery String   @db.VarChar(700)
+  query           String   @db.VarChar(700)
+  results         Json
+  fetchedAt       DateTime @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, normalizedQuery])
+  @@index([fetchedAt])
+  @@map("geocoding_cache")
 }
 
 model ImportCandidateSource {

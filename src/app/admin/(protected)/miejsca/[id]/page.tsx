@@ -48,6 +48,11 @@ const auditActionLabels = {
   CATEGORY_ACTIVATED: "Aktywacja kategorii",
   CATEGORY_DEACTIVATED: "Dezaktywacja kategorii",
   PLACE_IMPORTED: "Import miejsca",
+  VERIFICATION_STARTED: "Rozpoczęcie weryfikacji",
+  IMPORT_CONFLICT_RESOLVED: "Rozwiązanie konfliktu importu",
+  IMPORT_CANDIDATE_SKIPPED: "Pominięcie kandydata importu",
+  LOCATION_UPDATED: "Ustawienie lokalizacji",
+  PLACE_VERIFIED: "Weryfikacja miejsca",
 } as const;
 const originLabels = {
   DEMO_MIGRATION: "migracja danych demonstracyjnych",

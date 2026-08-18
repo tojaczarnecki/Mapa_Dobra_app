@@ -42,7 +42,7 @@ export const adminPlaceInclude = {
   createdFromImport: {
     include: {
       importBatch: { select: { id: true, key: true, title: true, sourceUrl: true } },
-      sources: { include: { sourceEntry: { select: { sourcePages: true } } } },
+      sources: { include: { sourceEntry: true } },
     },
   },
 } satisfies Prisma.PlaceInclude;
