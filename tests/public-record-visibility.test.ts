@@ -24,3 +24,7 @@ test("public place actions follow the same record and publication rules as loade
   assert.equal(isPubliclyVisiblePlace({ recordKind: "PRODUCTION", publicationStatus: "DRAFT" }), false);
   assert.equal(isPubliclyVisiblePlace({ recordKind: "DEMO", publicationStatus: "ARCHIVED" }), false);
 });
+
+test("READY_TO_PUBLISH workflow never bypasses the DRAFT visibility rule", () => {
+  assert.equal(isPubliclyVisiblePlace({ recordKind: "PRODUCTION", publicationStatus: "DRAFT" }), false);
+});

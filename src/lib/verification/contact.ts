@@ -18,6 +18,15 @@ export const verificationContactMethods = [
 export type VerificationContactReasonValue = (typeof verificationContactReasons)[number][0];
 export type VerificationContactMethodValue = (typeof verificationContactMethods)[number][0];
 
+const alwaysCriticalReasons = new Set<VerificationContactReasonValue>([
+  "UNCERTAIN_ADDRESS",
+  "CONFLICTING_SOURCES",
+  "REQUIREMENTS_CONFIRMATION",
+  "POSSIBLY_CLOSED_OR_MOVED",
+  "NO_RELIABLE_ONLINE_SOURCE",
+  "OTHER",
+]);
+
 const reasonValues = new Set<string>(verificationContactReasons.map(([value]) => value));
 const methodValues = new Set<string>(verificationContactMethods.map(([value]) => value));
 
@@ -35,4 +44,14 @@ export function verificationContactReasonLabel(value: string) {
 
 export function verificationContactMethodLabel(value: string | null) {
   return verificationContactMethods.find(([method]) => method === value)?.[1] ?? "Nie podano";
+}
+
+export function contactReasonsBlockingPublication(
+  reasons: readonly VerificationContactReasonValue[],
+  accommodation: boolean,
+) {
+  return reasons.filter((reason) =>
+    alwaysCriticalReasons.has(reason) ||
+    (accommodation && reason === "MISSING_CURRENT_HOURS"),
+  );
 }

@@ -2,13 +2,14 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, Filter, MapPinOff, SearchCheck } from "lucide-react";
 import { VerificationStatusBadge } from "@/components/admin/verification/verification-status-badge";
 import { prisma } from "@/lib/prisma";
+import { verificationContactReasonLabel } from "@/lib/verification/contact";
 import { getVerificationQueueItems } from "@/lib/verification/queue";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-const statusValues = ["PENDING", "IN_PROGRESS", "CONTACT_REQUIRED", "READY", "VERIFIED", "SKIPPED"] as const;
+const statusValues = ["PENDING", "IN_PROGRESS", "CONTACT_REQUIRED", "READY", "VERIFIED", "PUBLISHED", "SKIPPED"] as const;
 const typeValues = ["NEW_PLACE", "POSSIBLE_DUPLICATE", "MATCH_EXISTING", "IMPORT_CONFLICT"] as const;
 const dataValues = ["missing-coordinates", "missing-phone", "missing-hours", "missing-primary-category", "accommodation", "manual-decision"] as const;
-const statusLabels = { PENDING: "Wymaga weryfikacji", IN_PROGRESS: "W trakcie", CONTACT_REQUIRED: "Wymaga kontaktu", READY: "Gotowe", VERIFIED: "Zweryfikowane", SKIPPED: "Odrzucone / pominięte" } as const;
+const statusLabels = { PENDING: "Wymaga weryfikacji", IN_PROGRESS: "W trakcie", CONTACT_REQUIRED: "Wymaga kontaktu", READY: "Gotowe", VERIFIED: "Zweryfikowane", PUBLISHED: "Opublikowane", SKIPPED: "Odrzucone / pominięte" } as const;
 const typeLabels = { NEW_PLACE: "Nowe miejsce", POSSIBLE_DUPLICATE: "Możliwy duplikat", MATCH_EXISTING: "Dopasowanie do istniejącego", IMPORT_CONFLICT: "Inny konflikt importowy" } as const;
 
 function first(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
@@ -25,7 +26,8 @@ export default async function VerificationQueuePage({ searchParams }: { searchPa
     prisma.importBatch.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, title: true, edition: true } }),
   ]);
   const filtered = items.filter((item) => {
-    if (status && item.queueStatus !== status) return false;
+    if (status === "PUBLISHED" && item.publicationStatus !== "PUBLISHED") return false;
+    if (status && status !== "PUBLISHED" && item.queueStatus !== status) return false;
     if (type && item.issueType !== type) return false;
     if (source !== "all" && item.sourceBatchId !== source) return false;
     if (data === "missing-coordinates" && !item.missingCoordinates) return false;
@@ -61,10 +63,14 @@ export default async function VerificationQueuePage({ searchParams }: { searchPa
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold">{filtered.length} pozycji w bieżącym widoku</p>{status || type || data || source !== "all" ? <Link href="/admin/weryfikacja" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft">Wyczyść filtry</Link> : null}</div>
       {filtered.length ? <ol className="space-y-2">{filtered.map((item) => {
         const flags = [item.issueType !== "NEW_PLACE" ? typeLabels[item.issueType] : null, item.missingCoordinates ? "Brak współrzędnych" : null, item.missingHours ? "Godziny UNKNOWN" : null, item.missingPhone ? "Brak telefonu" : null].filter(Boolean) as string[];
-        return <li key={`${item.entityKind}-${item.id}`} className="rounded-lg border border-border bg-white p-3 sm:p-4"><div className="grid gap-3 xl:grid-cols-[minmax(220px,1.3fr)_minmax(180px,1fr)_170px_190px_auto] xl:items-center"><div className="min-w-0"><p className="text-xs font-bold uppercase text-muted-foreground">{item.entityKind === "PLACE" ? "Nowy szkic miejsca" : typeLabels[item.issueType]}</p><h2 className="mt-1 font-bold leading-5">{item.name}</h2><p className="mt-1 text-sm text-muted-foreground">{item.categories.join(" · ") || "Brak klasyfikacji"}</p></div><div className="text-sm"><p>{item.address ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">strony {item.sourcePages.join(", ") || "—"}</p></div><VerificationStatusBadge status={item.queueStatus} /><div><p className="text-xs font-bold text-muted-foreground line-clamp-2">{item.sourceLabel}</p><p className={`mt-1 text-xs font-semibold ${flags.length ? "text-[#8b2d0b]" : "text-brand-strong"}`}>{flags.length ? flags.join(" · ") : "Dane kompletne w zakresie wymaganym"}</p></div><Link href={`/admin/weryfikacja/${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Zweryfikuj <ArrowRight aria-hidden="true" size={17} /></Link></div></li>;
+        return <li key={`${item.entityKind}-${item.id}`} className="rounded-lg border border-border bg-white p-3 sm:p-4"><div className="grid gap-3 xl:grid-cols-[minmax(220px,1.3fr)_minmax(180px,1fr)_170px_190px_auto] xl:items-center"><div className="min-w-0"><p className="text-xs font-bold uppercase text-muted-foreground">{item.entityKind === "PLACE" ? "Nowy szkic miejsca" : typeLabels[item.issueType]}</p><h2 className="mt-1 font-bold leading-5">{item.name}</h2><p className="mt-1 text-sm text-muted-foreground">{item.categories.join(" · ") || "Brak klasyfikacji"}</p></div><div className="text-sm"><p>{item.address ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">strony {item.sourcePages.join(", ") || "—"}</p></div><div className="flex flex-wrap gap-2"><VerificationStatusBadge status={item.queueStatus} />{item.publicationStatus === "PUBLISHED" ? <span className="inline-flex min-h-7 items-center rounded-full border border-brand/35 bg-brand-soft px-2.5 py-1 text-xs font-bold text-[#075f53]">Opublikowane</span> : null}</div><div><p className="text-xs font-bold text-muted-foreground line-clamp-2">{item.sourceLabel}</p><p className={`mt-1 text-xs font-semibold ${flags.length ? "text-[#8b2d0b]" : "text-brand-strong"}`}>{flags.length ? flags.join(" · ") : "Dane kompletne w zakresie wymaganym"}</p></div><Link href={`/admin/weryfikacja/${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Zweryfikuj <ArrowRight aria-hidden="true" size={17} /></Link></div>{item.queueStatus === "CONTACT_REQUIRED" ? <div className="mt-3 grid gap-2 rounded-md border border-[#d7a548]/60 bg-[#fff4d8]/55 p-3 text-xs sm:grid-cols-[minmax(0,1.5fr)_minmax(180px,1fr)_auto]"><div><strong>Powody:</strong> {item.contactReasons.map(verificationContactReasonLabel).join(" · ") || "Nie podano"}</div><div><strong>Kontakt:</strong> {[item.phone, item.email, item.organization].filter(Boolean).join(" · ") || "Brak danych"}</div><div className="text-muted-foreground"><strong>Ostatnia czynność:</strong> {item.contactedAt ? `kontakt ${formatCompactDate(item.contactedAt)}` : item.contactRequiredAt ? `odłożono ${formatCompactDate(item.contactRequiredAt)}` : "brak"}</div></div> : null}</li>;
       })}</ol> : <div className="rounded-lg border border-dashed border-border bg-white px-5 py-10 text-center text-sm text-muted-foreground">Brak pozycji pasujących do filtrów.</div>}
     </div>
   );
+}
+
+function formatCompactDate(value: Date) {
+  return new Intl.DateTimeFormat("pl-PL", { dateStyle: "short", timeStyle: "short" }).format(value);
 }
 
 function FilterSelect({ label, name, value, options }: { label: string; name: string; value: string; options: Array<{ value: string; label: string }> }) {

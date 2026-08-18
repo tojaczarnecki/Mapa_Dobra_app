@@ -3,7 +3,7 @@ import test from "node:test";
 import { geocodingResultMatchesAddress, normalizeGeocodingQuery, parseNominatimResults, scoreGeocodingSuggestion } from "../src/lib/geocoding/results.ts";
 import { buildGeocodingAttempts, prepareGeocodingAddress } from "../src/lib/geocoding/query.ts";
 import { getVerificationCompleteness } from "../src/lib/verification/completeness.ts";
-import { parseVerificationContactMethod, parseVerificationContactReasons } from "../src/lib/verification/contact.ts";
+import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "../src/lib/verification/contact.ts";
 import { resolveLocationSource } from "../src/lib/verification/location.ts";
 
 function completeInput() {
@@ -12,17 +12,24 @@ function completeInput() {
     addressLine: "ul. Testowa 1, Łódź",
     latitude: 51.7592,
     longitude: 19.455,
+    locationSource: "GEOCODER" as const,
     phone: null,
     email: null,
     website: null,
     recordKind: "PRODUCTION" as const,
+    publicationStatus: "DRAFT" as const,
     verificationStatus: "VERIFIED" as const,
     verifiedAt: new Date(),
+    verificationSource: "OFFICIAL_WEBSITE",
     primaryCategoryActive: true,
     categoryCount: 1,
     hasKnownOpeningHours: false,
     hasKnownRequirements: false,
     hasImportSource: true,
+    hasUnresolvedConflict: false,
+    blockingContactReasons: [] as string[],
+    accommodation: false,
+    accommodationTargetGroupCount: 0,
   };
 }
 
@@ -37,6 +44,39 @@ test("missing coordinates block ready-to-publish status", () => {
   const result = getVerificationCompleteness({ ...completeInput(), latitude: null, longitude: null });
   assert.equal(result.readyToPublish, false);
   assert.equal(result.checks.find((item) => item.key === "location")?.state, "missing");
+});
+
+test("coordinates without administrator-approved provenance do not make a place ready", () => {
+  const result = getVerificationCompleteness({ ...completeInput(), locationSource: null });
+  assert.equal(result.readyToPublish, false);
+});
+
+test("critical CONTACT_REQUIRED reasons block readiness without discarding verified fields", () => {
+  const result = getVerificationCompleteness({ ...completeInput(), blockingContactReasons: ["UNCERTAIN_ADDRESS"] });
+  assert.equal(result.readyToPublish, false);
+  assert.equal(result.checks.find((item) => item.key === "verification")?.state, "complete");
+  assert.equal(result.checks.find((item) => item.key === "critical-contact")?.state, "missing");
+});
+
+test("optional UNKNOWN data and unknown accommodation availability do not block readiness", () => {
+  const result = getVerificationCompleteness({
+    ...completeInput(),
+    accommodation: true,
+    accommodationTargetGroupCount: 1,
+    hasKnownOpeningHours: false,
+    hasKnownRequirements: false,
+  });
+  assert.equal(result.readyToPublish, true);
+  assert.equal(result.checks.find((item) => item.key === "hours")?.state, "unknown");
+});
+
+test("accommodation without a target group is not ready", () => {
+  const result = getVerificationCompleteness({ ...completeInput(), accommodation: true, accommodationTargetGroupCount: 0 });
+  assert.equal(result.readyToPublish, false);
+});
+
+test("unresolved import conflict blocks readiness", () => {
+  assert.equal(getVerificationCompleteness({ ...completeInput(), hasUnresolvedConflict: true }).readyToPublish, false);
 });
 
 test("TEST record can never become ready for public publication", () => {
@@ -117,4 +157,11 @@ test("contact workflow validates controlled reasons and methods", () => {
   assert.deepEqual(parseVerificationContactReasons(["UNCERTAIN_ADDRESS", "INVALID", "UNCERTAIN_ADDRESS"]), ["UNCERTAIN_ADDRESS"]);
   assert.equal(parseVerificationContactMethod("PHONE"), "PHONE");
   assert.equal(parseVerificationContactMethod("SMS"), null);
+});
+
+test("contact blockers distinguish optional contact gaps from critical facts", () => {
+  assert.deepEqual(contactReasonsBlockingPublication(["OUTDATED_PHONE"], false), []);
+  assert.deepEqual(contactReasonsBlockingPublication(["MISSING_CURRENT_HOURS"], false), []);
+  assert.deepEqual(contactReasonsBlockingPublication(["MISSING_CURRENT_HOURS"], true), ["MISSING_CURRENT_HOURS"]);
+  assert.deepEqual(contactReasonsBlockingPublication(["REQUIREMENTS_CONFIRMATION"], false), ["REQUIREMENTS_CONFIRMATION"]);
 });

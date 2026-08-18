@@ -10,8 +10,9 @@ const LocationMap = dynamic(() => import("./location-map"), {
   loading: () => <div className="flex h-[300px] items-center justify-center rounded-lg bg-[#efede7] text-sm font-bold text-muted-foreground">Ładowanie mapy…</div>,
 });
 
-export function LocationEditor({ placeId, address, initialLatitude, initialLongitude, initialSource }: {
+export function LocationEditor({ placeId, nextId, address, initialLatitude, initialLongitude, initialSource }: {
   placeId: string;
+  nextId: string | null;
   address: string;
   initialLatitude: number | null;
   initialLongitude: number | null;
@@ -22,7 +23,7 @@ export function LocationEditor({ placeId, address, initialLatitude, initialLongi
   const [copied, setCopied] = useState(false);
   const [geocoding, setGeocoding] = useState<GeocodingActionState>({});
   const [pendingGeocode, startGeocoding] = useTransition();
-  const saveAction = savePlaceLocation.bind(null, placeId);
+  const saveAction = savePlaceLocation.bind(null, placeId, nextId);
   const [saveState, formAction, pendingSave] = useActionState<VerificationActionState, FormData>(saveAction, {});
 
   function changePosition(next: [number, number], nextSource: "GEOCODER" | "MANUAL" | null = "MANUAL") {
@@ -63,7 +64,7 @@ export function LocationEditor({ placeId, address, initialLatitude, initialLongi
         <input type="hidden" name="locationSource" value={source === "GEOCODER" ? "GEOCODER_CONFIRMED" : source ?? ""} />
         <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
           <div><p className="text-sm font-semibold text-muted-foreground">{position ? source === "GEOCODER" ? "Wybrano propozycję geokodera — wymaga zatwierdzenia." : source === "MANUAL" ? "Lokalizacja ustawiona ręcznie — wymaga zapisania." : "To tylko podgląd wyniku. Kliknij Wybierz albo ustaw punkt ręcznie." : "Brak ustawionego punktu."}</p>{position ? <button type="button" onClick={async () => { await navigator.clipboard.writeText(`${position[0].toFixed(6)}, ${position[1].toFixed(6)}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }} className="mt-1 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs font-bold text-brand-strong hover:bg-brand-soft"><Clipboard aria-hidden="true" size={16} />{copied ? "Skopiowano" : "Kopiuj współrzędne"}</button> : null}</div>
-          <button type="submit" disabled={!position || !source || pendingSave} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white disabled:opacity-50"><MapPin aria-hidden="true" size={18} />{pendingSave ? "Zapisuję…" : "Zatwierdź współrzędne"}</button>
+          <div className="flex flex-wrap justify-end gap-2"><button type="submit" name="intent" value="save" disabled={!position || !source || pendingSave} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white disabled:opacity-50"><MapPin aria-hidden="true" size={18} />{pendingSave ? "Zapisuję…" : "Zatwierdź lokalizację"}</button>{nextId ? <button type="submit" name="intent" value="next" disabled={!position || !source || pendingSave} className="inline-flex min-h-11 items-center rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong hover:bg-brand-soft disabled:opacity-50">Zatwierdź i przejdź dalej</button> : null}</div>
         </div>
         {saveState.error ? <p className="sm:col-span-2 text-sm font-semibold text-urgent" role="alert">{saveState.error}</p> : null}
         {saveState.success ? <p className="sm:col-span-2 text-sm font-semibold text-brand-strong" role="status">{saveState.success}</p> : null}

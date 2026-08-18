@@ -1,5 +1,6 @@
 import { normalizeAddress, normalizeComparable } from "@/lib/imports/caritas-gdzie-parser";
 import { prisma } from "@/lib/prisma";
+import { isPilotGPlaceId, pilotGPlaceIds } from "@/lib/verification/pilot-g";
 
 export type VerificationQueueItem = {
   id: string;
@@ -8,6 +9,7 @@ export type VerificationQueueItem = {
   address: string | null;
   categories: string[];
   queueStatus: "PENDING" | "IN_PROGRESS" | "CONTACT_REQUIRED" | "READY" | "VERIFIED" | "SKIPPED";
+  publicationStatus: "DRAFT" | "PUBLISHED" | "TEMPORARILY_CLOSED" | "PERMANENTLY_CLOSED" | "ARCHIVED" | null;
   issueType: "NEW_PLACE" | "POSSIBLE_DUPLICATE" | "MATCH_EXISTING" | "IMPORT_CONFLICT";
   sourceLabel: string;
   sourceBatchId: string;
@@ -19,6 +21,12 @@ export type VerificationQueueItem = {
   accommodation: boolean;
   manualDecision: boolean;
   verifiedAt: Date | null;
+  phone: string | null;
+  email: string | null;
+  organization: string | null;
+  contactReasons: string[];
+  contactRequiredAt: Date | null;
+  contactedAt: Date | null;
   updatedAt: Date;
 };
 
@@ -31,6 +39,8 @@ export async function getVerificationQueueItems() {
         categories: { include: { category: { select: { name: true } } }, orderBy: { sortOrder: "asc" } },
         openingHours: { select: { status: true } },
         accommodation: { select: { id: true } },
+        organization: { select: { name: true } },
+        verificationContact: { select: { reasons: true, requiredAt: true, contactedAt: true } },
         createdFromImport: {
           include: {
             importBatch: { select: { id: true, title: true, edition: true } },
@@ -56,6 +66,7 @@ export async function getVerificationQueueItems() {
     address: place.addressLine,
     categories: place.categories.map((item) => item.category.name),
     queueStatus: place.verificationQueueStatus!,
+    publicationStatus: place.publicationStatus,
     issueType: "NEW_PLACE",
     sourceLabel: place.createdFromImport ? `${place.createdFromImport.importBatch.title} · ${place.createdFromImport.importBatch.edition}` : "Ręczna weryfikacja",
     sourceBatchId: place.createdFromImport?.importBatch.id ?? "manual",
@@ -67,6 +78,12 @@ export async function getVerificationQueueItems() {
     accommodation: Boolean(place.accommodation),
     manualDecision: false,
     verifiedAt: place.verifiedAt,
+    phone: place.phone,
+    email: place.email,
+    organization: place.organization?.name ?? null,
+    contactReasons: place.verificationContact?.reasons ?? [],
+    contactRequiredAt: place.verificationContact?.requiredAt ?? null,
+    contactedAt: place.verificationContact?.contactedAt ?? null,
     updatedAt: place.updatedAt,
   }));
   const candidateItems: VerificationQueueItem[] = candidates.map((candidate) => ({
@@ -76,6 +93,7 @@ export async function getVerificationQueueItems() {
     address: candidate.proposedAddress,
     categories: candidate.categorySlugs,
     queueStatus: candidate.queueStatus!,
+    publicationStatus: null,
     issueType: candidate.status === "MATCH_EXISTING" ? "MATCH_EXISTING" : candidate.matchedPlaceId ? "POSSIBLE_DUPLICATE" : "IMPORT_CONFLICT",
     sourceLabel: `${candidate.importBatch.title} · ${candidate.importBatch.edition}`,
     sourceBatchId: candidate.importBatch.id,
@@ -87,6 +105,12 @@ export async function getVerificationQueueItems() {
     accommodation: candidate.categorySlugs.includes("nocleg"),
     manualDecision: true,
     verifiedAt: null,
+    phone: candidate.proposedPhone,
+    email: candidate.proposedEmail,
+    organization: candidate.proposedOrganizationName,
+    contactReasons: [],
+    contactRequiredAt: null,
+    contactedAt: null,
     updatedAt: candidate.updatedAt,
   }));
   return [...placeItems, ...candidateItems].sort((left, right) => {
@@ -97,6 +121,18 @@ export async function getVerificationQueueItems() {
 
 export async function getVerificationNavigation(currentId: string) {
   const items = await getVerificationQueueItems();
+  if (isPilotGPlaceId(currentId)) {
+    const pilotItems = pilotGPlaceIds
+      .map((id) => items.find((item) => item.entityKind === "PLACE" && item.id === id))
+      .filter((item): item is VerificationQueueItem => Boolean(item));
+    const pilotIndex = pilotItems.findIndex((item) => item.id === currentId);
+    return {
+      previousId: pilotIndex > 0 ? pilotItems[pilotIndex - 1].id : null,
+      nextId: pilotIndex >= 0 && pilotIndex < pilotItems.length - 1 ? pilotItems[pilotIndex + 1].id : null,
+      position: pilotIndex >= 0 ? pilotIndex + 1 : null,
+      total: pilotItems.length,
+    };
+  }
   const active = items.filter((item) => item.queueStatus !== "VERIFIED" && item.queueStatus !== "SKIPPED");
   const index = active.findIndex((item) => item.id === currentId);
   return {

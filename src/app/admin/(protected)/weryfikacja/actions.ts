@@ -9,7 +9,7 @@ import { slugifyImportValue } from "@/lib/imports/caritas-gdzie-parser";
 import { prisma } from "@/lib/prisma";
 import { deriveTodayHoursLabel, openingRows, validateOpeningSchedule } from "@/lib/places/opening-hours";
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
-import { parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
+import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
 import { resolveLocationSource } from "@/lib/verification/location";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -49,7 +49,7 @@ function revalidateVerification(id: string) {
   revalidatePath("/admin/miejsca");
 }
 
-async function readiness(transaction: Prisma.TransactionClient, placeId: string, verified = false) {
+async function readiness(transaction: Prisma.TransactionClient, placeId: string, verified = false, resolveContact = false) {
   const place = await transaction.place.findUniqueOrThrow({
     where: { id: placeId },
     select: {
@@ -57,17 +57,24 @@ async function readiness(transaction: Prisma.TransactionClient, placeId: string,
       addressLine: true,
       latitude: true,
       longitude: true,
+      locationSource: true,
       phone: true,
       email: true,
       website: true,
       recordKind: true,
+      publicationStatus: true,
+      verificationQueueStatus: true,
       verificationStatus: true,
       verifiedAt: true,
+      verificationSource: true,
       primaryCategory: { select: { active: true } },
       _count: { select: { categories: true } },
       openingHours: { select: { status: true } },
       requirements: { select: { state: true } },
       createdFromImport: { select: { id: true } },
+      importMatchCandidates: { where: { status: "REQUIRES_REVIEW", resolution: null }, select: { id: true } },
+      verificationContact: { select: { reasons: true } },
+      accommodation: { select: { targetGroups: true } },
     },
   });
   return getVerificationCompleteness({
@@ -75,17 +82,26 @@ async function readiness(transaction: Prisma.TransactionClient, placeId: string,
     addressLine: place.addressLine,
     latitude: place.latitude === null ? null : Number(place.latitude),
     longitude: place.longitude === null ? null : Number(place.longitude),
+    locationSource: place.locationSource,
     phone: place.phone,
     email: place.email,
     website: place.website,
     recordKind: place.recordKind,
+    publicationStatus: place.publicationStatus,
     verificationStatus: verified ? "VERIFIED" : place.verificationStatus,
     verifiedAt: verified ? new Date() : place.verifiedAt,
+    verificationSource: place.verificationSource,
     primaryCategoryActive: place.primaryCategory.active,
     categoryCount: place._count.categories,
     hasKnownOpeningHours: place.openingHours.some((row) => row.status !== "UNKNOWN"),
     hasKnownRequirements: place.requirements.some((row) => row.state !== "UNKNOWN"),
     hasImportSource: Boolean(place.createdFromImport),
+    hasUnresolvedConflict: place.importMatchCandidates.length > 0,
+    blockingContactReasons: place.verificationQueueStatus === "CONTACT_REQUIRED" && !resolveContact
+      ? contactReasonsBlockingPublication(place.verificationContact?.reasons ?? [], Boolean(place.accommodation))
+      : [],
+    accommodation: Boolean(place.accommodation),
+    accommodationTargetGroupCount: place.accommodation?.targetGroups.length ?? 0,
   });
 }
 
@@ -228,6 +244,7 @@ export async function recordVerificationContact(
 
 export async function savePlaceLocation(
   placeId: string,
+  nextId: string | null,
   _previousState: VerificationActionState,
   formData: FormData,
 ): Promise<VerificationActionState> {
@@ -259,8 +276,8 @@ export async function savePlaceLocation(
         },
       });
       const complete = await readiness(transaction, placeId);
-      if (current.verificationStatus === "VERIFIED" && complete.readyToPublish) {
-        await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: "READY" } });
+      if (current.verificationStatus === "VERIFIED" && current.verificationQueueStatus !== "CONTACT_REQUIRED") {
+        await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: complete.readyToPublish ? "READY" : "VERIFIED" } });
       }
       await transaction.auditLog.create({
         data: {
@@ -276,12 +293,13 @@ export async function savePlaceLocation(
         },
       });
     });
-    revalidateVerification(placeId);
-    revalidatePath(`/admin/miejsca/${placeId}`);
-    return { success: source === "GEOCODER" ? "Proponowana lokalizacja została zatwierdzona." : "Lokalizacja ustawiona ręcznie." };
   } catch {
     return { error: "Nie udało się zapisać lokalizacji. Spróbuj ponownie." };
   }
+  revalidateVerification(placeId);
+  revalidatePath(`/admin/miejsca/${placeId}`);
+  if (formData.get("intent") === "next" && nextId && uuidPattern.test(nextId)) redirect(`/admin/weryfikacja/${nextId}`);
+  return { success: source === "GEOCODER" ? "Proponowana lokalizacja została zatwierdzona." : "Lokalizacja ustawiona ręcznie." };
 }
 
 export async function saveVerificationWorkingData(
@@ -360,7 +378,9 @@ export async function saveVerificationWorkingData(
       });
       if (current.verificationStatus === "VERIFIED") {
         const complete = await readiness(transaction, placeId);
-        await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: complete.readyToPublish ? "READY" : "VERIFIED" } });
+        if (current.verificationQueueStatus !== "CONTACT_REQUIRED") {
+          await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: complete.readyToPublish ? "READY" : "VERIFIED" } });
+        }
       }
       await transaction.auditLog.create({
         data: {
@@ -425,7 +445,7 @@ export async function markPlaceVerified(
           lastEditedByAdminUserId: session.user.id,
         },
       });
-      const complete = await readiness(transaction, placeId, true);
+      const complete = await readiness(transaction, placeId, true, true);
       const nextStatus = complete.readyToPublish ? "READY" as const : "VERIFIED" as const;
       await transaction.place.update({ where: { id: placeId }, data: { verificationQueueStatus: nextStatus } });
       await transaction.auditLog.create({
@@ -461,8 +481,11 @@ export async function publishVerifiedPlace(placeId: string): Promise<Verificatio
         where: { id: placeId },
         include: { primaryCategory: true, categories: { include: { category: true } } },
       });
-      const verificationCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-      if (!place || place.recordKind !== "PRODUCTION" || place.publicationStatus !== "DRAFT" || place.verificationQueueStatus !== "READY" || place.verificationStatus !== "VERIFIED" || !place.verifiedAt || place.verifiedAt < verificationCutoff || place.latitude === null || place.longitude === null || !place.primaryCategory.active || !place.categories.some((item) => item.category.active)) {
+      if (!place || place.verificationQueueStatus !== "READY") {
+        throw new Error("NOT_READY");
+      }
+      const complete = await readiness(transaction, placeId);
+      if (!complete.readyToPublish) {
         throw new Error("NOT_READY");
       }
       await transaction.place.update({ where: { id: placeId }, data: { publicationStatus: "PUBLISHED", verificationQueueStatus: "VERIFIED", lastEditedByAdminUserId: session.user.id } });

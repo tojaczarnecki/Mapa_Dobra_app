@@ -45,6 +45,10 @@ export const adminPlaceInclude = {
       sources: { include: { sourceEntry: true } },
     },
   },
+  importMatchCandidates: {
+    where: { status: "REQUIRES_REVIEW" as const, resolution: null },
+    select: { id: true },
+  },
   verificationContact: {
     include: {
       requiredByAdminUser: { select: { displayName: true } },

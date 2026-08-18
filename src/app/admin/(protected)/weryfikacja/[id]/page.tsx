@@ -14,6 +14,7 @@ import { scheduleFromRows } from "@/lib/places/opening-hours";
 import { accommodationTypeLabels, petPolicyLabels, sobrietyPolicyLabels } from "@/lib/places/constants";
 import { prisma } from "@/lib/prisma";
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
+import { contactReasonsBlockingPublication } from "@/lib/verification/contact";
 import { getCandidateComparisonOptions, getVerificationNavigation } from "@/lib/verification/queue";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -33,31 +34,41 @@ async function PlaceVerification({ place, navigation }: { place: NonNullable<Awa
   const [options] = await Promise.all([getAdminPlaceFormOptions()]);
   const payload = toPlaceAdminPayload(place);
   const rawOpeningHours = place.createdFromImport?.sources.map((item) => item.sourceEntry.rawOpeningHours).filter(Boolean).join("\n") || null;
+  const blockingContactReasons = place.verificationQueueStatus === "CONTACT_REQUIRED"
+    ? contactReasonsBlockingPublication(place.verificationContact?.reasons ?? [], Boolean(place.accommodation))
+    : [];
   const complete = getVerificationCompleteness({
     name: place.name,
     addressLine: place.addressLine,
     latitude: place.latitude === null ? null : Number(place.latitude),
     longitude: place.longitude === null ? null : Number(place.longitude),
+    locationSource: place.locationSource,
     phone: place.phone,
     email: place.email,
     website: place.website,
     recordKind: place.recordKind,
+    publicationStatus: place.publicationStatus,
     verificationStatus: place.verificationStatus,
     verifiedAt: place.verifiedAt,
+    verificationSource: place.verificationSource,
     primaryCategoryActive: place.primaryCategory.active,
     categoryCount: place.categories.length,
     hasKnownOpeningHours: place.openingHours.some((row) => row.status !== "UNKNOWN"),
     hasKnownRequirements: place.requirements.some((row) => row.state !== "UNKNOWN"),
     hasImportSource: Boolean(place.createdFromImport),
+    hasUnresolvedConflict: place.importMatchCandidates.length > 0,
+    blockingContactReasons,
+    accommodation: Boolean(place.accommodation),
+    accommodationTargetGroupCount: place.accommodation?.targetGroups.length ?? 0,
   });
   return (
     <div className="space-y-5">
       <VerificationNav {...navigation} />
-      <header className="rounded-lg border border-border bg-white p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-bold text-brand-strong">Nowe miejsce z importu</p><h1 className="mt-1 text-2xl font-bold sm:text-3xl">{place.name}</h1><p className="mt-2 text-sm text-muted-foreground">{place.addressLine}</p><div className="mt-3 flex flex-wrap gap-2"><VerificationStatusBadge status={place.verificationQueueStatus!} /><span className="inline-flex min-h-7 items-center rounded-full border border-border px-2.5 py-1 text-xs font-bold">{place.recordKind}</span><span className="inline-flex min-h-7 items-center rounded-full border border-border px-2.5 py-1 text-xs font-bold">{place.publicationStatus}</span></div></div>{place.verificationQueueStatus === "PENDING" ? <form action={startPlaceVerification.bind(null, place.id)}><button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong hover:bg-brand-soft"><Play aria-hidden="true" size={17} />Rozpocznij weryfikację</button></form> : null}</div></header>
+      <header className="rounded-lg border border-border bg-white p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-bold text-brand-strong">Nowe miejsce z importu</p><h1 className="mt-1 text-2xl font-bold sm:text-3xl">{place.name}</h1><p className="mt-2 text-sm text-muted-foreground">{place.addressLine}</p><div className="mt-3 flex flex-wrap gap-2"><VerificationStatusBadge status={place.verificationQueueStatus!} /><span className="inline-flex min-h-7 items-center rounded-full border border-border px-2.5 py-1 text-xs font-bold">{place.recordKind}</span><span className="inline-flex min-h-7 items-center rounded-full border border-border px-2.5 py-1 text-xs font-bold">{place.publicationStatus}</span></div><div className="mt-3 flex flex-wrap gap-2 text-xs font-bold"><WorkflowPill complete={place.latitude !== null && place.longitude !== null && place.locationSource !== null} label="Lokalizacja" /><WorkflowPill complete={place.verificationStatus === "VERIFIED"} label="Weryfikacja" />{place.verificationQueueStatus === "CONTACT_REQUIRED" ? <span className="inline-flex min-h-7 items-center rounded-full border border-[#d7a548] bg-[#fff4d8] px-2.5 py-1 text-[#684500]">Kontakt wymagany</span> : null}<WorkflowPill complete={complete.readyToPublish} label="Gotowe" /></div></div>{place.verificationQueueStatus === "PENDING" ? <form action={startPlaceVerification.bind(null, place.id)}><button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong hover:bg-brand-soft"><Play aria-hidden="true" size={17} />Rozpocznij weryfikację</button></form> : null}</div></header>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_310px] xl:items-start"><main className="min-w-0 space-y-5">
         {place.createdFromImport ? <SourceData sources={place.createdFromImport.sources.map((item) => item.sourceEntry)} sourceUrl={place.createdFromImport.importBatch.sourceUrl} /> : null}
         <WorkingDataForm place={{ id: place.id, name: payload.name, addressLine: payload.addressLine, street: payload.street, buildingNumber: payload.buildingNumber, postalCode: payload.postalCode, city: payload.city, district: payload.district, phone: payload.phone, email: payload.email, website: payload.website, organizationId: payload.organizationId, primaryCategorySlug: payload.primaryCategorySlug, categorySlugs: payload.categorySlugs }} categories={options.categories} organizations={options.organizations} openingDays={scheduleFromRows(place.openingHours, "OPERATION")} rawOpeningHours={rawOpeningHours} nextId={navigation.nextId} />
-        <LocationEditor placeId={place.id} address={place.addressLine} initialLatitude={place.latitude === null ? null : Number(place.latitude)} initialLongitude={place.longitude === null ? null : Number(place.longitude)} initialSource={place.locationSource} />
+        <LocationEditor placeId={place.id} nextId={navigation.nextId} address={place.addressLine} initialLatitude={place.latitude === null ? null : Number(place.latitude)} initialLongitude={place.longitude === null ? null : Number(place.longitude)} initialSource={place.locationSource} />
         <ContactWorkflow placeId={place.id} phone={place.phone} email={place.email} website={place.website} organization={place.organization?.name ?? null} contact={place.verificationContact ? { reasons: place.verificationContact.reasons, requiredNote: place.verificationContact.requiredNote, requiredAt: place.verificationContact.requiredAt.toISOString(), requiredBy: place.verificationContact.requiredByAdminUser.displayName, contactedAt: place.verificationContact.contactedAt?.toISOString() ?? null, contactMethod: place.verificationContact.contactMethod, contactResult: place.verificationContact.contactResult, contactedBy: place.verificationContact.contactedByAdminUser?.displayName ?? null } : null} />
         {place.accommodation ? <AccommodationReview accommodation={place.accommodation} admissionHours={scheduleFromRows(place.openingHours, "ADMISSION")} /> : null}
         <VerificationActions placeId={place.id} canPublish={complete.readyToPublish && place.verificationQueueStatus === "READY"} isProduction={place.recordKind === "PRODUCTION"} publicationStatus={place.publicationStatus} />
@@ -90,6 +101,10 @@ async function getCandidateWithRelations(id: string) {
 
 function VerificationNav({ previousId, nextId, position, total }: Awaited<ReturnType<typeof getVerificationNavigation>>) {
   return <nav aria-label="Nawigacja kolejki" className="flex flex-wrap items-center justify-between gap-2"><Link href="/admin/weryfikacja" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} />Wróć do kolejki</Link><p className="text-sm font-bold text-muted-foreground">{position ? `${position} z ${total}` : "Pozycja poza aktywną kolejką"}</p><div className="flex gap-2">{previousId ? <Link href={`/admin/weryfikacja/${previousId}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-bold"><ArrowLeft aria-hidden="true" size={17} />Poprzednie</Link> : null}{nextId ? <Link href={`/admin/weryfikacja/${nextId}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-bold">Następne<ArrowRight aria-hidden="true" size={17} /></Link> : null}</div></nav>;
+}
+
+function WorkflowPill({ complete, label }: { complete: boolean; label: string }) {
+  return <span className={`inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 ${complete ? "border-brand/35 bg-brand-soft text-[#075f53]" : "border-border bg-[#efede7] text-muted-foreground"}`}>{label} {complete ? "✓" : "—"}</span>;
 }
 
 function SourceData({ sources, sourceUrl }: { sources: Array<{ id: string; section: string; sourcePages: number[]; rawName: string; rawAddress: string | null; rawPhone: string | null; rawEmail: string | null; rawWebsite: string | null; rawOpeningHours: string | null; rawAdmissionHours: string | null; rawAssistanceDescription: string | null; rawText: string }>; sourceUrl: string }) {
