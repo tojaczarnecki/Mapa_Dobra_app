@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, LogOut, MapPinned } from "lucide-react";
+import { Building2, ClipboardList, LayoutDashboard, LogOut, MapPinned, Tags } from "lucide-react";
 import { logoutAdmin } from "@/app/admin/actions";
 import { UnsavedChangesProvider } from "@/components/admin/unsaved-changes";
 
@@ -61,6 +61,20 @@ export function AdminShell({ displayName, role, children }: AdminShellProps) {
             >
               <MapPinned aria-hidden="true" size={19} />
               Miejsca
+            </Link>
+            <Link
+              href="/admin/organizacje"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
+            >
+              <Building2 aria-hidden="true" size={19} />
+              Organizacje
+            </Link>
+            <Link
+              href="/admin/kategorie"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
+            >
+              <Tags aria-hidden="true" size={19} />
+              Kategorie
             </Link>
             <form action={logoutAdmin} className="col-span-2 min-[380px]:col-span-3 sm:col-span-1 sm:w-auto lg:mt-5 lg:w-full lg:border-t lg:border-border lg:pt-5">
               <button

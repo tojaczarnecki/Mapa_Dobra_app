@@ -39,6 +39,14 @@ const auditActionLabels = {
   DRAFT_SAVED: "Zapis wersji roboczej",
   DRAFT_REBASED: "Odświeżenie wersji roboczej",
   SUBMISSION_PUBLISHED: "Publikacja zgłoszenia",
+  ORGANIZATION_CREATED: "Utworzenie organizacji",
+  ORGANIZATION_UPDATED: "Edycja organizacji",
+  ORGANIZATION_ARCHIVED: "Archiwizacja organizacji",
+  ORGANIZATION_RESTORED: "Przywrócenie organizacji",
+  CATEGORY_CREATED: "Utworzenie kategorii",
+  CATEGORY_UPDATED: "Edycja kategorii",
+  CATEGORY_ACTIVATED: "Aktywacja kategorii",
+  CATEGORY_DEACTIVATED: "Dezaktywacja kategorii",
 } as const;
 const originLabels = {
   DEMO_MIGRATION: "migracja danych demonstracyjnych",
@@ -113,7 +121,7 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
         <div className="min-w-0 space-y-5">
           <DetailSection title="Podstawowe dane"><InfoRows rows={[{ label: "Nazwa", value: place.name }, { label: "Slug", value: place.slug }, { label: "Typ", value: place.typeLabel ?? "Nie podano" }, { label: "Opis", value: place.description ?? "Nie podano" }, { label: "Dla kogo", value: place.audience.length ? place.audience.join(", ") : "Brak danych" }, { label: "Usługi", value: place.services.length ? place.services.join(", ") : "Brak danych" }]} /></DetailSection>
           <DetailSection title="Kategorie"><TagList items={place.categories.map((item) => item.category.name)} /></DetailSection>
-          <DetailSection title="Organizacja"><InfoRows rows={[{ label: "Nazwa", value: place.organization?.name ?? "Nie podano" }, { label: "Telefon", value: place.organization?.phone ?? "Nie podano" }, { label: "E-mail", value: place.organization?.email ?? "Nie podano" }, { label: "WWW", value: place.organization?.website ?? "Nie podano" }]} /></DetailSection>
+          <DetailSection title="Organizacja"><InfoRows rows={[{ label: "Nazwa", value: place.organization ? <Link href={`/admin/organizacje/${place.organization.id}`} className="font-bold text-brand-strong hover:underline">{place.organization.name}</Link> : "Nie podano" }, { label: "Telefon", value: place.organization?.phone ?? "Nie podano" }, { label: "E-mail", value: place.organization?.email ?? "Nie podano" }, { label: "WWW", value: place.organization?.website ?? "Nie podano" }]} /></DetailSection>
           <DetailSection title="Adres"><InfoRows rows={[{ label: "Ulica", value: place.street ?? "Nie podano" }, { label: "Numer", value: place.buildingNumber ?? "Nie podano" }, { label: "Pełny adres", value: place.addressLine }, { label: "Kod pocztowy", value: place.postalCode ?? "Nie podano" }, { label: "Miasto", value: place.city }, { label: "Dzielnica", value: place.district ?? "Nie podano" }, { label: "Współrzędne", value: place.latitude !== null && place.longitude !== null ? `${place.latitude}, ${place.longitude}` : "Nie podano" }]} /></DetailSection>
           <DetailSection title="Kontakt"><InfoRows rows={[{ label: "Telefon", value: place.phone ?? "Nie podano" }, { label: "E-mail", value: place.email ?? "Nie podano" }, { label: "WWW", value: place.website ?? "Nie podano" }, { label: "Social media", value: place.socialMedia ?? "Nie podano" }]} /></DetailSection>
           <HoursSection title="Godziny działania" rows={operationHours} />

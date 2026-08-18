@@ -80,12 +80,12 @@ function days(mondayPeriods = []) {
     : { weekday, status: "UNKNOWN", periods: [], note: "Brak potwierdzonych godzin" });
 }
 
-function placePayload(id) {
+function placePayload(organizationId, id) {
   return {
     ...(id ? { id } : {}),
     name: id ? `TEST Nocleg admin poprawiony ${stamp}` : `TEST Nocleg admin ${stamp}`,
     slug: manualSlug,
-    organizationName: `TEST Organizacja ${stamp}`,
+    organizationId,
     primaryCategorySlug: "nocleg",
     categorySlugs: ["nocleg", "higiena"],
     typeLabel: "Schronisko",
@@ -290,12 +290,15 @@ async function testLegacyApprovedPreparation(cookie) {
 
 async function main() {
   const cookie = await login();
+  const organization = await prisma.organization.create({
+    data: { slug: `test-organizacja-${stamp}`, name: `TEST Organizacja ${stamp}`, active: true },
+  });
 
-  await savePlace(cookie, placePayload(), "/admin/miejsca/nowe");
+  await savePlace(cookie, placePayload(organization.id), "/admin/miejsca/nowe");
   let manualPlace = await prisma.place.findUniqueOrThrow({ where: { slug: manualSlug }, include: { accommodation: { include: { capacityGroups: true, availabilityHistory: true } } } });
   await prisma.place.update({ where: { id: manualPlace.id }, data: { recordKind: "TEST" } });
   const originalGroupId = manualPlace.accommodation.capacityGroups[0].id;
-  const editedPayload = placePayload(manualPlace.id);
+  const editedPayload = placePayload(organization.id, manualPlace.id);
   editedPayload.accommodation.capacityGroups[0].id = originalGroupId;
   await savePlace(cookie, editedPayload, `/admin/miejsca/${manualPlace.id}/edytuj`);
   manualPlace = await prisma.place.findUniqueOrThrow({ where: { id: manualPlace.id }, include: { categories: { include: { category: true } }, openingHours: true, requirements: true, accessibility: true, accommodation: { include: { capacityGroups: true, availabilityHistory: true } } } });

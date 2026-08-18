@@ -64,13 +64,12 @@ export async function getAdminPlaceHistory(placeId: string, capacityGroupIds: st
 export async function getAdminPlaceFormOptions() {
   const [categories, organizations] = await Promise.all([
     prisma.category.findMany({
-      where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, active: true },
     }),
     prisma.organization.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, active: true },
     }),
   ]);
   return { categories, organizations };
@@ -116,7 +115,7 @@ export function emptyPlaceAdminPayload(primaryCategorySlug = "jedzenie"): PlaceA
   return {
     name: "",
     slug: "",
-    organizationName: "",
+    organizationId: "",
     primaryCategorySlug,
     categorySlugs: [primaryCategorySlug],
     typeLabel: "Punkt pomocy",
@@ -210,7 +209,7 @@ export function toPlaceAdminPayload(
     id: place.id,
     name: place.name,
     slug: place.slug,
-    organizationName: place.organization?.name ?? "",
+    organizationId: place.organizationId ?? "",
     primaryCategorySlug: place.primaryCategory.slug,
     categorySlugs: place.categories.map((item) => item.category.slug),
     typeLabel: place.typeLabel ?? "",

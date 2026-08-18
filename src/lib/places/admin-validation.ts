@@ -272,7 +272,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const id = text(value.id, 36);
   const name = text(value.name, 250, true);
   const slug = text(value.slug, 200, true);
-  const organizationName = text(value.organizationName, 250);
+  const organizationId = text(value.organizationId, 36);
   const primaryCategorySlug = text(value.primaryCategorySlug, 120, true);
   const categorySlugs = stringArray(value.categorySlugs, 20, 120);
   const typeLabel = text(value.typeLabel, 160);
@@ -315,7 +315,8 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
     !name ||
     !slug ||
     !slugPattern.test(slug) ||
-    organizationName === null ||
+    organizationId === null ||
+    (organizationId && !uuidPattern.test(organizationId)) ||
     !primaryCategorySlug ||
     !slugPattern.test(primaryCategorySlug) ||
     !categorySlugs ||
@@ -374,7 +375,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
       id: id || undefined,
       name,
       slug,
-      organizationName,
+      organizationId,
       primaryCategorySlug,
       categorySlugs,
       typeLabel,

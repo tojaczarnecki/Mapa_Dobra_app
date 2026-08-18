@@ -26,7 +26,7 @@ import { prisma } from "@/lib/prisma";
 const publicPlaceInclude = {
   organization: true,
   primaryCategory: true,
-  categories: { include: { category: true }, orderBy: { sortOrder: "asc" as const } },
+  categories: { where: { category: { active: true } }, include: { category: true }, orderBy: { sortOrder: "asc" as const } },
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
   requirements: { orderBy: { sortOrder: "asc" as const } },
   accessibility: { orderBy: { sortOrder: "asc" as const } },

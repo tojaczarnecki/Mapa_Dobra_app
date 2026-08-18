@@ -27,16 +27,6 @@ const allowedStatuses: PlacePublicationStatusValue[] = [
   "ARCHIVED",
 ];
 
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/gu, "")
-    .toLocaleLowerCase("pl-PL")
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-|-$/gu, "")
-    .slice(0, 200);
-}
-
 function placeScalarData(
   payload: PlaceAdminPayload,
   organizationId: string | null,
@@ -124,6 +114,7 @@ function auditSnapshot(place: {
   requirements: unknown[];
   accessibility: unknown[];
   accommodation: unknown;
+  organizationId: string | null;
 }) {
   return {
     name: place.name,
@@ -139,6 +130,7 @@ function auditSnapshot(place: {
     requirements: place.requirements,
     accessibility: place.accessibility,
     accommodation: place.accommodation,
+    organizationId: place.organizationId,
   };
 }
 
@@ -203,23 +195,27 @@ export async function savePlace(
       if (duplicateSlug) throw new Error("DUPLICATE_SLUG");
 
       const categoryRecords = await transaction.category.findMany({
-        where: { slug: { in: payload.categorySlugs }, active: true },
-        select: { id: true, slug: true },
+        where: { slug: { in: payload.categorySlugs } },
+        select: { id: true, slug: true, active: true },
       });
       if (categoryRecords.length !== payload.categorySlugs.length) throw new Error("CATEGORY");
       const categoryIdBySlug = new Map(categoryRecords.map((item) => [item.slug, item.id]));
       const primaryCategoryId = categoryIdBySlug.get(payload.primaryCategorySlug);
       if (!primaryCategoryId) throw new Error("CATEGORY");
+      const primaryCategory = categoryRecords.find((item) => item.slug === payload.primaryCategorySlug);
+      if (!primaryCategory?.active && existing?.primaryCategoryId !== primaryCategoryId) {
+        throw new Error("INACTIVE_PRIMARY_CATEGORY");
+      }
 
       let organizationId: string | null = null;
-      if (payload.organizationName) {
-        const organizationSlug = slugify(payload.organizationName);
-        const organization = await transaction.organization.upsert({
-          where: { slug: organizationSlug },
-          create: { slug: organizationSlug, name: payload.organizationName },
-          update: { name: payload.organizationName },
-          select: { id: true },
+      if (payload.organizationId) {
+        const organization = await transaction.organization.findUnique({
+          where: { id: payload.organizationId },
+          select: { id: true, active: true },
         });
+        if (!organization || (!organization.active && existing?.organizationId !== organization.id)) {
+          throw new Error("ORGANIZATION");
+        }
         organizationId = organization.id;
       }
 
@@ -426,6 +422,8 @@ export async function savePlace(
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
     if (reason === "DUPLICATE_SLUG") return { error: "Inne miejsce używa już tego slugu." };
+    if (reason === "ORGANIZATION") return { error: "Wybierz aktywną organizację z listy lub pozostaw brak organizacji." };
+    if (reason === "INACTIVE_PRIMARY_CATEGORY") return { error: "Nieaktywna kategoria nie może zostać wybrana jako nowa kategoria główna." };
     if (reason === "ACCOMMODATION_REMOVAL") {
       return { error: "Danych noclegowych nie można usunąć tym formularzem. Zmień status miejsca lub skontaktuj się z superadministratorem." };
     }

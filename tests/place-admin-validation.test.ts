@@ -16,7 +16,7 @@ function validPayload() {
   return {
     name: "TEST Miejsce",
     slug: "test-miejsce",
-    organizationName: "TEST Organizacja",
+    organizationId: "",
     primaryCategorySlug: "jedzenie",
     categorySlugs: ["jedzenie"],
     typeLabel: "Punkt pomocy",

@@ -74,11 +74,11 @@ function schedule(mondayPeriods = []) {
     : { weekday, status: "UNKNOWN", periods: [], note: "Brak potwierdzonych godzin" });
 }
 
-function initialPayload() {
+function initialPayload(organizationId) {
   return {
     name: `TEST CMS Etap C ${stamp}`,
     slug,
-    organizationName: `TEST Organizacja CMS ${stamp}`,
+    organizationId,
     primaryCategorySlug: "nocleg",
     categorySlugs: ["nocleg", "higiena"],
     typeLabel: "Schronisko testowe",
@@ -153,10 +153,13 @@ function initialPayload() {
 async function main() {
   const before = await prisma.place.count({ where: { recordKind: "TEST" } });
   const cookie = await login();
+  const organization = await prisma.organization.create({
+    data: { slug: `test-organizacja-cms-${stamp}`, name: `TEST Organizacja CMS ${stamp}`, active: true },
+  });
 
   const newHtml = await getHtml("/admin/miejsca/nowe", cookie);
   const newForm = findForm(newHtml, (fields) => fields.has("payload"));
-  await submitAction("/admin/miejsca/nowe", cookie, newForm, { payload: JSON.stringify(initialPayload()) });
+  await submitAction("/admin/miejsca/nowe", cookie, newForm, { payload: JSON.stringify(initialPayload(organization.id)) });
   let place = await prisma.place.findUniqueOrThrow({ where: { slug }, include: { accommodation: { include: { capacityGroups: true } } } });
   assert.equal(place.publicationStatus, "DRAFT");
   assert.equal(place.recordKind, "PRODUCTION");

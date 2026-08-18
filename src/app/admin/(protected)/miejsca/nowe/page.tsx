@@ -4,8 +4,8 @@ import { PlaceForm } from "@/components/admin/places/place-form";
 import { emptyPlaceAdminPayload, getAdminPlaceFormOptions } from "@/lib/places/admin-data";
 
 export default async function NewAdminPlacePage() {
-  const { categories } = await getAdminPlaceFormOptions();
-  const primaryCategory = categories[0]?.slug ?? "jedzenie";
+  const { categories, organizations } = await getAdminPlaceFormOptions();
+  const primaryCategory = categories.find((category) => category.active)?.slug ?? "jedzenie";
 
   return (
     <div className="space-y-5">
@@ -18,7 +18,7 @@ export default async function NewAdminPlacePage() {
         <h1 className="text-3xl font-bold">Nowe miejsce</h1>
         <p className="mt-2 text-sm text-muted-foreground">Nowy rekord zostanie zapisany jako szkic. Publikacja wymaga osobnej decyzji.</p>
       </header>
-      <PlaceForm initialData={emptyPlaceAdminPayload(primaryCategory)} categories={categories} />
+      <PlaceForm initialData={emptyPlaceAdminPayload(primaryCategory)} categories={categories} organizations={organizations} />
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default async function EditAdminPlacePage({ params }: { params: Promise<{
         <h1 className="text-3xl font-bold">{place.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">Zmiany zostaną zapisane dopiero po użyciu przycisku „Zapisz zmiany”.</p>
       </header>
-      <PlaceForm initialData={toPlaceAdminPayload(place)} categories={options.categories} />
+      <PlaceForm initialData={toPlaceAdminPayload(place)} categories={options.categories} organizations={options.organizations} />
     </div>
   );
 }

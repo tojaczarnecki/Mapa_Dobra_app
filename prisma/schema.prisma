@@ -83,6 +83,14 @@ enum AuditAction {
   DRAFT_SAVED
   DRAFT_REBASED
   SUBMISSION_PUBLISHED
+  ORGANIZATION_CREATED
+  ORGANIZATION_UPDATED
+  ORGANIZATION_ARCHIVED
+  ORGANIZATION_RESTORED
+  CATEGORY_CREATED
+  CATEGORY_UPDATED
+  CATEGORY_ACTIVATED
+  CATEGORY_DEACTIVATED
 }
 
 enum AuditEntityType {
@@ -92,6 +100,8 @@ enum AuditEntityType {
   PLACE
   ACCOMMODATION_CAPACITY_GROUP
   SUBMISSION_DRAFT
+  ORGANIZATION
+  CATEGORY
 }
 
 enum PlacePublicationStatus {
@@ -291,10 +301,12 @@ model Organization {
   phone       String?  @db.VarChar(50)
   email       String?  @db.VarChar(320)
   website     String?  @db.VarChar(2048)
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   places      Place[]
 
+  @@index([active, name])
   @@map("organizations")
 }
 

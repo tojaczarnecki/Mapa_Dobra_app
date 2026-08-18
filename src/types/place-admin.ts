@@ -134,7 +134,7 @@ export type PlaceAdminPayload = {
   id?: string;
   name: string;
   slug: string;
-  organizationName: string;
+  organizationId: string;
   primaryCategorySlug: string;
   categorySlugs: string[];
   typeLabel: string;

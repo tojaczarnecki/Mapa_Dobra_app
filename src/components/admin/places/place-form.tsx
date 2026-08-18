@@ -2,8 +2,9 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Plus, Power, RotateCcw, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Power, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
 import {
@@ -25,7 +26,8 @@ import type {
   TriState,
 } from "@/types/place-admin";
 
-type CategoryOption = { id: string; slug: string; name: string };
+type CategoryOption = { id: string; slug: string; name: string; active: boolean };
+type OrganizationOption = { id: string; name: string; active: boolean };
 
 const formSections = [
   { id: "podstawowe", label: "Podstawowe" },
@@ -353,14 +355,17 @@ function SubmitButton({ isEditing }: { isEditing: boolean }) {
 export function PlaceForm({
   initialData,
   categories,
+  organizations,
 }: {
   initialData: PlaceAdminPayload;
   categories: CategoryOption[];
+  organizations: OrganizationOption[];
 }) {
   const router = useRouter();
   const [payload, setPayload] = useState(initialData);
   const [dirty, setDirty] = useState(false);
   const [state, formAction] = useActionState(savePlace, initialActionState);
+  const [organizationQuery, setOrganizationQuery] = useState("");
   const isEditing = Boolean(initialData.id);
 
   useUnsavedChanges(dirty);
@@ -376,6 +381,13 @@ export function PlaceForm({
     () => categories.filter((category) => payload.categorySlugs.includes(category.slug)).map((category) => category.name),
     [categories, payload.categorySlugs],
   );
+  const availableOrganizations = useMemo(() => {
+    const query = organizationQuery.trim().toLocaleLowerCase("pl-PL");
+    return organizations.filter((organization) => (
+      (organization.active || organization.id === payload.organizationId) &&
+      (!query || organization.name.toLocaleLowerCase("pl-PL").includes(query) || organization.id === payload.organizationId)
+    ));
+  }, [organizationQuery, organizations, payload.organizationId]);
 
   function update(changes: Partial<PlaceAdminPayload>) {
     setDirty(true);
@@ -429,8 +441,41 @@ export function PlaceForm({
               </p>
             ) : null}
           </div>
-          <Field label="Organizacja" value={payload.organizationName} onChange={(organizationName) => update({ organizationName })} />
           <Field label="Typ miejsca" value={payload.typeLabel} onChange={(typeLabel) => update({ typeLabel })} />
+          <div className="sm:col-span-2">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-bold">Organizacja</span>
+              <Link href="/admin/organizacje/nowa" target="_blank" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><Plus aria-hidden="true" size={16} /> Dodaj nową organizację</Link>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(180px,.8fr)_minmax(220px,1.2fr)]">
+              <label className="relative block">
+                <span className="sr-only">Szukaj organizacji</span>
+                <Search aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={organizationQuery}
+                  placeholder="Szukaj organizacji"
+                  className={`${fieldClass} pl-10`}
+                  onChange={(event) => {
+                    event.stopPropagation();
+                    setOrganizationQuery(event.target.value);
+                  }}
+                />
+              </label>
+              <label>
+                <span className="sr-only">Wybierz organizację</span>
+                <select className={fieldClass} value={payload.organizationId} onChange={(event) => update({ organizationId: event.target.value })}>
+                  <option value="">Brak organizacji</option>
+                  {availableOrganizations.map((organization) => (
+                    <option key={organization.id} value={organization.id} disabled={!organization.active && organization.id !== payload.organizationId}>
+                      {organization.name}{organization.active ? "" : " (zarchiwizowana)"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Wybór wskazuje istniejący rekord. Wpisanie tekstu nie tworzy organizacji.</p>
+          </div>
         </div>
         <fieldset className="mt-4">
           <legend className="mb-2 text-sm font-bold">Kategorie *</legend>
@@ -438,7 +483,7 @@ export function PlaceForm({
             {categories.map((category) => {
               const checked = payload.categorySlugs.includes(category.slug);
               return (
-                <label key={category.id} className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm font-semibold hover:bg-brand-soft/40">
+                <label key={category.id} className={`flex min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm font-semibold hover:bg-brand-soft/40 ${category.active ? "" : "bg-surface-muted text-muted-foreground"}`}>
                   <input
                     type="checkbox"
                     checked={checked}
@@ -452,7 +497,7 @@ export function PlaceForm({
                       });
                     }}
                   />
-                  {category.name}
+                  {category.name}{category.active ? "" : " (nieaktywna)"}
                 </label>
               );
             })}
@@ -462,7 +507,7 @@ export function PlaceForm({
           <span className="mb-1.5 block">Kategoria główna</span>
           <select className={fieldClass} value={payload.primaryCategorySlug} onChange={(event) => update({ primaryCategorySlug: event.target.value })}>
             {categories.filter((category) => payload.categorySlugs.includes(category.slug)).map((category) => (
-              <option key={category.id} value={category.slug}>{category.name}</option>
+              <option key={category.id} value={category.slug} disabled={!category.active && category.slug !== initialData.primaryCategorySlug}>{category.name}{category.active ? "" : " (nieaktywna)"}</option>
             ))}
           </select>
         </label>
