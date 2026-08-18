@@ -16,7 +16,8 @@
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "admin:create": "node scripts/create-admin.mjs",
-    "db:migrate-demo": "tsx scripts/migrate-demo-places.ts"
+    "db:migrate-demo": "tsx scripts/migrate-demo-places.ts",
+    "import:caritas": "tsx scripts/import-caritas-gdzie.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.9.1",

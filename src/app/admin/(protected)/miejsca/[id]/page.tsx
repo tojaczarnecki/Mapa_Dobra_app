@@ -47,11 +47,13 @@ const auditActionLabels = {
   CATEGORY_UPDATED: "Edycja kategorii",
   CATEGORY_ACTIVATED: "Aktywacja kategorii",
   CATEGORY_DEACTIVATED: "Dezaktywacja kategorii",
+  PLACE_IMPORTED: "Import miejsca",
 } as const;
 const originLabels = {
   DEMO_MIGRATION: "migracja danych demonstracyjnych",
   ADMIN_MANUAL: "ręczna zmiana administratora",
   USER_SUBMISSION: "zgłoszenie użytkownika",
+  SOURCE_IMPORT: "import ze źródła",
 } as const;
 const fieldLabels: Record<string, string> = {
   name: "nazwa",
@@ -145,6 +147,15 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
             <h2 className="mb-3 text-lg font-bold">Weryfikacja</h2>
             <InfoRows rows={[{ label: "Status", value: place.verificationStatus === "VERIFIED" ? "Zweryfikowane" : place.verificationStatus === "NEEDS_CONFIRMATION" ? "Wymaga potwierdzenia" : "Niezweryfikowane" }, { label: "Kiedy", value: formatDate(place.verifiedAt) }, { label: "Przez", value: place.verifiedBy?.displayName ?? "Brak danych" }, { label: "Źródło", value: place.verificationSource ? verificationSourceLabels[place.verificationSource] : "Nie podano" }, { label: "Ostatnia edycja", value: place.lastEditedBy?.displayName ?? "Migracja danych" }]} />
             {place.internalNote ? <div className="mt-4 rounded-md border border-urgent/25 bg-urgent-soft/50 p-3 text-sm"><strong className="block">Notatka wewnętrzna</strong><p className="mt-1 leading-5">{place.internalNote}</p></div> : null}
+            {place.createdFromImport ? (
+              <div className="mt-4 border-t border-border pt-4 text-sm">
+                <strong className="block">Pochodzenie importu</strong>
+                <Link href={`/admin/importy/${place.createdFromImport.importBatch.id}`} className="mt-1 inline-flex min-h-11 items-center font-bold text-brand-strong hover:underline">
+                  {place.createdFromImport.importBatch.key}
+                </Link>
+                <p className="text-xs text-muted-foreground">Strony: {[...new Set(place.createdFromImport.sources.flatMap((source) => source.sourceEntry.sourcePages))].sort((a, b) => a - b).join(", ")}</p>
+              </div>
+            ) : null}
           </section>
         </aside>
       </div>

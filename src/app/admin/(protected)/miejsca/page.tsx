@@ -18,11 +18,17 @@ import type {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 type SortValue = "name" | "updated" | "verified";
+type VerificationValue = "UNVERIFIED" | "VERIFIED" | "NEEDS_CONFIRMATION";
 
 const publicationStatuses = Object.keys(placeStatusLabels) as PlacePublicationStatusValue[];
 const operationalStatuses = Object.keys(operationalStatusLabels) as PlaceOperationalStatusValue[];
 const recordKinds = Object.keys(recordKindLabels) as PlaceRecordKindValue[];
 const sortValues: SortValue[] = ["name", "updated", "verified"];
+const verificationLabels: Record<VerificationValue, string> = {
+  UNVERIFIED: "Niezweryfikowane",
+  VERIFIED: "Zweryfikowane",
+  NEEDS_CONFIRMATION: "Wymaga weryfikacji",
+};
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -46,10 +52,12 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
   const recordKindValue = first(params.recordKind) ?? "without-test";
   const categoryValue = first(params.category) ?? "all";
   const accommodationValue = first(params.accommodation) ?? "all";
+  const verificationValue = first(params.verification) ?? "all";
   const sortValue = optionalEnum(first(params.sort) ?? "updated", sortValues) ?? "updated";
   const publicationStatus = optionalEnum(publicationValue, publicationStatuses);
   const operationalStatus = optionalEnum(operationalValue, operationalStatuses);
   const recordKind = optionalEnum(recordKindValue, recordKinds);
+  const verificationStatus = optionalEnum(verificationValue, Object.keys(verificationLabels) as VerificationValue[]);
 
   const where: Prisma.PlaceWhereInput = {
     ...(query
@@ -64,6 +72,7 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
     ...(publicationStatus ? { publicationStatus } : {}),
     ...(operationalStatus ? { operationalStatus } : {}),
     ...(recordKind ? { recordKind } : recordKindValue === "all" ? {} : { recordKind: { not: "TEST" } }),
+    ...(verificationStatus ? { verificationStatus } : {}),
     ...(categoryValue !== "all"
       ? { categories: { some: { category: { slug: categoryValue } } } }
       : {}),
@@ -109,7 +118,7 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
         </Link>
       </header>
 
-      <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-2 xl:grid-cols-[180px_repeat(5,minmax(0,1fr))_150px] xl:items-end">
+      <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-2 xl:grid-cols-4 xl:items-end 2xl:grid-cols-[180px_repeat(6,minmax(0,1fr))_150px]">
         <label className="text-sm font-bold sm:col-span-2 xl:col-span-1">
           <span className="mb-1 block">Szukaj</span>
           <span className="relative block">
@@ -121,6 +130,7 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
         <SelectFilter label="Stan działania" name="operational" value={operationalValue} options={operationalStatuses.map((value) => ({ value, label: operationalStatusLabels[value] }))} />
         <SelectFilter label="Kategoria" name="category" value={categoryValue} options={categories.map((category) => ({ value: category.slug, label: category.name }))} />
         <SelectFilter label="Rodzaj rekordu" name="recordKind" value={recordKindValue} includeAll={false} options={[{ value: "without-test", label: "Bez TEST" }, { value: "all", label: "Wszystkie" }, ...recordKinds.map((value) => ({ value, label: recordKindLabels[value] }))]} />
+        <SelectFilter label="Weryfikacja" name="verification" value={verificationValue} options={(Object.keys(verificationLabels) as VerificationValue[]).map((value) => ({ value, label: verificationLabels[value] }))} />
         <SelectFilter label="Typ miejsca" name="accommodation" value={accommodationValue} options={[{ value: "yes", label: "Noclegi" }, { value: "no", label: "Pozostałe miejsca" }]} />
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <SelectFilter label="Sortowanie" name="sort" value={sortValue} options={[{ value: "updated", label: "Ostatnio zmienione" }, { value: "verified", label: "Ostatnio zweryfikowane" }, { value: "name", label: "Nazwa A-Z" }]} />

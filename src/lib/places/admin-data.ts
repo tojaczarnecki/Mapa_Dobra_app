@@ -39,6 +39,12 @@ export const adminPlaceInclude = {
   },
   lastEditedBy: { select: { displayName: true } },
   verifiedBy: { select: { displayName: true } },
+  createdFromImport: {
+    include: {
+      importBatch: { select: { id: true, key: true, title: true, sourceUrl: true } },
+      sources: { include: { sourceEntry: { select: { sourcePages: true } } } },
+    },
+  },
 } satisfies Prisma.PlaceInclude;
 
 export async function getAdminPlace(id: string) {

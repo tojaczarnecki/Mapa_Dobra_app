@@ -91,6 +91,7 @@ enum AuditAction {
   CATEGORY_UPDATED
   CATEGORY_ACTIVATED
   CATEGORY_DEACTIVATED
+  PLACE_IMPORTED
 }
 
 enum AuditEntityType {
@@ -215,6 +216,21 @@ enum ChangeOrigin {
   DEMO_MIGRATION
   ADMIN_MANUAL
   USER_SUBMISSION
+  SOURCE_IMPORT
+}
+
+enum ImportBatchStatus {
+  STAGED
+  IMPORTED
+  COMPLETED_WITH_REVIEW
+}
+
+enum ImportCandidateStatus {
+  IMPORT_READY
+  MATCH_EXISTING
+  REQUIRES_REVIEW
+  IMPORTED
+  SKIPPED
 }
 
 enum VerificationSource {
@@ -378,11 +394,106 @@ model Place {
   publishedUpdates        PlaceUpdateSubmission[] @relation("PublishedUpdatePlace")
   publishedNewPlaces      NewPlaceSubmission[]    @relation("PublishedNewPlace")
   submissionDrafts        SubmissionDraft[]
+  createdFromImport       ImportCandidate?        @relation("CreatedImportPlace")
+  importMatchCandidates   ImportCandidate[]       @relation("MatchedImportPlace")
 
   @@index([recordKind, publicationStatus, city])
   @@index([primaryCategoryId])
   @@index([name])
   @@map("places")
+}
+
+model ImportBatch {
+  id                 String              @id @default(uuid()) @db.Uuid
+  key                String              @unique @db.VarChar(160)
+  title              String              @db.VarChar(500)
+  sourceUrl          String              @db.VarChar(2048)
+  publisher          String              @db.VarChar(250)
+  edition            String              @db.VarChar(80)
+  sourceDocumentHash String              @db.Char(64)
+  importedAt         DateTime?           @db.Timestamptz(3)
+  importDate         DateTime            @db.Date
+  status             ImportBatchStatus   @default(STAGED)
+  rawEntryCount      Int                 @default(0)
+  candidateCount     Int                 @default(0)
+  importedCount      Int                 @default(0)
+  matchedCount       Int                 @default(0)
+  reviewCount        Int                 @default(0)
+  skippedCount       Int                 @default(0)
+  metadata           Json?
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+  sourceEntries      ImportSourceEntry[]
+  candidates         ImportCandidate[]
+
+  @@index([status, createdAt])
+  @@map("import_batches")
+}
+
+model ImportSourceEntry {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  importBatchId            String                  @db.Uuid
+  sourceKey                String                  @db.VarChar(200)
+  section                  String                  @db.VarChar(200)
+  sourcePages              Int[]
+  rawName                  String                  @db.VarChar(500)
+  rawAddress               String?                 @db.VarChar(1200)
+  rawPhone                 String?                 @db.VarChar(500)
+  rawEmail                 String?                 @db.VarChar(500)
+  rawWebsite               String?                 @db.VarChar(2048)
+  rawOpeningHours          String?                 @db.VarChar(2000)
+  rawAdmissionHours        String?                 @db.VarChar(2000)
+  rawAssistanceDescription String?                 @db.VarChar(5000)
+  rawText                  String                  @db.Text
+  parsedData               Json?
+  createdAt                DateTime                @default(now()) @db.Timestamptz(3)
+  importBatch              ImportBatch             @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  candidates               ImportCandidateSource[]
+
+  @@unique([importBatchId, sourceKey])
+  @@index([importBatchId, section])
+  @@map("import_source_entries")
+}
+
+model ImportCandidate {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  importBatchId            String                  @db.Uuid
+  candidateKey             String                  @db.VarChar(200)
+  status                   ImportCandidateStatus
+  proposedName             String                  @db.VarChar(500)
+  proposedAddress          String?                 @db.VarChar(1200)
+  proposedPhone            String?                 @db.VarChar(500)
+  proposedEmail            String?                 @db.VarChar(500)
+  proposedWebsite          String?                 @db.VarChar(2048)
+  proposedOrganizationName String?                 @db.VarChar(500)
+  categorySlugs            String[]
+  primaryCategorySlug      String?                 @db.VarChar(120)
+  reviewReasons            String[]
+  proposedData             Json
+  matchedPlaceId           String?                 @db.Uuid
+  createdPlaceId           String?                 @unique @db.Uuid
+  createdAt                DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                @updatedAt @db.Timestamptz(3)
+  importBatch              ImportBatch             @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  matchedPlace             Place?                  @relation("MatchedImportPlace", fields: [matchedPlaceId], references: [id], onDelete: SetNull)
+  createdPlace             Place?                  @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
+  sources                  ImportCandidateSource[]
+
+  @@unique([importBatchId, candidateKey])
+  @@index([importBatchId, status])
+  @@index([matchedPlaceId])
+  @@map("import_candidates")
+}
+
+model ImportCandidateSource {
+  importCandidateId String            @db.Uuid
+  sourceEntryId     String            @db.Uuid
+  importCandidate   ImportCandidate   @relation(fields: [importCandidateId], references: [id], onDelete: Cascade)
+  sourceEntry       ImportSourceEntry @relation(fields: [sourceEntryId], references: [id], onDelete: Cascade)
+
+  @@id([importCandidateId, sourceEntryId])
+  @@index([sourceEntryId])
+  @@map("import_candidate_sources")
 }
 
 model PlaceCategory {
