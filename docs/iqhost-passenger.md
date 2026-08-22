@@ -35,6 +35,7 @@ W DirectAdmin → Setup Node.js App → Environment variables należy później 
 - `NODE_ENV=production`
 - `PORT` — wartość zapewniana przez Passenger; nie wpisuj ręcznie, jeśli panel ustawia ją automatycznie
 - `DATABASE_URL` — zewnętrzny PostgreSQL, np. Neon; nie używaj lokalnego Postgres.app
+- `DIRECT_URL` — opcjonalnie, tylko dla Prisma CLI/migracji z zaufanego Maca; nie jest potrzebny runtime aplikacji
 - `APP_BASE_URL` — pełny adres aplikacji, np. `https://preview.example.pl`
 - `PUBLIC_DATA_MODE=production`
 - `GEOCODER_USER_AGENT`
@@ -56,9 +57,8 @@ Sekretów nie wpisuj do repozytorium ani do plików `.env` przesyłanych razem z
 
 ## Prisma i PostgreSQL
 
-Prisma pozostaje przy PostgreSQL. Produkcja używa `npx prisma migrate deploy`; nie używaj `prisma migrate dev`, `db push` ani `migrate reset`. Obecna konfiguracja korzysta z jednego `DATABASE_URL`; `DIRECT_URL` nie jest potrzebny, dopóki dostawca PostgreSQL nie wymusi osobnego połączenia administracyjnego.
+Prisma pozostaje przy PostgreSQL. Produkcja używa `npx prisma migrate deploy`; nie używaj `prisma migrate dev`, `db push` ani `migrate reset`. Runtime korzysta z poolingowego `DATABASE_URL`, a konfiguracja Prisma CLI preferuje `DIRECT_URL`, jeśli dostawca Neon udostępnia osobne bezpośrednie połączenie administracyjne.
 
 ## PWA i bezpieczeństwo
 
 `server.js` przekazuje żądania do Next.js, więc zachowane są route handlers, security headers, manifest, `/sw.js`, ikony i strona offline. Custom server nie ma własnego cache ani własnej obsługi nagłówków.
-
