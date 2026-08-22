@@ -29,8 +29,12 @@ export function validateRuntimeEnv(
   if (isPlaceholder(environment.GEOCODER_USER_AGENT) || isPlaceholder(environment.GEOCODER_CONTACT_EMAIL)) {
     errors.push("GEOCODER_USER_AGENT/GEOCODER_CONTACT_EMAIL");
   }
-  if (environment.RATE_LIMIT_MODE !== "shared" || isPlaceholder(environment.RATE_LIMIT_SHARED_STORAGE)) {
-    errors.push("RATE_LIMIT_MODE/RATE_LIMIT_SHARED_STORAGE");
+  if (
+    environment.RATE_LIMIT_MODE !== "upstash" ||
+    isPlaceholder(environment.UPSTASH_REDIS_REST_URL) ||
+    isPlaceholder(environment.UPSTASH_REDIS_REST_TOKEN)
+  ) {
+    errors.push("RATE_LIMIT_MODE/UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN");
   }
   return { valid: errors.length === 0, errors };
 }

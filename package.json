@@ -18,6 +18,7 @@
     "admin:create": "node scripts/create-admin.mjs",
     "db:backup": "tsx scripts/db-backup.ts",
     "db:housekeeping": "tsx scripts/db-housekeeping.ts",
+    "db:export-production": "tsx scripts/export-production.ts",
     "db:migrate-demo": "tsx scripts/migrate-demo-places.ts",
     "import:caritas": "tsx scripts/import-caritas-gdzie.ts",
     "test:verification:setup": "tsx scripts/setup-verification-test.ts",
@@ -51,5 +52,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

@@ -4,7 +4,9 @@
 
 - [ ] Wykonano i sprawdzono backup bazy.
 - [ ] Skonfigurowano `DATABASE_URL`, `APP_BASE_URL`, `PUBLIC_DATA_MODE=production` i sekrety.
-- [ ] Wybrano produkcyjny współdzielony rate limiter oraz zaufany proxy.
+- [ ] Utworzono Upstash Redis i skonfigurowano `RATE_LIMIT_MODE=upstash`, `UPSTASH_REDIS_REST_URL` oraz `UPSTASH_REDIS_REST_TOKEN` w secret storage.
+- [ ] Ustawiono `TRUSTED_PROXY_MODE=vercel` dopiero dla deploymentu za zaufanym proxy Vercel.
+- [ ] Używany jest Node.js `>=20.9.0` zgodny z Next.js 16.3.x.
 - [ ] Zweryfikowano konto SUPER_ADMIN i domenę HTTPS.
 - [ ] Przeszły testy, lint, build i `prisma validate`.
 
@@ -32,7 +34,8 @@ Automatyczna wysyłka e-maili jest opcjonalnym etapem po premierze.
 
 `admin:create`, import Caritas, migracja demo-data i skrypty TEST są operacjami manualnymi/development-only. Nie uruchamiaj ich automatycznie podczas produkcyjnego startu.
 
+`npm run db:export-production -- --dry-run` jest obecnie raportem zależności PRODUCTION. Nie eksportuje ani nie zapisuje danych; właściwy transfer wymaga osobnej akceptacji i docelowej bazy.
+
 ## Rollback
 
 Kod można cofnąć do poprzedniej wersji po sprawdzeniu kompatybilności. Migracji bazy nie cofaj pochopnie; najpierw oceń, czy poprzedni kod działa z aktualnym schematem. Restore backupu do nowej bazy jest operacją awaryjną, wykonywaną po zatrzymaniu aplikacji i kontroli danych.
-

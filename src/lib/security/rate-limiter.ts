@@ -5,7 +5,7 @@ export type RateLimitResult = { allowed: boolean; retryAfterSeconds: number };
 export interface RateLimiter { consume(key: string, now?: number): RateLimitResult; reset(key: string): void; }
 
 export function getTrustedClientAddress(headers: Headers, environment: RuntimeEnvironment = process.env) {
-  if (environment.TRUSTED_PROXY_MODE === "single") {
+  if (environment.TRUSTED_PROXY_MODE === "single" || environment.TRUSTED_PROXY_MODE === "vercel") {
     return headers.get("x-real-ip")?.trim() || headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "proxy-network";
   }
   return "untrusted-network";
@@ -41,7 +41,7 @@ export function createApplicationRateLimiter(windowMs: number, maxRequests: numb
 }
 
 export function assertRateLimiterConfigured(environment = process.env) {
-  if (environment.NODE_ENV === "production" && environment.RATE_LIMIT_MODE !== "shared") {
+  if (environment.NODE_ENV === "production" && environment.RATE_LIMIT_MODE !== "upstash") {
     throw new Error("A shared production rate limiter is required before multi-instance deployment.");
   }
 }
