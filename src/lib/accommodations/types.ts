@@ -71,8 +71,8 @@ export type Accommodation = {
   distanceKm: number;
   distanceLabel: string;
   phone?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 export function normalizeInformationState(value: InformationState): InformationState {

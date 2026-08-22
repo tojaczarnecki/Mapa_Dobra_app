@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlaceDetailView } from "@/components/place-details/place-detail-view";
 import { getPublicPlaceDetail } from "@/lib/places/public-data";
+import { canonicalAlternates } from "@/lib/site-url";
 
 type PlaceDetailPageProps = {
   params: Promise<{
@@ -25,6 +26,7 @@ export async function generateMetadata({
   return {
     title: `${place.name} | Mapa Dobra`,
     description: `${place.helpTypes.join(", ")} - ${place.address}`,
+    alternates: canonicalAlternates(`/lodz/${kategoria}/${slug}`),
   };
 }
 

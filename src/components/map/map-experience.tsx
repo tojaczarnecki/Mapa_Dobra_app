@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { AlertTriangle, LoaderCircle, MapPinned, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
 import type { MapFocusTarget } from "./help-map";
@@ -36,6 +36,7 @@ type MapExperienceProps = {
   initialCategory: MapCategoryFilter;
   initialOpenNow: boolean;
   initialFree: boolean;
+  initialLocate: boolean;
 };
 
 function normalizeSearch(value: string) {
@@ -99,6 +100,7 @@ export function MapExperience({
   initialCategory,
   initialOpenNow,
   initialFree,
+  initialLocate,
 }: MapExperienceProps) {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<MapCategoryFilter>(initialCategory);
@@ -111,6 +113,7 @@ export function MapExperience({
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget>();
   const [tileError, setTileError] = useState(false);
   const [mapResetKey, setMapResetKey] = useState(0);
+  const initialLocateRequested = useRef(false);
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
@@ -179,6 +182,12 @@ export function MapExperience({
       { enableHighAccuracy: false, maximumAge: 0, timeout: 10000 },
     );
   }, [focusMap]);
+
+  useEffect(() => {
+    if (!initialLocate || initialLocateRequested.current) return;
+    initialLocateRequested.current = true;
+    handleLocate();
+  }, [handleLocate, initialLocate]);
 
   const clearFilters = useCallback(() => {
     setQuery("");

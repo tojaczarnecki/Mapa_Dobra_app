@@ -32,8 +32,8 @@ export type DemoPlace = {
   freshnessWarning?: boolean;
   phone?: string;
   primaryIcon: LucideIcon;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 // Dane demonstracyjne do zaprojektowania UX/UI ekranu wyników.

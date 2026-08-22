@@ -5,12 +5,12 @@ const statusConfig = {
   open: {
     className: "border-brand bg-brand-soft text-foreground",
     icon: CheckCircle2,
-    label: "OTWARTE",
+    label: "OTWARTE TERAZ",
   },
   closed: {
     className: "border-border bg-surface-muted text-foreground",
     icon: XCircle,
-    label: "ZAMKNIĘTE",
+    label: "ZAMKNIĘTE TERAZ",
   },
   openToday: {
     className: "border-brand bg-surface text-foreground",

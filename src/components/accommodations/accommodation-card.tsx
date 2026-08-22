@@ -21,6 +21,7 @@ import type {
   AccommodationAvailabilityState,
   InformationState,
 } from "@/data/demo-accommodations";
+import { directionsHref, telephoneHref } from "@/lib/places/actions";
 
 type AccommodationCardProps = {
   accommodation: Accommodation;
@@ -100,6 +101,8 @@ export function AccommodationCard({
   unmetConditions = [],
   confirmationConditions = [],
 }: AccommodationCardProps) {
+  const callHref = telephoneHref(accommodation.phone);
+  const routeHref = directionsHref(accommodation);
   const AvailabilityIcon = availabilityConfig[accommodation.availability.state].icon;
   const availabilityClass =
     availabilityConfig[accommodation.availability.state].className;
@@ -286,14 +289,28 @@ export function AccommodationCard({
         ) : null}
 
         <div className="grid min-w-0 grid-cols-3 gap-2">
-          <button className="place-card-action" type="button">
-            <Phone aria-hidden="true" size={17} />
-            Zadzwoń
-          </button>
-          <button className="place-card-action" type="button">
-            <Navigation aria-hidden="true" size={17} />
-            Trasa
-          </button>
+          {callHref ? (
+            <a className="place-card-action" href={callHref}>
+              <Phone aria-hidden="true" size={17} />
+              Zadzwoń
+            </a>
+          ) : (
+            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+              <Phone aria-hidden="true" size={17} />
+              Brak telefonu
+            </span>
+          )}
+          {routeHref ? (
+            <a className="place-card-action" href={routeHref} target="_blank" rel="noreferrer">
+              <Navigation aria-hidden="true" size={17} />
+              Trasa
+            </a>
+          ) : (
+            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+              <Navigation aria-hidden="true" size={17} />
+              Brak trasy
+            </span>
+          )}
           <Link
             className="place-card-action place-card-action-primary"
             href={`/lodz/${accommodation.categorySlug}/${accommodation.slug}`}

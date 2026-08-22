@@ -1,5 +1,6 @@
 import { Clock3, MapPin, Navigation, Phone } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
+import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { SharePlaceButton } from "./share-place-button";
 
 type PlaceHeroProps = {
@@ -20,6 +21,8 @@ export function PlaceHero({
   primaryCallLabel = "Zadzwoń",
   showStatus = true,
 }: PlaceHeroProps) {
+  const routeHref = directionsHref(place);
+  const callHref = telephoneHref(place.contact.phone);
   return (
     <section className="w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
       <div className="min-w-0 space-y-4">
@@ -65,22 +68,24 @@ export function PlaceHero({
         </div>
 
         <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
-          {place.contact.phone ? (
+          {callHref ? (
             <a
               className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
-              href={`tel:${place.contact.phone}`}
+              href={callHref}
             >
               <Phone aria-hidden="true" size={17} />
               {primaryCallLabel}
             </a>
           ) : null}
-          <a
+          {routeHref ? <a
             className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
-            href="#mapa-dojazd"
+            href={routeHref}
+            target="_blank"
+            rel="noreferrer"
           >
             <Navigation aria-hidden="true" size={17} />
             Wyznacz trasę
-          </a>
+          </a> : null}
           <SharePlaceButton
             className="col-span-2 justify-self-start sm:col-span-1 sm:justify-self-end"
             title={place.name}

@@ -1,17 +1,27 @@
 export type PublicRecordKind = "PRODUCTION" | "DEMO";
 export type PlaceRecordKind = PublicRecordKind | "TEST";
 
-export const PUBLIC_RECORD_KINDS: readonly PublicRecordKind[] = ["PRODUCTION", "DEMO"];
+const PRODUCTION_RECORD_KINDS = ["PRODUCTION"] as const;
+const DEVELOPMENT_RECORD_KINDS = ["PRODUCTION", "DEMO"] as const;
 
-export function isPublicRecordKind(kind: PlaceRecordKind): kind is PublicRecordKind {
-  return PUBLIC_RECORD_KINDS.includes(kind as PublicRecordKind);
+export function publicRecordKindsForEnvironment(environment: string | undefined = process.env.NODE_ENV) {
+  return environment === "development"
+    ? DEVELOPMENT_RECORD_KINDS
+    : PRODUCTION_RECORD_KINDS;
+}
+
+export function isPublicRecordKind(
+  kind: PlaceRecordKind,
+  environment: string | undefined = process.env.NODE_ENV,
+): kind is PublicRecordKind {
+  return publicRecordKindsForEnvironment(environment).some((candidate) => candidate === kind);
 }
 
 export function isPubliclyVisiblePlace(place: {
   recordKind: PlaceRecordKind;
   publicationStatus: string;
-}) {
-  return isPublicRecordKind(place.recordKind) && [
+}, environment: string | undefined = process.env.NODE_ENV) {
+  return isPublicRecordKind(place.recordKind, environment) && [
     "PUBLISHED",
     "TEMPORARILY_CLOSED",
     "PERMANENTLY_CLOSED",

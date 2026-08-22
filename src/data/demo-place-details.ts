@@ -83,6 +83,8 @@ export type PlaceDetail = {
   status: PlaceStatusDetails;
   distanceLabel: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   coordinatesLabel?: string;
   requirements: DetailListItem[];
   audience: string[];

@@ -1,4 +1,5 @@
 import type { AdminOpeningDay, WeekdayValue } from "../../types/place-admin.ts";
+import { getWarsawWeekday } from "./current-opening.ts";
 
 export const orderedWeekdays: WeekdayValue[] = [
   "MONDAY",
@@ -123,7 +124,7 @@ export function formatOpeningSchedule(days: AdminOpeningDay[]) {
 }
 
 export function deriveTodayHoursLabel(days: AdminOpeningDay[], date = new Date()) {
-  const weekday = orderedWeekdays[(date.getDay() + 6) % 7];
+  const weekday = getWarsawWeekday(date);
   const day = days.find((candidate) => candidate.weekday === weekday);
   return day ? formatOpeningDay(day) : "Brak potwierdzonych godzin";
 }

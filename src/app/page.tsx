@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   BedDouble,
@@ -15,16 +16,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
+import { canonicalAlternates } from "@/lib/site-url";
+
+export const metadata: Metadata = {
+  title: "Mapa Dobra",
+  description: "Znajdź pomoc, której potrzebujesz w Łodzi.",
+  alternates: canonicalAlternates("/"),
+};
 
 const categories = [
-  { label: "Jedzenie", icon: Utensils },
-  { label: "Nocleg", icon: BedDouble },
-  { label: "Prysznic", icon: ShowerHead },
-  { label: "Odzież", icon: Shirt },
-  { label: "Pomoc medyczna", icon: HeartPulse },
-  { label: "Pomoc psychologiczna", icon: Brain },
-  { label: "Pomoc prawna", icon: Scale },
-  { label: "Higiena", icon: Droplets },
+  { label: "Jedzenie", slug: "jedzenie", icon: Utensils },
+  { label: "Nocleg", slug: "nocleg", icon: BedDouble },
+  { label: "Prysznic", slug: "prysznic", icon: ShowerHead },
+  { label: "Odzież", slug: "odziez", icon: Shirt },
+  { label: "Pomoc medyczna", slug: "pomoc-medyczna", icon: HeartPulse },
+  { label: "Pomoc psychologiczna", slug: "pomoc-psychologiczna", icon: Brain },
+  { label: "Pomoc prawna", slug: "pomoc-prawna", icon: Scale },
+  { label: "Higiena", slug: "higiena", icon: Droplets },
 ];
 
 export default function Home() {
@@ -44,22 +52,23 @@ export default function Home() {
         </div>
 
         <Card className="search-panel p-2.5 sm:p-4">
-          <form className="space-y-2.5 sm:space-y-3" aria-label="Wyszukiwarka pomocy">
+          <form action="/mapa" method="get" className="space-y-2.5 sm:space-y-3" aria-label="Wyszukiwarka pomocy">
+            <input type="hidden" name="lokalizacja" value="moja" />
             <TextField
               icon={<Search aria-hidden="true" size={22} strokeWidth={2.25} />}
               label="Czego potrzebujesz?"
-              name="query"
+              name="q"
               placeholder="Np. jedzenie, nocleg, prysznic…"
               className="min-h-14 text-base sm:min-h-16 sm:text-lg"
             />
-            <Button type="button" className="min-h-12 w-full text-base sm:min-h-14 sm:text-lg">
+            <Button type="submit" className="min-h-12 w-full text-base sm:min-h-14 sm:text-lg">
               Znajdź pomoc blisko mnie
             </Button>
           </form>
         </Card>
 
         <div className="grid gap-2.5 sm:gap-3">
-          <Link className="quick-action quick-action-now" href="/szukaj">
+          <Link className="quick-action quick-action-now" href="/szukaj?otwarte=1&sort=open">
             <span className="quick-action-icon">
               <Navigation aria-hidden="true" size={26} strokeWidth={2.25} />
             </span>
@@ -100,7 +109,7 @@ export default function Home() {
           {categories.map((category) => (
             <Link
               key={category.label}
-              href="/szukaj"
+              href={`/szukaj?kategoria=${category.slug}`}
               className="category-tile"
               aria-label={`Szukaj pomocy: ${category.label}`}
             >

@@ -20,7 +20,11 @@ import {
   normalizePetPolicy,
   normalizeSobrietyPolicy,
 } from "@/lib/accommodations/types";
-import { PUBLIC_RECORD_KINDS } from "@/lib/places/public-visibility";
+import { resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
+import { evaluateCurrentOpening } from "@/lib/places/current-opening";
+import type { PublicSearchPlace } from "@/lib/places/search";
+import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
+import { publicRequirementLabel } from "@/lib/places/requirement-label";
 import { prisma } from "@/lib/prisma";
 
 const publicPlaceInclude = {
@@ -69,12 +73,10 @@ const weekdayRows = [
   ["SUNDAY", "Niedziela"],
 ] as const;
 
-const todayWeekday = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][new Date().getDay()];
-
 function visibleWhere(): Prisma.PlaceWhereInput {
   return {
     citySlug: "lodz",
-    recordKind: { in: [...PUBLIC_RECORD_KINDS] },
+    recordKind: { in: [...publicRecordKindsForEnvironment()] },
     publicationStatus: { in: ["PUBLISHED", "TEMPORARILY_CLOSED", "PERMANENTLY_CLOSED"] },
   };
 }
@@ -99,10 +101,14 @@ function relativeAge(value: Date | null, verified = false) {
 
 function placeStatus(place: PublicPlaceRecord): PlaceStatus {
   if (place.publicationStatus === "TEMPORARILY_CLOSED" || place.publicationStatus === "PERMANENTLY_CLOSED" || place.operationalStatus === "CLOSED") return "closed";
-  if (place.verificationStatus === "NEEDS_CONFIRMATION") return "needsConfirmation";
-  if (place.operationalStatus === "OPEN") return "open";
-  if (place.operationalStatus === "OPEN_TODAY") return "openToday";
-  return "unknownHours";
+  const opening = currentOpening(place);
+  if (opening.status === "OPEN") return "open";
+  if (opening.status === "CLOSED") return "closed";
+  return place.verificationStatus === "NEEDS_CONFIRMATION" ? "needsConfirmation" : "unknownHours";
+}
+
+function currentOpening(place: PublicPlaceRecord) {
+  return evaluateCurrentOpening(place.openingHours, place.accommodation ? "ADMISSION" : "OPERATION");
 }
 
 function distanceNumber(label: string | null) {
@@ -113,7 +119,7 @@ function distanceNumber(label: string | null) {
 }
 
 function conditionLabel(item: PublicPlaceRecord["requirements"][number]) {
-  return item.label;
+  return publicRequirementLabel(item);
 }
 
 function requirementTone(item: PublicPlaceRecord["requirements"][number]): DetailListItem["status"] {
@@ -138,21 +144,22 @@ function formatPeriods(rows: PublicPlaceRecord["openingHours"]) {
 
 function openingDays(place: PublicPlaceRecord): OpeningDay[] {
   const kind = place.accommodation ? "ADMISSION" : "OPERATION";
+  const current = currentOpening(place);
   return weekdayRows.map(([weekday, day]) => {
     const rows = place.openingHours.filter((row) => row.kind === kind && row.weekday === weekday);
-    if (!rows.length) return { day, status: "unknown" as const, note: "Brak potwierdzonych godzin", isToday: weekday === todayWeekday };
+    if (!rows.length) return { day, status: "unknown" as const, note: "Brak potwierdzonych godzin", isToday: weekday === current.weekday };
     const first = rows[0];
-    if (first.status === "CLOSED") return { day, status: "closed" as const, isToday: weekday === todayWeekday };
-    if (first.status === "UNKNOWN") return { day, status: "unknown" as const, note: first.note ?? "Brak potwierdzonych godzin", isToday: weekday === todayWeekday };
-    return { day, status: "open" as const, periods: formatPeriods(rows), isToday: weekday === todayWeekday };
+    if (first.status === "CLOSED") return { day, status: "closed" as const, isToday: weekday === current.weekday };
+    if (first.status === "UNKNOWN") return { day, status: "unknown" as const, note: first.note ?? "Brak potwierdzonych godzin", isToday: weekday === current.weekday };
+    return { day, status: "open" as const, periods: formatPeriods(rows), isToday: weekday === current.weekday };
   });
 }
 
 function statusDetails(place: PublicPlaceRecord): PlaceDetail["status"] {
   const status = placeStatus(place);
-  const labels = { open: "OTWARTE", closed: "ZAMKNIĘTE", openToday: "OTWARTE DZISIAJ", unknownHours: "BRAK POTWIERDZONYCH GODZIN", needsConfirmation: "DANE WYMAGAJĄ POTWIERDZENIA" } as const;
+  const labels = { open: "OTWARTE TERAZ", closed: "ZAMKNIĘTE TERAZ", openToday: "OTWARTE DZISIAJ", unknownHours: "BRAK POTWIERDZONYCH GODZIN", needsConfirmation: "DANE WYMAGAJĄ POTWIERDZENIA" } as const;
   const tones = { open: "open", closed: "closed", openToday: "openToday", unknownHours: "unknown", needsConfirmation: "unknown" } as const;
-  return { label: labels[status], tone: tones[status], todayHours: place.todayHoursLabel ?? "Brak potwierdzonych godzin" };
+  return { label: labels[status], tone: tones[status], todayHours: currentOpening(place).label };
 }
 
 function triRequirement(label: string, value: "YES" | "NO" | "UNKNOWN") : DetailListItem {
@@ -162,21 +169,32 @@ function triRequirement(label: string, value: "YES" | "NO" | "UNKNOWN") : Detail
 
 function accommodationAvailability(place: PublicPlaceRecord): NonNullable<PlaceDetail["accommodation"]>["availability"] {
   const accommodation = place.accommodation!;
-  const state = ({ AVAILABLE: "available", FEW: "few", FULL: "full", UNKNOWN: "unknown", STALE: "stale", SUSPENDED: "suspended" } as const)[accommodation.availabilityState];
+  const effectiveState = resolveAvailabilityState(accommodation.availabilityState, accommodation.availabilityConfirmedAt);
+  const state = ({ AVAILABLE: "available", FEW: "few", FULL: "full", UNKNOWN: "unknown", STALE: "stale", SUSPENDED: "suspended" } as const)[effectiveState];
+  const reportedFreePlaces = accommodation.capacityGroups.some((group) => group.availableBeds !== null)
+    ? accommodation.capacityGroups.reduce((sum, group) => sum + (group.availableBeds ?? 0), 0)
+    : undefined;
   return {
     state,
-    label: accommodation.availabilityLabel ?? ({ available: "Są wolne miejsca", few: "Niewiele miejsc", full: "Brak miejsc", unknown: "Brak aktualnych danych", stale: "Dane mogą być nieaktualne", suspended: "Przyjęcia czasowo wstrzymane" } as const)[state],
+    label: state === "stale"
+      ? "Dane o wolnych miejscach są nieaktualne"
+      : accommodation.availabilityLabel ?? ({ available: "Są wolne miejsca", few: "Niewiele miejsc", full: "Brak miejsc", unknown: "Brak aktualnych danych", stale: "Dane o wolnych miejscach są nieaktualne", suspended: "Przyjęcia czasowo wstrzymane" } as const)[state],
     confirmed: relativeAge(accommodation.availabilityConfirmedAt),
-    note: accommodation.availabilityNote ?? undefined,
+    note: state === "stale"
+      ? staleAvailabilityNote(accommodation.availabilityState, reportedFreePlaces)
+      : accommodation.availabilityNote ?? undefined,
   };
 }
 
 function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
   const accommodation = place.accommodation;
+  const publicAvailability = accommodation ? accommodationAvailability(place) : undefined;
   const detailAccommodation: PlaceDetail["accommodation"] = accommodation ? {
-    availability: accommodationAvailability(place),
-    admissionsToday: accommodation.admissionHoursDescription ?? place.todayHoursLabel ?? "Godziny przyjęć wymagają potwierdzenia",
-    capacityGroups: accommodation.capacityGroups.map((group) => ({ label: group.label, free: group.availableBeds ?? undefined, total: group.totalBeds ?? undefined })),
+    availability: publicAvailability!,
+    admissionsToday: currentOpening(place).label,
+    capacityGroups: accommodation.capacityGroups.map((group) => publicAvailability?.state === "stale"
+      ? { label: group.label, total: group.totalBeds ?? undefined, note: typeof group.availableBeds === "number" ? `Ostatnio zgłoszono ${group.availableBeds} wolnych miejsc` : "Brak aktualnych danych" }
+      : { label: group.label, free: group.availableBeds ?? undefined, total: group.totalBeds ?? undefined }),
     audience: accommodation.targetGroups.length ? accommodation.targetGroups : place.audience,
     admissionRequirements: [
       triRequirement("ostatni meldunek w Łodzi", accommodation.lodzRegistrationRequired),
@@ -213,6 +231,8 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     status: statusDetails(place),
     distanceLabel: `${place.distanceLabel ?? "Odległość nieznana"}${place.distanceLabel ? " od Ciebie" : ""}`,
     address: place.addressLine,
+    latitude: place.latitude === null ? undefined : Number(place.latitude),
+    longitude: place.longitude === null ? undefined : Number(place.longitude),
     coordinatesLabel: place.district ? `Łódź, ${place.district}` : "Łódź",
     requirements: place.requirements.map((item) => ({ label: conditionLabel(item), status: requirementTone(item), note: item.note ?? undefined })),
     audience: place.audience,
@@ -230,7 +250,12 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
   };
 }
 
-function toDemoPlace(place: PublicPlaceRecord): DemoPlace {
+function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
+  const opening = currentOpening(place);
+  const referral = place.requirements.find((item) => item.kind === "REFERRAL")?.state ?? "UNKNOWN";
+  const document = place.requirements.find((item) => item.kind === "DOCUMENT")?.state ?? "UNKNOWN";
+  const fee = place.requirements.find((item) => item.kind === "FEE");
+  const free = !fee || fee.state === "UNKNOWN" ? "UNKNOWN" : fee.state === "NO" || /bezpłat/iu.test(fee.label) ? "YES" : "NO";
   return {
     id: place.legacyId ?? place.id,
     categorySlug: place.primaryCategory.slug,
@@ -238,7 +263,7 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace {
     name: place.name,
     helpTypes: place.categories.map((item) => item.category.name),
     status: placeStatus(place),
-    todayHours: place.todayHoursLabel ?? "Brak potwierdzonych godzin",
+    todayHours: opening.label,
     distance: place.distanceLabel ?? "Odległość nieznana",
     address: place.addressLine,
     conditions: place.requirements.map(conditionLabel),
@@ -246,8 +271,15 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace {
     freshnessWarning: place.verificationStatus !== "VERIFIED",
     phone: place.phone ?? undefined,
     primaryIcon: iconMap[place.primaryCategory.slug] ?? Droplets,
-    latitude: place.latitude === null ? 51.7592 : Number(place.latitude),
-    longitude: place.longitude === null ? 19.456 : Number(place.longitude),
+    latitude: place.latitude === null ? undefined : Number(place.latitude),
+    longitude: place.longitude === null ? undefined : Number(place.longitude),
+    categorySlugs: place.categories.map((item) => item.category.slug),
+    searchText: [place.name, place.organization?.name ?? "", place.addressLine, place.description ?? "", ...place.services, ...place.categories.map((item) => item.category.name)].join(" "),
+    openNow: opening.isOpenNow,
+    free,
+    referralRequired: referral,
+    documentRequired: document,
+    distanceKm: distanceNumber(place.distanceLabel),
   };
 }
 
@@ -260,6 +292,8 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
   if (!accommodation) return null;
   const profiles = accommodation.acceptedProfiles.filter((item): item is AccommodationProfile => ["woman", "man", "womanWithChildren", "family", "disability", "other"].includes(item));
   const available = accommodation.capacityGroups.reduce((sum, group) => sum + (group.availableBeds ?? 0), 0);
+  const effectiveAvailability = resolveAvailabilityState(accommodation.availabilityState, accommodation.availabilityConfirmedAt);
+  const publicAvailability = accommodationAvailability(place);
   return {
     id: place.legacyId ?? place.id,
     categorySlug: "nocleg",
@@ -269,14 +303,14 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
     audienceLabel: accommodation.audienceLabel ?? accommodation.targetGroups.join(", "),
     acceptedProfiles: profiles.length ? profiles : ["other"],
     availability: {
-      state: accommodationState(accommodation.availabilityState),
-      freePlaces: accommodation.capacityGroups.some((group) => group.availableBeds !== null) ? available : undefined,
-      label: accommodation.availabilityLabel ?? accommodationAvailability(place).label,
+      state: accommodationState(effectiveAvailability),
+      freePlaces: effectiveAvailability === "STALE" ? undefined : accommodation.capacityGroups.some((group) => group.availableBeds !== null) ? available : undefined,
+      label: publicAvailability.label,
       confirmed: relativeAge(accommodation.availabilityConfirmedAt),
-      note: accommodation.availabilityNote ?? undefined,
+      note: publicAvailability.note,
     },
     acceptsToday: normalizeInformationState(accommodation.acceptsToday),
-    admissionsToday: accommodation.admissionHoursDescription ?? "Godziny przyjęć wymagają potwierdzenia",
+    admissionsToday: currentOpening(place).label,
     lodzRegistrationRequired: normalizeInformationState(accommodation.lodzRegistrationRequired),
     referralRequired: normalizeInformationState(accommodation.referralRequired),
     documentRequired: normalizeInformationState(accommodation.documentRequired),
@@ -290,8 +324,8 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
     distanceKm: distanceNumber(place.distanceLabel),
     distanceLabel: place.distanceLabel ?? "Odległość nieznana",
     phone: place.phone ?? undefined,
-    latitude: place.latitude === null ? 51.7592 : Number(place.latitude),
-    longitude: place.longitude === null ? 19.456 : Number(place.longitude),
+    latitude: place.latitude === null ? undefined : Number(place.latitude),
+    longitude: place.longitude === null ? undefined : Number(place.longitude),
   };
 }
 
@@ -299,14 +333,16 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   if (place.latitude === null || place.longitude === null) return null;
   const categories = Array.from(new Set(place.categories.map((item) => categoryMap[item.category.slug]).filter((item): item is MapCategory => Boolean(item))));
   if (!categories.length) return null;
+  const opening = currentOpening(place);
+  const effectiveAvailability = place.accommodation
+    ? resolveAvailabilityState(place.accommodation.availabilityState, place.accommodation.availabilityConfirmedAt)
+    : undefined;
   const openNow = place.accommodation
-    ? place.accommodation.acceptsToday === "UNKNOWN"
+    ? place.accommodation.acceptsToday === "UNKNOWN" || opening.isOpenNow === null
       ? null
-      : place.accommodation.acceptsToday === "YES" &&
-        !["FULL", "SUSPENDED"].includes(place.accommodation.availabilityState)
-    : place.operationalStatus === "UNKNOWN" || place.operationalStatus === "OPEN_TODAY"
-      ? null
-      : place.operationalStatus === "OPEN";
+      : place.accommodation.acceptsToday === "YES" && opening.isOpenNow &&
+        !["FULL", "SUSPENDED"].includes(effectiveAvailability!)
+    : opening.isOpenNow;
   const feeRequirement = place.requirements.find((item) => item.kind === "FEE");
   const free = !feeRequirement || feeRequirement.state === "UNKNOWN"
     ? null
@@ -326,13 +362,13 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
     free,
     searchTerms: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)],
   };
-  if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: place.todayHoursLabel ?? "Brak potwierdzonych godzin" } };
+  if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: opening.label } };
   const availability = accommodationAvailability(place);
   return { ...base, status: { kind: "accommodation", availabilityState: availability.state, availabilityLabel: availability.label, confirmed: availability.confirmed, admissionsToday: place.accommodation.admissionHoursDescription ?? "Godziny przyjęć wymagają potwierdzenia", availabilityNote: availability.note } };
 }
 
 export async function getPublicSearchPlaces() {
-  return (await publicPlaces()).filter((place) => !place.accommodation).map(toDemoPlace);
+  return (await publicPlaces()).map(toDemoPlace);
 }
 
 export async function getPublicAccommodations() {
@@ -351,6 +387,14 @@ export async function getPublicPlaceDetail(categorySlug: string, slug: string) {
 export async function getPublicPlaceContext(identifier: string) {
   const place = await prisma.place.findFirst({ where: { ...visibleWhere(), OR: [{ id: uuidPattern.test(identifier) ? identifier : undefined }, { legacyId: identifier }, { slug: identifier }] }, include: { primaryCategory: true } });
   return place ? { id: place.legacyId ?? place.id, slug: place.slug, name: place.name, address: place.addressLine, href: `/lodz/${place.primaryCategory.slug}/${place.slug}` } : undefined;
+}
+
+export async function getPublicSitemapPlaces() {
+  return prisma.place.findMany({
+    where: visibleWhere(),
+    select: { slug: true, updatedAt: true, primaryCategory: { select: { slug: true } } },
+    orderBy: { updatedAt: "desc" },
+  });
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;

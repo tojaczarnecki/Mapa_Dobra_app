@@ -92,6 +92,22 @@ input {
   min-height: 2.75rem;
 }
 
+.offline-notice {
+  align-items: center;
+  background: var(--urgent-soft);
+  border-bottom: 1px solid var(--urgent-border);
+  color: var(--foreground);
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  justify-content: center;
+  line-height: 1.4;
+  padding: 0.625rem 1rem;
+  position: relative;
+  z-index: 35;
+}
+
 .search-panel {
   border-color: #b8d8d4;
   box-shadow: 0 10px 26px rgb(17 24 39 / 6%);
@@ -258,6 +274,7 @@ input {
 
 .category-tile {
   display: flex;
+  min-width: 0;
   min-height: 6.25rem;
   align-items: center;
   gap: 1rem;
@@ -314,6 +331,8 @@ input {
 
 .category-label {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .category-arrow {
@@ -372,4 +391,19 @@ input {
 .place-card-action-primary:hover {
   background: var(--brand-strong);
   color: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

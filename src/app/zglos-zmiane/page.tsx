@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { PlaceUpdateForm } from "@/components/submissions/place-update-form";
 import { getPublicPlaceContext } from "@/lib/places/public-data";
+import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Zgłoś zmianę | Mapa Dobra",
   description: "Zgłoś zmianę lub błąd w informacjach o miejscu pomocy.",
+  alternates: canonicalAlternates("/zglos-zmiane"),
 };
 
 type UpdatePageProps = {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { geocoderUserAgent } from "./config";
 import { buildGeocodingAttempts, prepareGeocodingAddress, type GeocodingAddressInput, type GeocodingAttempt } from "./query";
 import { normalizeGeocodingQuery, parseNominatimResults, scoreGeocodingSuggestion, type GeocodingSuggestion } from "./results";
 
@@ -29,7 +30,7 @@ async function rateLimitedFetch(url: URL) {
     return await fetch(url, {
       headers: {
         "Accept-Language": "pl",
-        "User-Agent": process.env.GEOCODER_USER_AGENT ?? "MapaDobraAdmin/1.0 (local address verification)",
+        "User-Agent": geocoderUserAgent(),
       },
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),

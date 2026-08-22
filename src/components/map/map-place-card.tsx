@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { PlaceStatusBadge } from "@/components/places/place-status-badge";
+import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import styles from "./map.module.css";
 
 const accommodationStatus = {
@@ -23,11 +24,6 @@ const accommodationStatus = {
   stale: { icon: AlertTriangle, className: "border-urgent-border bg-urgent-soft" },
   suspended: { icon: AlertTriangle, className: "border-urgent-border bg-urgent-soft" },
 };
-
-function routeHref(place: MapPlace) {
-  const destination = `${place.latitude},${place.longitude}`;
-  return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=;${destination}`;
-}
 
 function compactAccommodationNote(state: MapPlace["status"]) {
   if (state.kind !== "accommodation") {
@@ -56,6 +52,8 @@ export function MapPlaceCard({
   compactAccommodation?: boolean;
 }) {
   const isAccommodation = place.status.kind === "accommodation";
+  const callHref = telephoneHref(place.phone);
+  const routeHref = directionsHref(place);
   const useCompactAccommodation = isAccommodation && compactAccommodation;
   const showAdmissionsToday =
     place.status.kind === "accommodation" &&
@@ -152,9 +150,9 @@ export function MapPlaceCard({
         useCompactAccommodation ? styles.compactAccommodationActions : "",
       ].join(" ")}
     >
-      {place.phone ? (
+      {callHref ? (
         <a
-          href={`tel:${place.phone}`}
+          href={callHref}
           className={[
             "place-card-action",
             isAccommodation ? "place-card-action-primary" : "",
@@ -173,15 +171,20 @@ export function MapPlaceCard({
           Zadzwoń
         </span>
       )}
-      <a
-        href={routeHref(place)}
+      {routeHref ? <a
+        href={routeHref}
         target="_blank"
         rel="noreferrer"
         className="place-card-action"
       >
         <Navigation aria-hidden="true" size={17} />
         Trasa
-      </a>
+      </a> : (
+        <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+          <Navigation aria-hidden="true" size={17} />
+          Trasa
+        </span>
+      )}
       <Link
         href={place.detailsHref}
         className={[

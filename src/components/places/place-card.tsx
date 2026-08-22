@@ -8,10 +8,13 @@ import {
   Phone,
 } from "lucide-react";
 import type { DemoPlace } from "@/data/demo-places";
+import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { PlaceStatusBadge } from "./place-status-badge";
 
 export function PlaceCard({ place }: { place: DemoPlace }) {
   const Icon = place.primaryIcon;
+  const callHref = telephoneHref(place.phone);
+  const routeHref = directionsHref(place);
 
   return (
     <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
@@ -76,14 +79,28 @@ export function PlaceCard({ place }: { place: DemoPlace }) {
         </p>
 
         <div className="grid min-w-0 grid-cols-3 gap-2">
-          <button className="place-card-action" type="button">
-            <Phone aria-hidden="true" size={17} />
-            Zadzwoń
-          </button>
-          <button className="place-card-action" type="button">
-            <Navigation aria-hidden="true" size={17} />
-            Trasa
-          </button>
+          {callHref ? (
+            <a className="place-card-action" href={callHref}>
+              <Phone aria-hidden="true" size={17} />
+              Zadzwoń
+            </a>
+          ) : (
+            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+              <Phone aria-hidden="true" size={17} />
+              Brak telefonu
+            </span>
+          )}
+          {routeHref ? (
+            <a className="place-card-action" href={routeHref} target="_blank" rel="noreferrer">
+              <Navigation aria-hidden="true" size={17} />
+              Trasa
+            </a>
+          ) : (
+            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+              <Navigation aria-hidden="true" size={17} />
+              Brak trasy
+            </span>
+          )}
           <Link
             className="place-card-action place-card-action-primary"
             href={`/lodz/${place.categorySlug}/${place.slug}`}

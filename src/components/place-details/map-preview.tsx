@@ -1,11 +1,13 @@
 import { Map, Navigation } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
+import { directionsHref } from "@/lib/places/actions";
 
 type MapPreviewProps = {
   place: PlaceDetail;
 };
 
 export function MapPreview({ place }: MapPreviewProps) {
+  const routeHref = directionsHref(place);
   return (
     <div
       id="mapa-dojazd"
@@ -39,13 +41,15 @@ export function MapPreview({ place }: MapPreviewProps) {
         </p>
       </div>
 
-      <a
+      {routeHref ? <a
         className="touch-target mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
-        href="#main-content"
+        href={routeHref}
+        target="_blank"
+        rel="noreferrer"
       >
         <Navigation aria-hidden="true" size={17} />
         Wyznacz trasę
-      </a>
+      </a> : null}
     </div>
   );
 }

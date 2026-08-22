@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { NewPlaceForm } from "@/components/submissions/new-place-form";
+import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Dodaj nowe miejsce | Mapa Dobra",
   description: "Zgłoś miejsce pomocy, którego brakuje w Mapie Dobra.",
+  alternates: canonicalAlternates("/zglos-miejsce"),
 };
 
 export default function ReportNewPlacePage() {
