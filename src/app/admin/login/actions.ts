@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isAcceptableAdminPassword, verifyPassword } from "@/lib/admin/password";
 import { consumeLoginAttempt, resetLoginAttempts } from "@/lib/admin/rate-limit";
+import { getTrustedClientAddress } from "@/lib/security/rate-limiter";
 import {
   createSessionToken,
   getSessionExpiry,
@@ -23,14 +24,6 @@ function normalizeEmail(value: FormDataEntryValue | null) {
   return value.trim().toLocaleLowerCase("pl-PL").slice(0, 320);
 }
 
-function getLoginAddress(headerStore: Awaited<ReturnType<typeof headers>>) {
-  return (
-    headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headerStore.get("x-real-ip")?.trim() ||
-    "local"
-  );
-}
-
 export async function loginAdmin(
   _previousState: LoginActionState,
   formData: FormData,
@@ -39,7 +32,7 @@ export async function loginAdmin(
   const passwordEntry = formData.get("password");
   const password = typeof passwordEntry === "string" ? passwordEntry : "";
   const headerStore = await headers();
-  const rateLimitKey = getLoginAddress(headerStore);
+  const rateLimitKey = getTrustedClientAddress(headerStore);
   const rateLimit = consumeLoginAttempt(rateLimitKey);
 
   if (!rateLimit.allowed) {

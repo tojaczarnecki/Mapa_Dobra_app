@@ -5,7 +5,8 @@ const PRODUCTION_RECORD_KINDS = ["PRODUCTION"] as const;
 const DEVELOPMENT_RECORD_KINDS = ["PRODUCTION", "DEMO"] as const;
 
 export function publicRecordKindsForEnvironment(environment: string | undefined = process.env.NODE_ENV) {
-  return environment === "development"
+  const publicDataMode = process.env.PUBLIC_DATA_MODE;
+  return (publicDataMode === "development" || (publicDataMode === undefined && environment === "development"))
     ? DEVELOPMENT_RECORD_KINDS
     : PRODUCTION_RECORD_KINDS;
 }
