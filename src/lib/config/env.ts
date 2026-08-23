@@ -14,6 +14,12 @@ export function validateRuntimeEnv(
   const errors: string[] = [];
   const databaseUrl = environment.DATABASE_URL;
   const baseUrl = environment.APP_BASE_URL;
+  const deploymentEnv = environment.DEPLOYMENT_ENV;
+  const isStaging = deploymentEnv === "staging";
+
+  if (deploymentEnv && deploymentEnv !== "production" && deploymentEnv !== "staging") {
+    errors.push("DEPLOYMENT_ENV");
+  }
 
   if (isPlaceholder(databaseUrl)) errors.push("DATABASE_URL");
   else {
@@ -29,11 +35,14 @@ export function validateRuntimeEnv(
   if (isPlaceholder(environment.GEOCODER_USER_AGENT) || isPlaceholder(environment.GEOCODER_CONTACT_EMAIL)) {
     errors.push("GEOCODER_USER_AGENT/GEOCODER_CONTACT_EMAIL");
   }
-  if (
-    environment.RATE_LIMIT_MODE !== "upstash" ||
-    isPlaceholder(environment.UPSTASH_REDIS_REST_URL) ||
-    isPlaceholder(environment.UPSTASH_REDIS_REST_TOKEN)
-  ) {
+  const rateLimitMode = environment.RATE_LIMIT_MODE;
+  const hasUpstashConfig =
+    !isPlaceholder(environment.UPSTASH_REDIS_REST_URL) &&
+    !isPlaceholder(environment.UPSTASH_REDIS_REST_TOKEN);
+
+  if (isStaging && rateLimitMode === "memory") {
+    // Explicit staging is the only production-mode exception for in-memory limiting.
+  } else if (rateLimitMode !== "upstash" || !hasUpstashConfig) {
     errors.push("RATE_LIMIT_MODE/UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN");
   }
   return { valid: errors.length === 0, errors };

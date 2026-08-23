@@ -53,6 +53,13 @@ function createUpstashRateLimiter(windowMs: number, maxRequests: number, environ
 }
 
 export function createApplicationRateLimiter(windowMs: number, maxRequests: number, environment: RuntimeEnvironment = process.env) {
+  if (
+    environment.NODE_ENV === "production" &&
+    environment.DEPLOYMENT_ENV === "staging" &&
+    environment.RATE_LIMIT_MODE === "memory"
+  ) {
+    return createInMemoryRateLimiter(windowMs, maxRequests);
+  }
   if (environment.NODE_ENV === "production" && environment.RATE_LIMIT_MODE === "upstash") {
     return createUpstashRateLimiter(windowMs, maxRequests, environment);
   }
@@ -65,7 +72,10 @@ export function createApplicationRateLimiter(windowMs: number, maxRequests: numb
   return createInMemoryRateLimiter(windowMs, maxRequests);
 }
 
-export function assertRateLimiterConfigured(environment = process.env) {
+export function assertRateLimiterConfigured(environment: RuntimeEnvironment = process.env) {
+  if (environment.NODE_ENV === "production" && environment.DEPLOYMENT_ENV === "staging" && environment.RATE_LIMIT_MODE === "memory") {
+    return;
+  }
   if (environment.NODE_ENV === "production" && environment.RATE_LIMIT_MODE !== "upstash") {
     throw new Error("A shared production rate limiter is required before multi-instance deployment.");
   }
