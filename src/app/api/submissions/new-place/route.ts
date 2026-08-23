@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const rateLimit = consumeSubmissionRateLimit(
+  const rateLimit = await consumeSubmissionRateLimit(
     `new-place:${getRequestAddress(request)}`,
   );
 

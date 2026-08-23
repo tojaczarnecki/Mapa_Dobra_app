@@ -6,6 +6,6 @@ export function getRequestAddress(request: Request) {
   return getTrustedClientAddress(request.headers);
 }
 
-export function consumeSubmissionRateLimit(key: string, now = Date.now()) {
+export async function consumeSubmissionRateLimit(key: string, now = Date.now()) {
   return limiter.consume(key, now);
 }

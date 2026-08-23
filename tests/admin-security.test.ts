@@ -22,13 +22,13 @@ test("admin passwords are salted and verified with scrypt", async () => {
   assert.equal(await verifyPassword(password, "malformed"), false);
 });
 
-test("login limiter blocks the sixth attempt in a window", () => {
+test("login limiter blocks the sixth attempt in a window", async () => {
   const key = `test-${crypto.randomUUID()}`;
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    assert.equal(consumeLoginAttempt(key, 1_000).allowed, true);
+    assert.equal((await consumeLoginAttempt(key, 1_000)).allowed, true);
   }
-  assert.equal(consumeLoginAttempt(key, 1_000).allowed, false);
-  resetLoginAttempts(key);
+  assert.equal((await consumeLoginAttempt(key, 1_000)).allowed, false);
+  await resetLoginAttempts(key);
 });
 
 test("moderation transitions only allow unfinished submissions", () => {

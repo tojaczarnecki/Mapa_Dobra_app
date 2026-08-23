@@ -33,7 +33,7 @@ export async function loginAdmin(
   const password = typeof passwordEntry === "string" ? passwordEntry : "";
   const headerStore = await headers();
   const rateLimitKey = getTrustedClientAddress(headerStore);
-  const rateLimit = consumeLoginAttempt(rateLimitKey);
+  const rateLimit = await consumeLoginAttempt(rateLimitKey);
 
   if (!rateLimit.allowed) {
     return {
@@ -80,7 +80,7 @@ export async function loginAdmin(
     });
   });
 
-  resetLoginAttempts(rateLimitKey);
+  await resetLoginAttempts(rateLimitKey);
   await setAdminSessionCookie(token, expiresAt);
   redirect("/admin");
 }

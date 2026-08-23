@@ -129,11 +129,11 @@ test("rejects a negative number of reported beds", () => {
   assert.equal(validateNewPlaceSubmission(submission).ok, false);
 });
 
-test("limits repeated submissions without an external service", () => {
+test("limits repeated submissions without an external service", async () => {
   const key = `test-${crypto.randomUUID()}`;
   const now = Date.now();
   for (let index = 0; index < 5; index += 1) {
-    assert.equal(consumeSubmissionRateLimit(key, now).allowed, true);
+    assert.equal((await consumeSubmissionRateLimit(key, now)).allowed, true);
   }
-  assert.equal(consumeSubmissionRateLimit(key, now).allowed, false);
+  assert.equal((await consumeSubmissionRateLimit(key, now)).allowed, false);
 });

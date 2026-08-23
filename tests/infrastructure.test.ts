@@ -16,11 +16,10 @@ test("rate limiter does not trust forwarded client IP by default", () => {
   assert.equal(getTrustedClientAddress(headers, { TRUSTED_PROXY_MODE: "single" }), "203.0.113.5");
 });
 
-test("in-memory limiter remains deterministic for local development", () => {
+test("in-memory limiter remains deterministic for local development", async () => {
   const limiter = createInMemoryRateLimiter(1000, 2);
-  assert.equal(limiter.consume("test", 0).allowed, true);
-  assert.equal(limiter.consume("test", 1).allowed, true);
-  assert.equal(limiter.consume("test", 2).allowed, false);
-  assert.equal(limiter.consume("test", 1001).allowed, true);
+  assert.equal((await limiter.consume("test", 0)).allowed, true);
+  assert.equal((await limiter.consume("test", 1)).allowed, true);
+  assert.equal((await limiter.consume("test", 2)).allowed, false);
+  assert.equal((await limiter.consume("test", 1001)).allowed, true);
 });
-
