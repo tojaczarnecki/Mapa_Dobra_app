@@ -393,6 +393,44 @@ input {
   color: white;
 }
 
+.admin-place-header {
+  display: none;
+  grid-template-columns: minmax(300px, 2fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+  gap: 1rem;
+}
+
+.admin-place-grid {
+  display: block;
+}
+
+.admin-place-actions {
+  align-items: center;
+}
+
+@media (min-width: 64rem) {
+  .admin-place-header {
+    display: grid;
+  }
+
+  .admin-place-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 2fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .admin-place-grid > * {
+    min-width: 0;
+    align-self: center;
+  }
+
+  .admin-place-actions {
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

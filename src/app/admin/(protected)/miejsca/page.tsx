@@ -120,8 +120,8 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
         </Link>
       </header>
 
-      <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-2 xl:grid-cols-4 xl:items-end 2xl:grid-cols-[180px_repeat(6,minmax(0,1fr))_150px]">
-        <label className="text-sm font-bold sm:col-span-2 xl:col-span-1">
+      <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-2 xl:grid-cols-4 xl:items-end 2xl:grid-cols-6">
+        <label className="text-sm font-bold sm:col-span-2 xl:col-span-1 2xl:col-span-2">
           <span className="mb-1 block">Szukaj</span>
           <span className="relative block">
             <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
@@ -144,28 +144,35 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
 
       {places.length ? (
         <div>
-          <div className="mb-1.5 hidden grid-cols-[minmax(150px,1.2fr)_minmax(115px,.9fr)_100px_105px_70px_105px_160px] gap-2 px-3 text-[11px] font-bold uppercase text-muted-foreground xl:grid">
-            <span>Miejsce</span><span>Adres</span><span>Publikacja</span><span>Stan działania</span><span>Rodzaj</span><span>Daty</span><span>Akcje</span>
+          <div className="admin-place-header mb-1.5 px-3 text-[11px] font-bold uppercase text-muted-foreground">
+            <span>Miejsce</span><span>Adres i daty</span><span>Statusy</span><span>Akcje</span>
           </div>
           <ol className="space-y-1.5">
           {places.map((place) => {
             const canOpenPublicly = isPubliclyVisiblePlace(place);
             const publicHref = `/lodz/${place.primaryCategory.slug}/${place.slug}`;
             return (
-              <li key={place.id} className={`rounded-md border border-border px-3 py-3 xl:py-2.5 ${place.recordKind === "TEST" ? "bg-urgent-soft/20" : "bg-white"}`}>
-                <div className="grid min-w-0 gap-2.5 xl:grid-cols-[minmax(150px,1.2fr)_minmax(115px,.9fr)_100px_105px_70px_105px_160px] xl:items-center xl:gap-2">
-                  <div className="min-w-0">
+              <li key={place.id} className={`admin-place-record rounded-md border border-border bg-white px-3 py-3 ${place.recordKind === "TEST" ? "border-l-4 border-l-urgent/55" : ""}`}>
+                <div className="admin-place-grid min-w-0">
+                  <div className="min-w-0 self-center">
                     <strong className="block text-sm leading-5">{place.name}</strong>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">{place.primaryCategory.name}{place.organization?.name ? ` · ${place.organization.name}` : ""}</span>
                   </div>
-                  <div className="min-w-0 text-sm">
+                  <div className="min-w-0 self-center text-sm">
                     <span className="block line-clamp-2">{place.addressLine}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Weryfikacja: {formatDate(place.verifiedAt)} · Edycja: {formatDate(place.updatedAt)}
+                    </span>
                   </div>
-                  <div className="space-y-1"><span className="block text-xs font-bold text-muted-foreground xl:hidden">Publikacja</span><PlacePublicationBadge status={place.publicationStatus} /></div>
-                  <div className="text-sm"><span className="block text-xs font-bold text-muted-foreground xl:hidden">Stan działania</span><strong>{operationalStatusLabels[place.operationalStatus]}</strong></div>
-                  <div><span className="mb-1 block text-xs font-bold text-muted-foreground xl:hidden">Rodzaj rekordu</span><PlaceRecordBadge kind={place.recordKind} /></div>
-                  <div className="text-xs text-muted-foreground"><span className="block"><strong className="xl:sr-only">Weryfikacja: </strong>{formatDate(place.verifiedAt)}</span><span className="mt-0.5 block"><strong className="xl:sr-only">Edycja: </strong>{formatDate(place.updatedAt)}</span></div>
-                  <div className="flex flex-wrap gap-1.5 xl:flex-nowrap xl:justify-end">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs font-bold text-muted-foreground xl:hidden">Publikacja</span>
+                    <PlacePublicationBadge status={place.publicationStatus} />
+                    <span className="text-xs font-bold text-muted-foreground xl:hidden">Stan działania</span>
+                    <strong className="text-sm">{operationalStatusLabels[place.operationalStatus]}</strong>
+                    <span className="text-xs font-bold text-muted-foreground xl:hidden">Rodzaj rekordu</span>
+                    <PlaceRecordBadge kind={place.recordKind} />
+                  </div>
+                  <div className="admin-place-actions flex flex-wrap gap-1.5">
                     <ActionLink href={`/admin/miejsca/${place.id}`} label="Podgląd" icon={Eye} />
                     <ActionLink href={`/admin/miejsca/${place.id}/edytuj`} label="Edytuj" icon={Pencil} />
                     {canOpenPublicly ? <ActionLink href={publicHref} label="Otwórz publicznie" icon={ExternalLink} external compact /> : null}
