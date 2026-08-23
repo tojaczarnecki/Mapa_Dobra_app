@@ -30,6 +30,8 @@ export const allAdminPermissions: AdminPermission[] = [
   "VIEW_AUDIT_LOG",
   "MANAGE_USERS",
   "MANAGE_USER_PERMISSIONS",
+  "VIEW_HELP_REQUESTS",
+  "MANAGE_HELP_REQUESTS",
 ];
 
 export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[]> = {
@@ -46,6 +48,8 @@ export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[
     "VIEW_ORGANIZATIONS",
     "VIEW_CATEGORIES",
     "VIEW_IMPORTS",
+    "VIEW_HELP_REQUESTS",
+    "MANAGE_HELP_REQUESTS",
   ],
   PLACE_MANAGER: ["VIEW_DASHBOARD"],
   VIEWER: [
@@ -102,6 +106,8 @@ export const permissionLabels: Record<AdminPermission, string> = {
   VIEW_AUDIT_LOG: "Podgląd historii działań",
   MANAGE_USERS: "Zarządzanie użytkownikami",
   MANAGE_USER_PERMISSIONS: "Zarządzanie uprawnieniami",
+  VIEW_HELP_REQUESTS: "Podgląd zgłoszeń pomocy",
+  MANAGE_HELP_REQUESTS: "Obsługa zgłoszeń pomocy",
 };
 
 export type PermissionOverride = {

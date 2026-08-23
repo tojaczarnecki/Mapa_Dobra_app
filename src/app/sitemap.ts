@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getSiteBaseUrl();
   if (!baseUrl) return [];
   const places = await getPublicSitemapPlaces();
-  const staticRoutes = ["/", "/szukaj", "/mapa", "/znajdz-nocleg", "/zglos-miejsce", "/zglos-zmiane"];
+  const staticRoutes = ["/", "/szukaj", "/mapa", "/znajdz-nocleg", "/zglos-miejsce", "/zglos-zmiane", "/uruchom-pomoc"];
   return [
     ...staticRoutes.map((path) => ({ url: new URL(path, baseUrl).toString(), changeFrequency: "weekly" as const })),
     ...places.map((place) => ({

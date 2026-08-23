@@ -98,6 +98,8 @@ enum AdminPermission {
   VIEW_AUDIT_LOG
   MANAGE_USERS
   MANAGE_USER_PERMISSIONS
+  VIEW_HELP_REQUESTS
+  MANAGE_HELP_REQUESTS
 }
 
 enum AdminPermissionEffect {
@@ -154,6 +156,8 @@ enum AuditAction {
   ADMISSION_STATUS_UPDATED
   ADMISSION_HOURS_UPDATED
   PLACE_CONTACT_UPDATED
+  HELP_REQUEST_STATUS_CHANGED
+  HELP_REQUEST_NOTE_ADDED
 }
 
 enum AuditEntityType {
@@ -167,6 +171,36 @@ enum AuditEntityType {
   CATEGORY
   IMPORT_CANDIDATE
   USER_PLACE_ACCESS
+  HELP_REQUEST
+}
+
+enum HelpRequestStatus {
+  NEW
+  REVIEWING
+  FORWARDED
+  RESOLVED
+  REJECTED
+}
+
+enum HelpRequestUrgency {
+  IMMEDIATE
+  STANDARD
+  UNKNOWN
+}
+
+enum HelpRequestNeed {
+  SAFE_PLACE
+  FOOD
+  CLOTHING_HYGIENE
+  MEDICAL
+  DAILY_FUNCTIONING
+  OLDER_PERSON_SUPPORT
+  NO_SUPPORT_NETWORK
+  OUTDOOR_HARSH_CONDITIONS
+  DAILY_TASKS
+  SAFETY_WELLBEING
+  LOST_OR_DISORIENTED
+  OTHER
 }
 
 enum PlacePublicationStatus {
@@ -467,6 +501,32 @@ model AuditLog {
   @@index([adminUserId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+model HelpRequest {
+  id               String             @id @default(uuid()) @db.Uuid
+  status           HelpRequestStatus  @default(NEW)
+  urgency          HelpRequestUrgency @default(UNKNOWN)
+  emergencyAnswer  InformationState
+  needs            HelpRequestNeed[]
+  description      String             @db.VarChar(5000)
+  addressText      String?            @db.VarChar(500)
+  latitude         Float?
+  longitude        Float?
+  locationAccuracy Float?
+  reporterName     String?            @db.VarChar(160)
+  reporterPhone    String?            @db.VarChar(50)
+  reporterEmail    String?            @db.VarChar(320)
+  anonymous        Boolean            @default(true)
+  internalNotes    String?            @db.VarChar(4000)
+  reviewedAt       DateTime?          @db.Timestamptz(3)
+  resolvedAt       DateTime?          @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([urgency, createdAt])
+  @@map("help_requests")
 }
 
 model Organization {

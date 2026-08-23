@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Building2, ClipboardList, FileInput, LayoutDashboard, LogOut, MapPinned, SearchCheck, Tags, Users } from "lucide-react";
+import { Building2, ClipboardList, FileInput, HeartHandshake, LayoutDashboard, LogOut, MapPinned, SearchCheck, Tags, Users } from "lucide-react";
 import type { AdminPermission } from "@/generated/prisma/enums";
 import { logoutAdmin } from "@/app/admin/actions";
 import { UnsavedChangesProvider } from "@/components/admin/unsaved-changes";
@@ -94,6 +94,13 @@ export function AdminShell({ displayName, role, permissions, children }: AdminSh
             >
               <SearchCheck aria-hidden="true" size={19} />
               Weryfikacja
+            </Link> : null}
+            {can("VIEW_HELP_REQUESTS") ? <Link
+              href="/admin/zgloszenia-pomocy"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-[#fff1cf]"
+            >
+              <HeartHandshake aria-hidden="true" size={19} />
+              Uruchom pomoc
             </Link> : null}
             {can("MANAGE_USERS") ? <Link
               href="/admin/uzytkownicy"
