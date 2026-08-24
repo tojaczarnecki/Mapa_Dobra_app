@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 30
     env:
       CI: true
+      DATABASE_URL: postgresql://ci-placeholder.invalid/ci
 
     steps:
       - name: Checkout repository
@@ -45,7 +46,6 @@ jobs:
           PUBLIC_DATA_MODE: production
           RATE_LIMIT_MODE: memory
           APP_BASE_URL: https://staging.host11515.iqhs.pl
-          DATABASE_URL: postgresql://ci-placeholder.invalid/ci
           GEOCODER_USER_AGENT: MapaDobraCI/1.0
           GEOCODER_CONTACT_EMAIL: ci@example.invalid
         run: npm run build
