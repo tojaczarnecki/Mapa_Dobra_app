@@ -5,13 +5,13 @@ import {
   CircleHelp,
   Droplets,
   HeartPulse,
-  Search,
   Scale,
   Shirt,
   ShowerHead,
   Utensils,
 } from "lucide-react";
 import { CategoryTile } from "@/components/home/category-tile";
+import { HomeSearchAutocomplete } from "@/components/home/home-search-autocomplete";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
@@ -74,20 +74,10 @@ export default async function Home() {
 
       <section className="home-search-section" aria-labelledby="home-search-title">
         <h2 id="home-search-title" className="sr-only">Znajdź pomoc</h2>
-        <form action="/mapa" method="get" className="home-search-form" aria-label="Wyszukiwarka pomocy">
-          <input type="hidden" name="lokalizacja" value="moja" />
-          <label htmlFor="home-search" className="sr-only">Czego potrzebujesz?</label>
-          <div className="home-search-field">
-            <Search aria-hidden="true" className="shrink-0" size={23} strokeWidth={2.1} />
-            <input
-              id="home-search"
-              name="q"
-              type="search"
-              placeholder="Czego potrzebujesz?"
-              autoComplete="off"
-            />
-          </div>
-        </form>
+        <HomeSearchAutocomplete
+          categories={categories.map(({ label, slug }) => ({ label, slug }))}
+          places={publicPlaces}
+        />
       </section>
 
       <section id="kategorie" className="home-category-section" aria-labelledby="home-category-title">

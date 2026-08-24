@@ -3,6 +3,8 @@ import type { InformationState } from "@/lib/accommodations/types";
 export type PublicSearchPlace = {
   id: string;
   name: string;
+  categorySlug: string;
+  slug: string;
   categorySlugs: string[];
   searchText: string;
   status: string;
