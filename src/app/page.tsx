@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   BedDouble,
   Brain,
+  CircleHelp,
   Droplets,
   HeartPulse,
   Search,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { CategoryTile } from "@/components/home/category-tile";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
+import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
@@ -20,18 +22,35 @@ export const metadata: Metadata = {
   alternates: canonicalAlternates("/"),
 };
 
-const categories = [
-  { label: "Jedzenie", slug: "jedzenie", icon: Utensils },
-  { label: "Nocleg", slug: "nocleg", icon: BedDouble },
-  { label: "Prysznic", slug: "prysznic", icon: ShowerHead },
-  { label: "Odzież", slug: "odziez", icon: Shirt },
-  { label: "Pomoc medyczna", slug: "pomoc-medyczna", icon: HeartPulse },
-  { label: "Pomoc psychologiczna", slug: "pomoc-psychologiczna", icon: Brain },
-  { label: "Pomoc prawna", slug: "pomoc-prawna", icon: Scale },
-  { label: "Higiena", slug: "higiena", icon: Droplets },
-];
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+const categoryIconMap = {
+  jedzenie: Utensils,
+  nocleg: BedDouble,
+  prysznic: ShowerHead,
+  odziez: Shirt,
+  "pomoc-medyczna": HeartPulse,
+  "pomoc-psychologiczna": Brain,
+  "pomoc-prawna": Scale,
+  higiena: Droplets,
+} as const;
+
+export default async function Home() {
+  const publicPlaces = await getPublicSearchPlaces();
+  const categories = Array.from(
+    new Map(
+      publicPlaces.flatMap((place) =>
+        place.categorySlugs.map((slug, index) => [slug, place.helpTypes[index] ?? slug] as const),
+      ),
+    ).entries(),
+  )
+    .map(([slug, label]) => ({
+      label,
+      slug,
+      icon: categoryIconMap[slug as keyof typeof categoryIconMap] ?? CircleHelp,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label, "pl"));
+
   return (
     <div className="home-page mx-auto w-full max-w-[1240px] px-5 pb-28 pt-8 sm:px-6 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-14">
       <header className="home-intro">

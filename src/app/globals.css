@@ -174,14 +174,14 @@ input {
 }
 
 .home-primary-card-help {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--home-text);
+  background: var(--home-navy);
+  border-color: var(--home-navy);
+  color: white;
 }
 
 .home-primary-card-help:hover {
-  background: var(--brand-strong);
-  border-color: var(--brand-strong);
+  background: #102b3e;
+  border-color: #102b3e;
   color: white;
 }
 
@@ -207,7 +207,7 @@ input {
 }
 
 .home-primary-card-help .home-primary-icon {
-  color: var(--brand-strong);
+  color: var(--home-navy);
 }
 
 .home-primary-card-activate .home-primary-icon {
