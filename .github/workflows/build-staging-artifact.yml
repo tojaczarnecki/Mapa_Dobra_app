@@ -1,0 +1,108 @@
+name: Build staging release artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - staging-uruchom-pomoc
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production application
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_ENV: staging
+          PUBLIC_DATA_MODE: production
+          RATE_LIMIT_MODE: memory
+          APP_BASE_URL: https://staging.host11515.iqhs.pl
+          DATABASE_URL: postgresql://ci-placeholder.invalid/ci
+          GEOCODER_USER_AGENT: MapaDobraCI/1.0
+          GEOCODER_CONTACT_EMAIL: ci@example.invalid
+        run: npm run build
+
+      - name: Validate runtime files and BUILD_ID
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s .next/BUILD_ID
+          BUILD_ID="$(tr -d '\n\r' < .next/BUILD_ID)"
+          test -n "$BUILD_ID"
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+
+          test -d node_modules
+          test -d public
+          test -f package.json
+          test -f package-lock.json
+          test -f next.config.ts
+          test -d src/generated/prisma
+
+      - name: Create release archive
+        shell: bash
+        env:
+          BUILD_ID: ${{ steps.release.outputs.build_id }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="release-${BUILD_ID}.tar.gz"
+
+          tar \
+            --create \
+            --gzip \
+            --file "$ARCHIVE" \
+            --exclude='.next/cache' \
+            --exclude='.next/dev' \
+            --exclude='.git' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            .next \
+            node_modules \
+            public \
+            package.json \
+            package-lock.json \
+            next.config.ts \
+            src/generated/prisma
+
+          test -s "$ARCHIVE"
+          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)' 
+          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)prisma/migrations(/|$)'
+          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)server\.cjs$'
+          tar -tzf "$ARCHIVE" | grep -q '^\.next/BUILD_ID$'
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.release.outputs.build_id }}
+          path: release-${{ steps.release.outputs.build_id }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
