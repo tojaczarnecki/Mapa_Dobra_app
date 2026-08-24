@@ -297,15 +297,13 @@ export function MapExperience({
             Łódź
           </div>
 
-          <div className={styles.mapStageSummary}>
-            <span aria-live="polite">
-              {filteredPlaces.length} {placeCountLabel(filteredPlaces.length)} na mapie
-            </span>
-            <Link href={listHref} className={styles.mapStageListLink}>
-              <List aria-hidden="true" size={17} />
-              Pokaż listę
-            </Link>
-          </div>
+          <span className={styles.mapStageCount} aria-live="polite">
+            {filteredPlaces.length} {placeCountLabel(filteredPlaces.length)}
+          </span>
+          <Link href={listHref} className={styles.mapStageListLink}>
+            <List aria-hidden="true" size={18} />
+            Pokaż listę
+          </Link>
         </div>
 
         <MapResultsPanel

@@ -1,27 +1,13 @@
 "use client";
 
 import { divIcon } from "leaflet";
-import {
-  BedDouble,
-  Droplets,
-  HeartPulse,
-  Scale,
-  Utensils,
-  type LucideIcon,
-} from "lucide-react";
 import { createElement, useMemo } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Marker } from "react-leaflet";
-import type { MapCategory, MapPlace } from "@/data/demo-map-places";
+import type { MapPlace } from "@/data/demo-map-places";
+import { getCategoryAccentMap } from "@/lib/home/category-accent";
+import { getCategoryIcon } from "@/lib/home/category-visuals";
 import styles from "./map.module.css";
-
-const categoryIcon: Record<MapCategory, LucideIcon> = {
-  food: Utensils,
-  accommodation: BedDouble,
-  hygiene: Droplets,
-  medical: HeartPulse,
-  legal: Scale,
-};
 
 export function MapMarker({
   place,
@@ -32,7 +18,9 @@ export function MapMarker({
   selected: boolean;
   onSelect: (place: MapPlace) => void;
 }) {
-  const CategoryIcon = categoryIcon[place.categories[0]];
+  const categorySlug = place.categories[0] ?? "food";
+  const CategoryIcon = getCategoryIcon(categorySlug);
+  const accent = getCategoryAccentMap([categorySlug]).get(categorySlug);
   const categoryIconMarkup = useMemo(
     () =>
       renderToStaticMarkup(
@@ -49,11 +37,11 @@ export function MapMarker({
     () =>
       divIcon({
         className: styles.markerHost,
-        html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" aria-hidden="true"><span>${categoryIconMarkup}</span></span>`,
+        html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" style="--category-accent:${accent}" aria-hidden="true"><span>${categoryIconMarkup}</span></span>`,
         iconAnchor: [22, 42],
         iconSize: [44, 44],
       }),
-    [categoryIconMarkup, selected],
+    [accent, categoryIconMarkup, selected],
   );
 
   return (

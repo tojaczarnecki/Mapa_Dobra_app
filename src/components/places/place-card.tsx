@@ -9,11 +9,11 @@ import {
   Phone,
 } from "lucide-react";
 import type { DemoPlace } from "@/data/demo-places";
+import { CategoryIcon } from "@/lib/home/category-visuals";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { PlaceStatusBadge } from "./place-status-badge";
 
 export function PlaceCard({ place, accent }: { place: DemoPlace; accent?: string }) {
-  const Icon = place.primaryIcon;
   const callHref = telephoneHref(place.phone);
   const routeHref = directionsHref(place);
   const priorityConditions = ["Bezpłatnie", "Bez skierowania", "Dokument niewymagany"];
@@ -24,7 +24,7 @@ export function PlaceCard({ place, accent }: { place: DemoPlace; accent?: string
   return (
     <article className="place-card" style={{ "--category-accent": accent } as CSSProperties}>
       <div className="place-card-heading">
-        <span className="place-card-icon" aria-hidden="true"><Icon size={23} strokeWidth={2} /></span>
+        <span className="place-card-icon" aria-hidden="true"><CategoryIcon slug={place.categorySlug} size={23} strokeWidth={2} /></span>
         <div className="place-card-title">
           <h2>{place.name}</h2>
           <p>{place.helpTypes.join(" • ")}</p>
