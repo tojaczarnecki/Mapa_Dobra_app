@@ -50,6 +50,9 @@ jobs:
           GEOCODER_CONTACT_EMAIL: ci@example.invalid
         run: npm run build
 
+      - name: Remove development dependencies
+        run: npm prune --omit=dev
+
       - name: Validate runtime files and BUILD_ID
         id: release
         shell: bash
@@ -62,6 +65,13 @@ jobs:
           echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
 
           test -d node_modules
+          test -d node_modules/next
+          test -d node_modules/react
+          test -d node_modules/react-dom
+          test -d node_modules/dotenv
+          test -d node_modules/@prisma/client
+          test -d node_modules/@prisma/adapter-neon
+          test -d node_modules/@upstash/redis
           test -d public
           test -f package.json
           test -f package-lock.json
@@ -102,6 +112,12 @@ jobs:
           ! grep -E '(^|/)prisma/migrations(/|$)' "$LISTING"
           ! grep -qx 'server.cjs' "$LISTING"
           grep -qx '.next/BUILD_ID' "$LISTING"
+
+      - name: Report artifact sizes
+        run: |
+          du -sh node_modules
+          du -sh .next
+          du -h release-*.tar.gz
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
