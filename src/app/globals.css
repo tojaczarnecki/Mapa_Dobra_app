@@ -1740,6 +1740,15 @@ input {
   padding: 1rem 1rem 7rem;
 }
 
+body:has(.map-page),
+body:has(.map-page) > div,
+body:has(.map-page) main {
+  background: #ffffff;
+}
+
+body:has(.map-page) .site-footer {
+  margin-top: 0;
+}
 .search-layout {
   display: grid;
   gap: 2rem;

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { List, LocateFixed, Search } from "lucide-react";
+import { LocateFixed, Search } from "lucide-react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
@@ -12,8 +11,6 @@ type MapControlsProps = {
   openNow: boolean;
   free: boolean;
   filtersOpen: boolean;
-  resultCount: number;
-  listHref: string;
   locationPending: boolean;
   locationMessage?: string;
   onQueryChange: (query: string) => void;
@@ -24,29 +21,12 @@ type MapControlsProps = {
   onLocate: () => void;
 };
 
-function placeCountLabel(count: number) {
-  if (count === 1) {
-    return "miejsce";
-  }
-
-  const lastTwoDigits = count % 100;
-  const lastDigit = count % 10;
-
-  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-    return "miejsca";
-  }
-
-  return "miejsc";
-}
-
 export function MapControls({
   query,
   category,
   openNow,
   free,
   filtersOpen,
-  resultCount,
-  listHref,
   locationPending,
   locationMessage,
   onQueryChange,
@@ -112,18 +92,6 @@ export function MapControls({
         onFiltersOpenChange={onFiltersOpenChange}
       />
 
-      <div className="flex min-h-11 min-w-0 items-center justify-between gap-3">
-        <p className="min-w-0 text-sm font-bold text-muted-foreground" aria-live="polite">
-          {resultCount} {placeCountLabel(resultCount)} na mapie
-        </p>
-        <Link
-          href={listHref}
-          className="touch-target inline-flex shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
-        >
-          <List aria-hidden="true" size={18} />
-          Pokaż listę
-        </Link>
-      </div>
     </section>
   );
 }

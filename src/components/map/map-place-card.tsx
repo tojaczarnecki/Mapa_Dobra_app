@@ -146,7 +146,8 @@ export function MapPlaceCard({
   const placeActions = (
     <div
       className={[
-        "grid min-w-0 grid-cols-3 gap-2",
+        "grid min-w-0 gap-2",
+        styles.mapPlaceActions,
         useCompactAccommodation ? styles.compactAccommodationActions : "",
       ].join(" ")}
     >
@@ -155,18 +156,15 @@ export function MapPlaceCard({
           href={callHref}
           className={[
             "place-card-action",
+            styles.mapCtaPrimary,
             isAccommodation ? "place-card-action-primary" : "",
           ].join(" ")}
         >
           <Phone aria-hidden="true" size={17} />
-          {useCompactAccommodation
-            ? "Zadzwoń"
-            : isAccommodation
-              ? "Zadzwoń i potwierdź"
-              : "Zadzwoń"}
+          Zadzwoń
         </a>
       ) : (
-        <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+        <span className={["place-card-action cursor-not-allowed opacity-55", styles.mapCtaPrimary].join(" ")} aria-disabled="true">
           <Phone aria-hidden="true" size={17} />
           Zadzwoń
         </span>
@@ -175,12 +173,12 @@ export function MapPlaceCard({
         href={routeHref}
         target="_blank"
         rel="noreferrer"
-        className="place-card-action"
+        className={["place-card-action", styles.mapCtaSecondary].join(" ")}
       >
         <Navigation aria-hidden="true" size={17} />
         Trasa
       </a> : (
-        <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+        <span className={["place-card-action cursor-not-allowed opacity-55", styles.mapCtaSecondary].join(" ")} aria-disabled="true">
           <Navigation aria-hidden="true" size={17} />
           Trasa
         </span>
@@ -189,6 +187,7 @@ export function MapPlaceCard({
         href={place.detailsHref}
         className={[
           "place-card-action",
+          styles.mapCtaTertiary,
           isAccommodation ? "" : "place-card-action-primary",
         ].join(" ")}
       >
@@ -201,7 +200,7 @@ export function MapPlaceCard({
   return (
     <article
       className={[
-        "min-w-0 rounded-lg border border-border bg-surface shadow-[0_12px_30px_rgb(17_24_39_/_12%)]",
+        styles.mapPlaceCard,
         useCompactAccommodation
           ? styles.compactAccommodationCard
           : "space-y-3 p-3.5 sm:p-4",

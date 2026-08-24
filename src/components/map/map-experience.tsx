@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { AlertTriangle, LoaderCircle, MapPinned, X } from "lucide-react";
+import { AlertTriangle, List, LoaderCircle, MapPinned, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
@@ -92,6 +93,16 @@ function locationMessage(location: LocationState) {
     default:
       return undefined;
   }
+}
+
+function placeCountLabel(count: number) {
+  if (count === 1) return "miejsce";
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+    return "miejsca";
+  }
+  return "miejsc";
 }
 
 export function MapExperience({
@@ -203,7 +214,7 @@ export function MapExperience({
   }, []);
 
   return (
-    <div className={styles.mapPage}>
+    <div className={`${styles.mapPage} map-page`}>
       <h1 className="sr-only">Mapa miejsc pomocy w Łodzi</h1>
       <MapControls
         query={query}
@@ -211,8 +222,6 @@ export function MapExperience({
         openNow={openNow}
         free={free}
         filtersOpen={filtersOpen}
-        resultCount={filteredPlaces.length}
-        listHref={listHref}
         locationPending={location.status === "pending"}
         locationMessage={locationMessage(location)}
         onQueryChange={setQuery}
@@ -286,6 +295,16 @@ export function MapExperience({
           <div className={styles.mapPurpose}>
             <MapPinned aria-hidden="true" size={16} />
             Łódź
+          </div>
+
+          <div className={styles.mapStageSummary}>
+            <span aria-live="polite">
+              {filteredPlaces.length} {placeCountLabel(filteredPlaces.length)} na mapie
+            </span>
+            <Link href={listHref} className={styles.mapStageListLink}>
+              <List aria-hidden="true" size={17} />
+              Pokaż listę
+            </Link>
           </div>
         </div>
 

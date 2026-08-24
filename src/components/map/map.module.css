@@ -1,6 +1,7 @@
 .mapPage {
   display: flex;
   height: calc(100dvh - 3.5rem);
+  background: #ffffff;
   min-width: 0;
   flex-direction: column;
   gap: 0.35rem;
@@ -44,15 +45,16 @@
 }
 
 .mapLayout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
   flex: 1;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0.75rem;
   background: var(--surface);
-  box-shadow: 0 12px 30px rgb(17 24 39 / 9%);
+  box-shadow: none;
 }
 
 .mapStage {
@@ -216,13 +218,72 @@
   padding: 0.75rem 0.875rem 0.5rem;
 }
 
+.mapPlaceActions {
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 0 0.125rem;
+}
+
+.mapPlaceActions :global(.place-card-action) {
+  min-width: 0;
+  min-height: 3rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  line-height: 1;
+  padding: 0 0.6rem;
+  white-space: nowrap;
+}
+
+.mapCtaPrimary {
+  grid-column: 1 / -1;
+  background: var(--home-navy, #18364d) !important;
+  border-color: var(--home-navy, #18364d) !important;
+  color: #ffffff !important;
+  margin-left: 0 !important;
+}
+
+.mapCtaPrimary:hover,
+.mapCtaPrimary:focus-visible {
+  background: #102b3d !important;
+  border-color: #102b3d !important;
+  color: #ffffff !important;
+}
+
+.mapCtaSecondary,
+.mapCtaTertiary {
+  background: #ffffff !important;
+  border-color: var(--home-border, #e5e5e5) !important;
+  color: var(--home-navy, #18364d) !important;
+  margin-left: 0 !important;
+}
+
+.mapCtaSecondary:hover,
+.mapCtaSecondary:focus-visible,
+.mapCtaTertiary:hover,
+.mapCtaTertiary:focus-visible {
+  border-color: var(--home-navy, #18364d) !important;
+  color: var(--home-navy, #18364d) !important;
+}
+
 .compactAccommodationActions {
   z-index: 1;
   flex-shrink: 0;
   border-top: 1px solid var(--border);
   background: var(--surface);
-  padding: 0.5rem 0.75rem 0.625rem;
+  padding: 0.75rem 0.75rem 1rem;
   box-shadow: 0 -5px 12px rgb(17 24 39 / 7%);
+}
+
+@media (min-width: 1280px) {
+  .mapPlaceActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mapCtaPrimary {
+    grid-column: auto;
+  }
 }
 
 .closeSheetButton {
@@ -293,7 +354,209 @@
   padding: 0.3rem 0.65rem;
   font-size: 0.75rem;
   font-weight: 850;
-  box-shadow: 0 5px 14px rgb(17 24 39 / 12%);
+  box-shadow: 0 4px 12px rgb(17 24 39 / 8%);
+}
+
+.mapStageSummary {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  left: 0.65rem;
+  z-index: 500;
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: rgb(255 255 255 / 94%);
+  color: var(--foreground);
+  padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 5px 14px rgb(17 24 39 / 10%);
+}
+
+.mapStageListLink {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.5rem;
+  color: var(--brand-strong);
+  padding: 0 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.mapStageListLink:hover,
+.mapStageListLink:focus-visible {
+  background: var(--brand-soft);
+}
+
+.resultsPanel {
+  display: none;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.resultsHeader {
+  display: flex;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+}
+
+.resultsTitle,
+.resultsCount,
+.detailEyebrow {
+  margin: 0;
+}
+
+.resultsTitle {
+  color: var(--home-navy, #18364d);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.resultsCount {
+  margin-top: 0.15rem;
+  color: var(--home-text-secondary, #636363);
+  font-size: 0.8125rem;
+}
+
+.backToList {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  border-radius: 0.5rem;
+  color: var(--brand-strong);
+  padding: 0 0.6rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.backToList:hover,
+.backToList:focus-visible {
+  background: var(--brand-soft);
+}
+
+.resultsBody {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.resultsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resultRow {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 4.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  border-bottom: 1px solid #e5e5e5;
+  background: var(--surface);
+  padding: 0.7rem 1rem;
+  text-align: left;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.resultRow:hover,
+.resultRow:focus-visible {
+  background: #f7fafb;
+}
+
+.resultRow:focus-visible {
+  outline-offset: -3px;
+}
+
+.resultIcon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--home-navy, #18364d);
+}
+
+.resultCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.resultName,
+.resultMeta {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.resultName {
+  color: var(--home-text, #17212b);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.resultMeta {
+  margin-top: 0.2rem;
+  color: var(--home-text-secondary, #636363);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.resultRow > svg {
+  flex: 0 0 auto;
+  color: var(--home-text-secondary, #636363);
+}
+
+.detailWrap {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.detailEyebrow {
+  color: var(--home-text-secondary, #636363);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.mapPlaceCard {
+  min-width: 0;
+  border: 1px solid var(--home-border, #e5e5e5);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.mapPlaceCard h2 {
+  color: var(--home-text, #17212b);
+  font-weight: 600;
+}
+
+.mapPlaceCard a:focus-visible,
+.closeSheetButton:focus-visible {
+  outline-offset: 2px;
 }
 
 @media (min-width: 375px) and (max-width: 430px) {
@@ -329,13 +592,25 @@
 @media (min-width: 1024px) {
   .mapPage {
     height: calc(100dvh - 4.5rem);
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: 1rem 2rem 1.25rem;
   }
 
   .mobileSheet {
     display: none;
+  }
+
+  .mapLayout {
+    grid-template-columns: minmax(0, 1.9fr) minmax(20rem, 1fr);
+  }
+
+  .mapStageSummary {
+    display: none;
+  }
+
+  .resultsPanel {
+    display: flex;
   }
 
   .leafletMap :global(.leaflet-control-zoom) {
