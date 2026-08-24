@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { PwaClient } from "@/components/app/pwa-client";
 import { SiteHeader } from "@/components/app/site-header";
+import { SiteFooter } from "@/components/app/site-footer";
+import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -40,9 +42,11 @@ export default function RootLayout({
             Przejdź do treści
           </a>
           <SiteHeader />
-          <PwaClient enabled={process.env.NODE_ENV === "production"} />
+          <PwaClient enabled />
           <main id="main-content">{children}</main>
+          <SiteFooter />
           <MobileBottomNav />
+          <PrivacyConsent />
         </div>
       </body>
     </html>

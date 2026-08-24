@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getHomeSuggestions } from "../src/lib/home/autosuggest.ts";
+import { getCategoryAccentMap } from "../src/lib/home/category-accent.ts";
 import { filterPublicSearchPlaces, type PublicSearchPlace } from "../src/lib/places/search.ts";
 
 const places: PublicSearchPlace[] = [
@@ -41,4 +42,20 @@ test("homepage autosuggest builds safe category and place routes", () => {
   assert.equal(suggestions[0]?.href, "/szukaj?kategoria=prysznic");
   const place = getHomeSuggestions("centrum", [], places).find((suggestion) => suggestion.secondary === "Miejsce");
   assert.equal(place?.href, "/lodz/higiena/centrum-prysznic");
+});
+
+test("category accents are stable across order and additions", () => {
+  const initial = getCategoryAccentMap(["jedzenie", "nowa-kategoria"]);
+  const reordered = getCategoryAccentMap(["nowa-kategoria", "jedzenie"]);
+  const extended = getCategoryAccentMap(["inna-kategoria", "jedzenie", "nowa-kategoria"]);
+
+  assert.equal(initial.get("jedzenie"), "#D97706");
+  assert.equal(initial.get("nowa-kategoria"), reordered.get("nowa-kategoria"));
+  assert.equal(initial.get("nowa-kategoria"), extended.get("nowa-kategoria"));
+  assert.equal(initial.get("jedzenie"), extended.get("jedzenie"));
+  assert.equal(new Set([
+    initial.get("jedzenie"),
+    getCategoryAccentMap(["nocleg"]).get("nocleg"),
+    getCategoryAccentMap(["higiena"]).get("higiena"),
+  ]).size, 3);
 });

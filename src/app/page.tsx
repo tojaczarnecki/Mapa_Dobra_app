@@ -13,6 +13,7 @@ import {
 import { CategoryTile } from "@/components/home/category-tile";
 import { HomeSearchAutocomplete } from "@/components/home/home-search-autocomplete";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
+import { getCategoryAccentMap } from "@/lib/home/category-accent";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
@@ -50,6 +51,21 @@ export default async function Home() {
       icon: categoryIconMap[slug as keyof typeof categoryIconMap] ?? CircleHelp,
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "pl"));
+  const categoryAccents = getCategoryAccentMap(categories.map(({ slug }) => slug));
+  const searchPlaces = publicPlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, free, referralRequired, documentRequired, distanceKm }) => ({
+    id,
+    name,
+    categorySlug,
+    slug,
+    categorySlugs,
+    searchText,
+    status,
+    openNow,
+    free,
+    referralRequired,
+    documentRequired,
+    distanceKm,
+  }));
 
   return (
     <div className="home-page mx-auto w-full max-w-[1240px] px-5 pb-28 pt-8 sm:px-6 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-14">
@@ -76,7 +92,7 @@ export default async function Home() {
         <h2 id="home-search-title" className="sr-only">Znajdź pomoc</h2>
         <HomeSearchAutocomplete
           categories={categories.map(({ label, slug }) => ({ label, slug }))}
-          places={publicPlaces}
+          places={searchPlaces}
         />
       </section>
 
@@ -91,6 +107,7 @@ export default async function Home() {
               href={`/szukaj?kategoria=${category.slug}`}
               label={category.label}
               icon={category.icon}
+              accent={categoryAccents.get(category.slug) ?? "#475569"}
             />
           ))}
         </div>
