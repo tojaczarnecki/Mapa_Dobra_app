@@ -43,7 +43,7 @@ export function PlaceStatusBadge({ status }: { status: PlaceStatus }) {
   return (
     <span
       className={[
-        "inline-flex min-h-8 max-w-full min-w-0 flex-wrap items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-extrabold leading-tight",
+        "place-status-badge",
         config.className,
       ].join(" ")}
     >
