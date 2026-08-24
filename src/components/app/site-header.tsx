@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronDown, Download, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const links = [
@@ -41,8 +42,38 @@ export function SiteHeader() {
             >
               {link.label}
             </Link>
-          ))}
-        </nav>
+            ))}
+          <button
+            type="button"
+            className="touch-target inline-flex items-center gap-2 rounded-md px-3 text-sm font-semibold text-brand-strong transition hover:bg-brand-soft"
+            onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}
+          >
+            <Download aria-hidden="true" size={17} />
+            Zainstaluj
+          </button>
+          </nav>
+        <details className="site-mobile-menu md:hidden">
+          <summary className="touch-target inline-flex list-none items-center gap-2 rounded-md px-3 text-sm font-semibold text-foreground">
+            <Menu aria-hidden="true" size={20} />
+            <span>Menu</span>
+            <ChevronDown aria-hidden="true" size={16} />
+          </summary>
+          <nav aria-label="Menu mobilne" className="site-mobile-menu-panel">
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className="touch-target inline-flex items-center rounded-md px-3 text-sm font-semibold text-foreground">
+                {link.label}
+              </Link>
+            ))}
+            <button
+              type="button"
+              className="touch-target inline-flex items-center gap-2 rounded-md px-3 text-sm font-semibold text-brand-strong"
+              onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}
+            >
+              <Download aria-hidden="true" size={17} />
+              Zainstaluj
+            </button>
+          </nav>
+        </details>
       </div>
     </header>
   );

@@ -17,6 +17,14 @@
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
+  --home-background: #f6f8fa;
+  --home-surface: #ffffff;
+  --home-text: #17212b;
+  --home-text-secondary: #566574;
+  --home-navy: #18364d;
+  --home-amber: #d79a2b;
+  --home-amber-soft: #fff7e8;
+  --home-border: #dce3e8;
 }
 
 @theme inline {
@@ -49,6 +57,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
+}
+
+body:has(.home-page) {
+  background: var(--home-background);
 }
 
 a,
@@ -111,6 +123,322 @@ input {
 .search-panel {
   border-color: #b8d8d4;
   box-shadow: 0 10px 26px rgb(17 24 39 / 6%);
+}
+
+.home-page {
+  background: var(--home-background);
+  color: var(--home-text);
+}
+
+.home-intro {
+  margin: 0 auto;
+  max-width: 76rem;
+}
+
+.home-motto {
+  color: var(--home-text-secondary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.home-title {
+  color: var(--home-text);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  margin-top: 0.75rem;
+}
+
+.home-primary-actions {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.home-primary-card {
+  align-items: center;
+  border: 1px solid var(--home-border);
+  border-radius: 1rem;
+  display: flex;
+  gap: 1rem;
+  min-height: 7.5rem;
+  padding: 1.25rem;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.home-primary-card:hover {
+  transform: translateY(-1px);
+}
+
+.home-primary-card-help {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--home-text);
+}
+
+.home-primary-card-help:hover {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+  color: white;
+}
+
+.home-primary-card-activate {
+  background: var(--home-amber-soft);
+  border-color: var(--home-amber);
+  color: var(--home-text);
+}
+
+.home-primary-card-activate:hover {
+  background: #ffefc9;
+  border-color: #b7791f;
+}
+
+.home-primary-icon {
+  align-items: center;
+  background: rgb(255 255 255 / 78%);
+  border-radius: 0.75rem;
+  display: inline-flex;
+  flex: 0 0 3.25rem;
+  height: 3.25rem;
+  justify-content: center;
+}
+
+.home-primary-card-help .home-primary-icon {
+  color: var(--brand-strong);
+}
+
+.home-primary-card-activate .home-primary-icon {
+  color: #8c6114;
+}
+
+.home-primary-copy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.home-primary-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.home-primary-description {
+  color: currentColor;
+  font-size: 1rem;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+
+.home-primary-arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.home-search-section {
+  margin-top: 1.5rem;
+}
+
+.home-search-form,
+.home-search-field {
+  width: 100%;
+}
+
+.home-search-field {
+  align-items: center;
+  background: var(--home-surface);
+  border: 1px solid var(--home-border);
+  border-radius: 0.75rem;
+  color: var(--brand-strong);
+  display: flex;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0 1rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.home-search-field:focus-within {
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 4px rgb(15 118 110 / 18%);
+}
+
+.home-search-field input {
+  background: transparent;
+  border: 0;
+  color: var(--home-text);
+  flex: 1;
+  font-size: 1rem;
+  min-width: 0;
+  outline: 0;
+}
+
+.home-search-field input::placeholder {
+  color: var(--home-text-secondary);
+  opacity: 1;
+}
+
+.home-category-section {
+  margin-top: 2rem;
+}
+
+.home-section-heading h2 {
+  color: var(--home-text);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.home-section-heading p {
+  color: var(--home-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-top: 0.5rem;
+}
+
+.home-category-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.home-category-tile {
+  align-items: center;
+  background: var(--home-surface);
+  border: 1px solid var(--home-border);
+  border-radius: 0.875rem;
+  color: var(--home-text);
+  display: flex;
+  gap: 0.75rem;
+  min-height: 6rem;
+  min-width: 0;
+  padding: 1rem;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.home-category-tile:hover {
+  background: #f3faf8;
+  border-color: var(--brand);
+}
+
+.home-category-icon {
+  align-items: center;
+  background: var(--brand-soft);
+  border-radius: 0.75rem;
+  color: var(--brand-strong);
+  display: inline-flex;
+  flex: 0 0 2.75rem;
+  height: 2.75rem;
+  justify-content: center;
+}
+
+.home-category-label {
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.home-category-arrow {
+  color: var(--home-text-secondary);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.site-mobile-menu {
+  position: relative;
+}
+
+.site-mobile-menu summary {
+  cursor: pointer;
+}
+
+.site-mobile-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.site-mobile-menu-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 26px rgb(17 24 39 / 10%);
+  display: grid;
+  gap: 0.25rem;
+  min-width: 11rem;
+  padding: 0.5rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 35;
+}
+
+@media (min-width: 768px) {
+  .home-title {
+    font-size: 3.25rem;
+  }
+
+  .home-primary-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 2rem;
+  }
+
+  .home-primary-card {
+    min-height: 9.25rem;
+    padding: 1.5rem;
+  }
+
+  .home-primary-title {
+    font-size: 2rem;
+  }
+
+  .home-primary-description {
+    font-size: 1.0625rem;
+  }
+
+  .home-search-section {
+    margin-top: 2rem;
+  }
+
+  .home-search-field {
+    min-height: 4rem;
+    padding-inline: 1.25rem;
+  }
+
+  .home-search-field input {
+    font-size: 1.0625rem;
+  }
+
+  .home-category-section {
+    margin-top: 2.5rem;
+  }
+
+  .home-section-heading h2 {
+    font-size: 1.875rem;
+  }
+
+  .home-category-grid {
+    gap: 1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 1.25rem;
+  }
+
+  .home-category-tile {
+    min-height: 7.5rem;
+    padding: 1.125rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-primary-card,
+  .home-category-tile,
+  .home-search-field {
+    transition: none;
+  }
 }
 
 .help-launch-card {
