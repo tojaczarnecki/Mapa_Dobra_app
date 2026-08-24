@@ -94,10 +94,14 @@ jobs:
             src/generated/prisma
 
           test -s "$ARCHIVE"
-          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)'
-          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)prisma/migrations(/|$)'
-          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)server\.cjs$'
-          tar -tzf "$ARCHIVE" | grep -q '^\.next/BUILD_ID$'
+          LISTING="$(mktemp)"
+          trap 'rm -f "$LISTING"' EXIT
+          tar -tzf "$ARCHIVE" > "$LISTING"
+
+          ! grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)' "$LISTING"
+          ! grep -E '(^|/)prisma/migrations(/|$)' "$LISTING"
+          ! grep -qx 'server.cjs' "$LISTING"
+          grep -qx '.next/BUILD_ID' "$LISTING"
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
