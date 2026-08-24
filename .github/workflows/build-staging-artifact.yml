@@ -94,7 +94,7 @@ jobs:
             src/generated/prisma
 
           test -s "$ARCHIVE"
-          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)' 
+          ! tar -tzf "$ARCHIVE" | grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)'
           ! tar -tzf "$ARCHIVE" | grep -E '(^|/)prisma/migrations(/|$)'
           ! tar -tzf "$ARCHIVE" | grep -E '(^|/)server\.cjs$'
           tar -tzf "$ARCHIVE" | grep -q '^\.next/BUILD_ID$'
