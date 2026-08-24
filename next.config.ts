@@ -1,6 +1,18 @@
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
+export function getServerActionsAllowedOrigins(baseUrl = process.env.APP_BASE_URL): string[] {
+  if (!baseUrl) return [];
+
+  try {
+    const url = new URL(baseUrl);
+    if (!url.hostname || (url.protocol !== "https:" && url.protocol !== "http:")) return [];
+    return [url.hostname];
+  } catch {
+    return [];
+  }
+}
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
@@ -18,6 +30,11 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.20"],
+  experimental: {
+    serverActions: {
+      allowedOrigins: getServerActionsAllowedOrigins(),
+    },
+  },
   poweredByHeader: false,
   async headers() {
     return [{
