@@ -54,8 +54,7 @@ export default async function Home() {
   return (
     <div className="home-page mx-auto w-full max-w-[1240px] px-5 pb-28 pt-8 sm:px-6 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-14">
       <header className="home-intro">
-        <p className="home-motto">Wszędzie tam, gdzie dzieje się dobro!</p>
-        <h1 className="home-title">Co chcesz zrobić?</h1>
+        <h1 className="home-motto">Wszędzie tam, gdzie dzieje się dobro!</h1>
       </header>
 
       <section className="home-primary-actions" aria-label="Główne ścieżki">
@@ -94,7 +93,6 @@ export default async function Home() {
       <section id="kategorie" className="home-category-section" aria-labelledby="home-category-title">
         <div className="home-section-heading">
           <h2 id="home-category-title">Kategorie pomocy</h2>
-          <p>Wybierz kierunek, żeby szybciej znaleźć właściwe miejsce.</p>
         </div>
         <div className="home-category-grid">
           {categories.map((category) => (
