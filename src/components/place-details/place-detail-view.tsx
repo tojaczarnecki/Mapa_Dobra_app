@@ -181,6 +181,9 @@ function SideColumn({ place }: { place: PlaceDetail }) {
         <Flag aria-hidden="true" size={15} />
         Zgłoś zmianę lub błąd
       </Link>
+      <Link className="place-detail-organization-link" href={`/dla-organizacji/dostep?place=${place.id}`}>
+        Reprezentujesz tę placówkę? <span>Poproś o dostęp</span>
+      </Link>
     </aside>
   );
 }

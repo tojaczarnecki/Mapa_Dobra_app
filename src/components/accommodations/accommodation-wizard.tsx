@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import {
   Accessibility,
   Baby,
@@ -119,11 +122,11 @@ const profileLabel = Object.fromEntries(
 
 function optionClasses(isSelected: boolean, compact = false) {
   return [
-    "group flex w-full min-w-0 items-center gap-3 rounded-xl border bg-surface text-left font-extrabold text-foreground shadow-[0_8px_22px_rgb(17_24_39_/_5%)] transition hover:border-brand hover:bg-brand-soft focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
+    "group flex w-full min-w-0 items-center gap-3 rounded-lg border bg-surface text-left font-medium text-foreground transition hover:border-[#0f766e] hover:bg-[#f7fafb] focus:outline-none focus:ring-4 focus:ring-[#0f766e]/25",
     compact ? "min-h-12 px-3 py-2 text-sm" : "min-h-16 px-4 py-3 text-base",
     isSelected
-      ? "border-brand bg-brand-soft"
-      : "border-border",
+      ? "border-[#18364d] bg-[#eef4f6]"
+      : "border-[#e5e5e5]",
   ].join(" ");
 }
 
@@ -134,8 +137,8 @@ function selectedMarker(isSelected: boolean) {
       className={[
         "ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full border",
         isSelected
-          ? "border-brand bg-brand text-foreground"
-          : "border-border bg-surface text-transparent",
+          ? "border-[#0f766e] bg-[#0f766e] text-white"
+          : "border-[#e5e5e5] bg-surface text-transparent",
       ].join(" ")}
     >
       <Check size={15} strokeWidth={2.6} />
@@ -147,6 +150,8 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>(initialAnswers);
   const [showResults, setShowResults] = useState(false);
+  const draft = useFormDraft({ formType: "accommodation", storage: "local", ttlMs: 24 * 60 * 60 * 1000, data: answers, currentStep, enabled: !showResults });
+  useUnsavedChangesGuard(!showResults && draft.isDirty);
   const step = steps[currentStep];
   const progress = ((currentStep + 1) / steps.length) * 100;
   const canContinue =
@@ -168,6 +173,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
     }
 
     if (currentStep === steps.length - 1) {
+      draft.clear();
       setShowResults(true);
       return;
     }
@@ -193,33 +199,34 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start lg:gap-8">
+    <div className={`accommodation-page mx-auto w-full min-w-0 px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8 ${showResults ? "max-w-[1200px]" : "max-w-[760px]"}`}>
+      <div className={`min-w-0 gap-5 lg:items-start lg:gap-8 ${showResults ? "grid lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)]" : "block"}`}>
         <section className="min-w-0 space-y-4">
-          <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+          <FormDraftResume draft={draft.storedDraft} label="Znajdź nocleg" onResume={() => { const restored = draft.resume(); if (restored) { setAnswers(restored.data); if (typeof restored.currentStep === "number") setCurrentStep(Math.min(steps.length - 1, Math.max(0, restored.currentStep))); } }} onDiscard={() => { draft.discard(); setAnswers(initialAnswers); setCurrentStep(0); }} />
+          <div className="accommodation-flow">
             <div className="min-w-0 space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-extrabold text-brand-strong">
+                <p className="text-sm font-medium text-brand-strong">
                   Nocleg na dzisiaj
                 </p>
-                <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">
+                <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-4xl">
                   Znajdź miejsce, które może Cię przyjąć.
                 </h1>
-                <p className="text-base font-semibold leading-7 text-muted-foreground">
+                <p className="text-base font-normal leading-7 text-muted-foreground">
                   Odpowiedz na kilka prostych pytań. Nie zapisujemy tych odpowiedzi
                   jako profilu.
                 </p>
               </div>
 
-              <div className="rounded-lg border border-border bg-surface-muted p-3">
+              <div className="accommodation-progress rounded-lg border border-border bg-surface-muted p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-extrabold text-foreground">{step.eyebrow}</p>
-                  <p className="text-sm font-bold text-muted-foreground">
+                  <p className="text-sm font-medium text-foreground">{step.eyebrow}</p>
+                  <p className="text-sm font-normal text-muted-foreground">
                     Łódź
                   </p>
                 </div>
                 <div
-                  className="mt-3 h-2 overflow-hidden rounded-full bg-surface"
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface"
                   aria-hidden="true"
                 >
                   <div
@@ -232,7 +239,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               <div className="space-y-3">
                 <h2
                   id={`${step.id}-title`}
-                  className="text-xl font-extrabold leading-tight text-foreground"
+                  className="accommodation-question text-2xl font-semibold leading-tight text-foreground"
                 >
                   {step.title}
                 </h2>
@@ -266,7 +273,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                           }))
                         }
                       >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                        <span className="accommodation-option-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
                           <Icon aria-hidden="true" size={23} strokeWidth={2.2} />
                         </span>
                         <span className="min-w-0">{option.label}</span>
@@ -299,7 +306,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                           }))
                         }
                       >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                        <span className="accommodation-option-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
                           <Accessibility aria-hidden="true" size={23} strokeWidth={2.2} />
                         </span>
                         <span className="min-w-0">{option.label}</span>
@@ -332,7 +339,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                           }))
                         }
                       >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                        <span className="accommodation-option-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
                           <Home aria-hidden="true" size={23} strokeWidth={2.2} />
                         </span>
                         <span className="min-w-0">{option.label}</span>
@@ -366,7 +373,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                           }))
                         }
                       >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                        <span className="accommodation-option-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
                           <Icon aria-hidden="true" size={23} strokeWidth={2.2} />
                         </span>
                         <span className="min-w-0">{option.label}</span>
@@ -390,7 +397,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                         className={optionClasses(isSelected, true)}
                         onClick={() => toggleNeed(option.value)}
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                        <span className="accommodation-option-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
                           <HeartHandshake aria-hidden="true" size={20} strokeWidth={2.2} />
                         </span>
                         <span className="min-w-0">{option.label}</span>
@@ -401,10 +408,10 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2 pt-1">
+              <div className="accommodation-actions grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2 pt-1">
                 <button
                   type="button"
-                  className="touch-target inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-extrabold text-foreground transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-55"
+                  className="touch-target inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-55"
                   disabled={currentStep === 0}
                   onClick={goBack}
                 >
@@ -413,7 +420,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 </button>
                 <button
                   type="button"
-                  className="touch-target inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white disabled:cursor-not-allowed disabled:opacity-55"
+                  className="touch-target inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg bg-[#18364d] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#102b3d] disabled:cursor-not-allowed disabled:opacity-55"
                   disabled={!canContinue}
                   onClick={goNext}
                 >
@@ -424,7 +431,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+          <div className="accommodation-support-panel border-t border-[#e5e5e5] pt-5">
             <div className="flex items-start gap-3">
               <span
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
@@ -433,10 +440,10 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 <BedDouble size={22} strokeWidth={2.2} />
               </span>
               <div className="min-w-0">
-                <h2 className="text-lg font-extrabold text-foreground">
+                <h2 className="text-lg font-semibold text-foreground">
                   Sprawdzimy najważniejsze warunki
                 </h2>
-                <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+                <p className="mt-1 text-sm font-normal leading-6 text-muted-foreground">
                   Grupa, przyjęcia dzisiaj, wolne miejsca, świeżość informacji i
                   wymagania placówki są ważniejsze niż sama odległość.
                 </p>
@@ -448,13 +455,13 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
         <section className="min-w-0 space-y-4" aria-live="polite">
           {showResults ? (
             <>
-              <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+              <div className="accommodation-results-header border-b border-[#e5e5e5] pb-5">
                 <div className="min-w-0 space-y-3">
                   <div>
-                    <p className="text-sm font-extrabold text-brand-strong">
+                    <p className="text-sm font-medium text-brand-strong">
                       Wyniki kreatora
                     </p>
-                    <h2 className="mt-1 text-2xl font-extrabold leading-tight text-foreground">
+                    <h2 className="mt-1 text-2xl font-semibold leading-tight text-foreground">
                       Proponowane miejsca
                     </h2>
                   </div>
@@ -484,11 +491,11 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               </div>
 
               {exactMatches.length === 0 ? (
-                <div className="rounded-xl border border-urgent-border bg-urgent-soft p-4 sm:p-5">
-                  <h2 className="text-xl font-extrabold leading-tight text-foreground">
+                <div className="accommodation-empty border-b border-[#e5e5e5] py-5">
+                  <h2 className="text-xl font-semibold leading-tight text-foreground">
                     Nie znaleźliśmy miejsca z potwierdzonym spełnieniem wszystkich warunków.
                   </h2>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-foreground">
+                  <p className="mt-2 text-sm font-normal leading-6 text-muted-foreground">
                     Poniżej pokazujemy najbliższe możliwe opcje i wyraźnie
                     zaznaczamy warunki niespełnione lub wymagające potwierdzenia.
                   </p>
@@ -512,13 +519,13 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               </div>
             </>
           ) : (
-            <div className="hidden rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] lg:block">
+            <div className="accommodation-preview hidden border-t border-[#e5e5e5] pt-5 lg:block">
               <div className="flex min-h-[28rem] flex-col justify-center">
                 <Users aria-hidden="true" size={34} className="mb-4 text-brand-strong" />
-                <h2 className="text-2xl font-extrabold leading-tight text-foreground">
+                <h2 className="text-2xl font-semibold leading-tight text-foreground">
                   Wyniki pojawią się po ostatnim kroku.
                 </h2>
-                <p className="mt-3 max-w-md text-base font-semibold leading-7 text-muted-foreground">
+                <p className="mt-3 max-w-md text-base font-normal leading-7 text-muted-foreground">
                   Najpierw ograniczamy liczbę decyzji. Potem pokazujemy miejsca,
                   które realnie mogą pasować do sytuacji i są oznaczone jasnymi
                   warunkami.

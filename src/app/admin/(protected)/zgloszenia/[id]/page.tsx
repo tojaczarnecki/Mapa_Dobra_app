@@ -20,6 +20,7 @@ import { getSubmissionDetail } from "@/lib/admin/submissions";
 import { getOrCreateSubmissionDraft, getSubmissionDraft } from "@/lib/admin/submission-drafts";
 import { requirePermission } from "@/lib/admin/session";
 import { prepareApprovedSubmissionDraft } from "../draft-actions";
+import { decodeContextualCorrection } from "@/lib/submissions/contextual-correction";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -202,6 +203,16 @@ type PlaceUpdateDetail = Extract<
 
 function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
   const currentPlace = submission.targetPlace;
+  const contextual = decodeContextualCorrection(submission.proposedOtherValue);
+  const contextualLiveValue = contextual && currentPlace
+    ? ({
+        name: currentPlace.name,
+        address: currentPlace.addressLine,
+        phone: currentPlace.phone ?? "",
+        website: currentPlace.website ?? "",
+        hours: currentOpeningHours(currentPlace),
+      } as Record<string, string>)[contextual.field]
+    : undefined;
   const comparisons = [
     submission.proposedPhone
       ? { label: "Telefon", current: currentPlace?.phone ?? undefined, proposed: submission.proposedPhone }
@@ -219,10 +230,13 @@ function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
     submission.proposedWebsite
       ? { label: "Strona WWW", current: currentPlace?.website ?? undefined, proposed: submission.proposedWebsite }
       : null,
-    submission.proposedOtherValue
+    submission.proposedOtherValue && !contextual
       ? { label: "Inna wartość", current: undefined, proposed: submission.proposedOtherValue }
       : null,
-  ].filter(Boolean) as Array<{ label: string; current?: string; proposed: string }>;
+    contextual
+      ? { label: contextual.label, current: (contextualLiveValue ?? contextual.oldValue) || undefined, snapshot: contextual.oldValue || undefined, proposed: contextual.proposedValue, conflict: contextualLiveValue !== undefined && contextualLiveValue !== contextual.oldValue }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; current?: string; snapshot?: string; proposed: string; conflict?: boolean }>;
 
   return (
     <>
@@ -244,6 +258,7 @@ function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
                   <div>
                     <dt className="text-xs font-bold uppercase text-muted-foreground">Obecnie</dt>
                     <dd className="mt-1 break-words text-sm leading-6">{comparison.current ?? "Brak wiarygodnych danych"}</dd>
+                    {comparison.conflict ? <p className="mt-2 rounded-md border border-urgent/35 bg-urgent-soft/50 p-2 text-xs font-semibold text-[#8c2d0c]">Konflikt: od zgłoszenia wartość została zmieniona. Snapshot przy zgłoszeniu: {comparison.snapshot || "Brak danych"}.</p> : null}
                   </div>
                   <div>
                     <dt className="text-xs font-bold uppercase text-brand-strong">Zgłoszona zmiana</dt>

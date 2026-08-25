@@ -279,7 +279,7 @@ async function publishPlaceUpdate(
   return { placeId: current.id, slug: current.slug, categorySlug: categoryValues?.[0] ?? current.categories[0]?.category.slug ?? "inne", before, after };
 }
 
-async function publishNewPlace(transaction: Prisma.TransactionClient, included: DraftInputItem[], adminUserId: string) {
+async function publishNewPlace(transaction: Prisma.TransactionClient, included: DraftInputItem[], adminUserId: string, submissionOrganizationId?: string | null) {
   const values = new Map(included.map((item) => [item.fieldKey, item]));
   const name = textValue(values.get("name")).trim();
   const addressLine = textValue(values.get("addressLine")).trim();
@@ -289,11 +289,15 @@ async function publishNewPlace(transaction: Prisma.TransactionClient, included: 
   const categories = await transaction.category.findMany({ where: { slug: { in: requestedCategories }, active: true } });
   if (categories.length !== requestedCategories.length) throw new Error("INVALID_CATEGORY");
   const primary = categories.find((item) => item.slug === requestedCategories[0])!;
-  let organizationId: string | null = null;
+  let organizationId: string | null = submissionOrganizationId ?? null;
   const organizationName = textValue(values.get("organizationName")).trim();
-  if (organizationName) {
-    const organization = await transaction.organization.upsert({ where: { slug: slugify(organizationName) }, create: { slug: slugify(organizationName), name: organizationName }, update: { name: organizationName } });
-    organizationId = organization.id;
+  if (organizationName && !organizationId) {
+    const organization = await transaction.organization.findFirst({ where: { active: true, name: { equals: organizationName, mode: "insensitive" } }, select: { id: true } });
+    if (organization) organizationId = organization.id;
+    else {
+      const created = await transaction.organization.create({ data: { slug: slugify(organizationName), name: organizationName } });
+      organizationId = created.id;
+    }
   }
   const operationItem = values.get("openingHours.operation");
   const operationSchedule = operationItem ? operationItem.workingValue as AdminOpeningDay[] : emptyOpeningSchedule();
@@ -366,7 +370,7 @@ export async function publishSubmissionDraft(_state: DraftActionState, formData:
       if (!submission || !canPublishSubmission(submission.moderationStatus, submission.publicationStatus)) throw new Error("INVALID_STATUS");
       const result = draft.placeUpdateSubmission
         ? await publishPlaceUpdate(transaction, draft as Parameters<typeof publishPlaceUpdate>[1], selected.included, session.user.id)
-        : await publishNewPlace(transaction, selected.included, session.user.id);
+        : await publishNewPlace(transaction, selected.included, session.user.id, draft.newPlaceSubmission?.organizationId);
       const now = new Date();
       const moderationData = submission.moderationStatus === "APPROVED" ? {} : {
         moderationStatus: "APPROVED" as const, moderatorNote: note || null, rejectionReason: null,

@@ -563,6 +563,32 @@
   outline-offset: 2px;
 }
 
+.root :global(.place-detail-organization-link) {
+  display: block;
+  margin-top: 0.75rem;
+  color: #566574;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.root :global(.place-detail-organization-link span) {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.root :global(.place-detail-organization-link:hover),
+.root :global(.place-detail-organization-link:focus-visible) {
+  color: #18364d;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.root :global(.place-detail-organization-link:focus-visible) {
+  outline: 3px solid color-mix(in srgb, #0f766e 30%, transparent);
+  outline-offset: 3px;
+}
+
 .root :global(.place-detail-availability) {
   border-top: 1px solid #e5e5e5;
   padding: 1.5rem 0;
