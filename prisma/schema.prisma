@@ -100,6 +100,8 @@ enum AdminPermission {
   MANAGE_USER_PERMISSIONS
   VIEW_HELP_REQUESTS
   MANAGE_HELP_REQUESTS
+  VIEW_KNOWLEDGE
+  MANAGE_KNOWLEDGE
 }
 
 enum AdminPermissionEffect {
@@ -158,6 +160,10 @@ enum AuditAction {
   PLACE_CONTACT_UPDATED
   HELP_REQUEST_STATUS_CHANGED
   HELP_REQUEST_NOTE_ADDED
+  KNOWLEDGE_CREATED
+  KNOWLEDGE_UPDATED
+  KNOWLEDGE_PUBLISHED
+  KNOWLEDGE_ARCHIVED
 }
 
 enum AuditEntityType {
@@ -172,6 +178,7 @@ enum AuditEntityType {
   IMPORT_CANDIDATE
   USER_PLACE_ACCESS
   HELP_REQUEST
+  KNOWLEDGE_ARTICLE
 }
 
 enum HelpRequestStatus {
@@ -201,6 +208,32 @@ enum HelpRequestNeed {
   SAFETY_WELLBEING
   LOST_OR_DISORIENTED
   OTHER
+}
+
+enum KnowledgeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum KnowledgeContentType {
+  GUIDE
+  HOW_TO
+  EXPLAINER
+  CHECKLIST
+  FAQ
+  GOOD_PRACTICE
+  CASE_STUDY
+  PARTNER_CONTENT
+  ANNOUNCEMENT
+}
+
+enum KnowledgeIntent {
+  NEED_HELP
+  HELP_SOMEONE
+  GOOD_PRACTICES
+  VOLUNTEERING
+  ORGANIZATIONS
 }
 
 enum PlacePublicationStatus {
@@ -546,6 +579,74 @@ model Organization {
   @@map("organizations")
 }
 
+model KnowledgeArticle {
+  id                   String                       @id @default(uuid()) @db.Uuid
+  title                String                       @db.VarChar(240)
+  slug                 String                       @unique @db.VarChar(240)
+  excerpt              String                       @db.VarChar(600)
+  content              String                       @db.Text
+  status               KnowledgeStatus              @default(DRAFT)
+  contentType          KnowledgeContentType         @default(GUIDE)
+  intent               KnowledgeIntent              @default(NEED_HELP)
+  tags                 String[]                     @default([])
+  seoTitle             String?                      @db.VarChar(240)
+  seoDescription       String?                      @db.VarChar(320)
+  authorDisplayName    String?                      @db.VarChar(160)
+  readingTime          Int?
+  featured             Boolean                      @default(false)
+  important            Boolean                      @default(false)
+  partnerContent       Boolean                      @default(false)
+  partnerName          String?                      @db.VarChar(240)
+  partnerDisclosure    String?                      @db.VarChar(500)
+  geographicScope      String?                      @db.VarChar(160)
+  emergencyNote        String?                      @db.VarChar(500)
+  notificationEligible Boolean                      @default(false)
+  notificationCategory String?                      @db.VarChar(120)
+  publishedAt          DateTime?                    @db.Timestamptz(3)
+  reviewedAt           DateTime?                    @db.Timestamptz(3)
+  reviewDueAt          DateTime?                    @db.Timestamptz(3)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  categories           KnowledgeArticleCategory[]
+  places               KnowledgeArticlePlace[]
+  relatedFrom          KnowledgeArticleRelation[]   @relation("KnowledgeRelationFrom")
+  relatedTo            KnowledgeArticleRelation[]   @relation("KnowledgeRelationTo")
+
+  @@index([status, featured, publishedAt])
+  @@index([intent, status])
+  @@map("knowledge_articles")
+}
+
+model KnowledgeArticleCategory {
+  articleId  String           @db.Uuid
+  categoryId String           @db.Uuid
+  article    KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  category   Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, categoryId])
+  @@map("knowledge_article_categories")
+}
+
+model KnowledgeArticlePlace {
+  articleId String           @db.Uuid
+  placeId   String           @db.Uuid
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  place     Place            @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, placeId])
+  @@map("knowledge_article_places")
+}
+
+model KnowledgeArticleRelation {
+  articleId        String           @db.Uuid
+  relatedArticleId String           @db.Uuid
+  article          KnowledgeArticle @relation("KnowledgeRelationFrom", fields: [articleId], references: [id], onDelete: Cascade)
+  relatedArticle   KnowledgeArticle @relation("KnowledgeRelationTo", fields: [relatedArticleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, relatedArticleId])
+  @@map("knowledge_article_relations")
+}
+
 model Category {
   id            String          @id @default(uuid()) @db.Uuid
   slug          String          @unique @db.VarChar(120)
@@ -557,6 +658,7 @@ model Category {
   updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
   placeLinks    PlaceCategory[]
   primaryPlaces Place[]         @relation("PrimaryPlaceCategory")
+  knowledgeArticles KnowledgeArticleCategory[]
 
   @@index([active, sortOrder])
   @@map("categories")
@@ -611,6 +713,7 @@ model Place {
   openingHours            OpeningHours[]
   requirements            PlaceRequirement[]
   accessibility           PlaceAccessibility[]
+  knowledgeArticles       KnowledgeArticlePlace[]
   accommodation           AccommodationDetails?
   lastEditedBy            AdminUser?                @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
   verifiedBy              AdminUser?                @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)

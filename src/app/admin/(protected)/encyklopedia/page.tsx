@@ -1,0 +1,11 @@
+import Link from "next/link";
+import { BookOpen, Pencil, Plus } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/admin/session";
+import { knowledgeIntentLabels, knowledgeTypeLabels } from "@/lib/knowledge";
+
+export default async function AdminKnowledgePage() {
+  await requirePermission("VIEW_KNOWLEDGE");
+  const articles = await prisma.knowledgeArticle.findMany({ orderBy: [{ updatedAt: "desc" }] });
+  return <div className="space-y-5"><header className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-1 text-sm font-bold text-brand-strong">Baza wiedzy</p><h1 className="text-3xl font-bold">Encyklopedia Dobra</h1><p className="mt-1 text-sm text-muted-foreground">{articles.length} materiałów redakcyjnych i partnerskich</p></div><Link href="/admin/encyklopedia/nowy" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold hover:bg-brand-strong hover:text-white"><Plus aria-hidden="true" size={18} /> Nowy materiał</Link></header><div className="grid gap-2">{articles.map((article) => <article className="grid gap-2 rounded-lg border border-border bg-white p-4 md:grid-cols-[minmax(0,1fr)_170px_120px_auto] md:items-center" key={article.id}><div className="min-w-0"><strong className="block truncate">{article.title}</strong><span className="text-xs text-muted-foreground">{knowledgeTypeLabels[article.contentType]} · {knowledgeIntentLabels[article.intent]}</span></div><span className="text-sm font-semibold">{article.status}</span><span className="text-xs text-muted-foreground">{article.partnerContent ? "Partnerski" : "Redakcyjny"}</span><Link href={`/admin/encyklopedia/${article.id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft"><Pencil aria-hidden="true" size={16} /> Edytuj</Link></article>)}{articles.length === 0 ? <div className="rounded-lg border border-border bg-white p-6 text-center text-sm text-muted-foreground"><BookOpen aria-hidden="true" className="mx-auto mb-2" size={28} />Brak materiałów. Dodaj pierwszy szkic.</div> : null}</div></div>;
+}

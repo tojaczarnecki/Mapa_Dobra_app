@@ -32,6 +32,8 @@ export const allAdminPermissions: AdminPermission[] = [
   "MANAGE_USER_PERMISSIONS",
   "VIEW_HELP_REQUESTS",
   "MANAGE_HELP_REQUESTS",
+  "VIEW_KNOWLEDGE",
+  "MANAGE_KNOWLEDGE",
 ];
 
 export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[]> = {
@@ -50,6 +52,8 @@ export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[
     "VIEW_IMPORTS",
     "VIEW_HELP_REQUESTS",
     "MANAGE_HELP_REQUESTS",
+    "VIEW_KNOWLEDGE",
+    "MANAGE_KNOWLEDGE",
   ],
   PLACE_MANAGER: ["VIEW_DASHBOARD"],
   VIEWER: [
@@ -59,6 +63,7 @@ export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[
     "VIEW_CATEGORIES",
     "VIEW_IMPORTS",
     "VIEW_AUDIT_LOG",
+    "VIEW_KNOWLEDGE",
   ],
 };
 
@@ -108,6 +113,8 @@ export const permissionLabels: Record<AdminPermission, string> = {
   MANAGE_USER_PERMISSIONS: "Zarządzanie uprawnieniami",
   VIEW_HELP_REQUESTS: "Podgląd zgłoszeń pomocy",
   MANAGE_HELP_REQUESTS: "Obsługa zgłoszeń pomocy",
+  VIEW_KNOWLEDGE: "Podgląd Encyklopedii Dobra",
+  MANAGE_KNOWLEDGE: "Zarządzanie Encyklopedią Dobra",
 };
 
 export type PermissionOverride = {
