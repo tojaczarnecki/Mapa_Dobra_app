@@ -2,9 +2,10 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { requireIsolatedTestDatabase } from "./test-env-guard.mjs";
 
 const baseUrl = process.env.TEST_BASE_URL ?? "http://localhost:3000";
-const connectionString = process.env.DATABASE_URL;
+const connectionString = requireIsolatedTestDatabase();
 const email = process.env.ADMIN_SEED_EMAIL;
 const password = process.env.ADMIN_SEED_PASSWORD;
 if (!connectionString || !email || !password) throw new Error("Missing local test environment variables.");

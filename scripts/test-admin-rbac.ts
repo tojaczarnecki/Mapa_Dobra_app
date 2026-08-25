@@ -7,9 +7,9 @@ import { accessTokenExpiry, createAccessToken, hashAccessToken, isUsableAccessTo
 import { hashPassword, verifyPassword } from "../src/lib/admin/password.ts";
 import { placeManagerDefaultPermissions, resolveEffectivePermissions } from "../src/lib/admin/permissions.ts";
 import { completeAccountToken } from "../src/app/admin/account-token-actions.ts";
+import { requireIsolatedTestDatabase } from "./test-env-guard.mjs";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is required.");
+const connectionString = requireIsolatedTestDatabase();
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 const mode = process.argv[2] ?? "setup";
 const moderatorEmail = "test-moderator-g3@mapadobra.local";
