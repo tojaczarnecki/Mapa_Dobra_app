@@ -13,9 +13,11 @@ export function SharePlaceButton({
   className = "",
 }: SharePlaceButtonProps) {
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState(false);
 
   async function handleShare() {
     const url = window.location.href;
+    setShareError(false);
 
     if (navigator.share) {
       try {
@@ -31,9 +33,13 @@ export function SharePlaceButton({
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2200);
+      } catch {
+        setShareError(true);
+      }
     }
   }
 
@@ -41,9 +47,10 @@ export function SharePlaceButton({
     <button
       type="button"
       className={[
-        "touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-transparent bg-transparent px-2 py-2 text-sm font-bold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground",
+        "touch-target",
         className,
       ].join(" ")}
+      aria-label="Udostępnij miejsce"
       onClick={handleShare}
     >
       {copied ? (
@@ -51,7 +58,7 @@ export function SharePlaceButton({
       ) : (
         <Share2 aria-hidden="true" size={17} />
       )}
-      {copied ? "Skopiowano link" : "Udostępnij miejsce"}
+      {copied ? "Skopiowano link" : shareError ? "Nie udało się skopiować" : "Udostępnij"}
     </button>
   );
 }

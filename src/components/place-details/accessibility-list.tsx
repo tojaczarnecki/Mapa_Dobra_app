@@ -8,7 +8,7 @@ type AccessibilityListProps = {
 export function AccessibilityList({ items }: AccessibilityListProps) {
   if (items.length === 0) {
     return (
-      <p className="text-sm font-semibold leading-6 text-muted-foreground">
+      <p className="place-detail-requirement-note">
         Dostępność nie została potwierdzona.
       </p>
     );

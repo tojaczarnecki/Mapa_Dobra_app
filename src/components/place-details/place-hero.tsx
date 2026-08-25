@@ -1,19 +1,17 @@
+import type { CSSProperties } from "react";
 import { Clock3, MapPin, Navigation, Phone } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
+import { getCategoryAccentMap } from "@/lib/home/category-accent";
+import { CategoryIcon } from "@/lib/home/category-visuals";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { SharePlaceButton } from "./share-place-button";
+import { SavedPlaceButton } from "@/components/saved/saved-place-button";
+import { PlaceCorrectionTrigger } from "./place-correction-trigger";
 
 type PlaceHeroProps = {
   place: PlaceDetail;
   primaryCallLabel?: string;
   showStatus?: boolean;
-};
-
-const statusClass: Record<PlaceDetail["status"]["tone"], string> = {
-  open: "border-brand bg-brand-soft text-foreground",
-  openToday: "border-brand bg-brand-soft text-foreground",
-  closed: "border-border bg-surface-muted text-foreground",
-  unknown: "border-urgent-border bg-urgent-soft text-foreground",
 };
 
 export function PlaceHero({
@@ -23,74 +21,81 @@ export function PlaceHero({
 }: PlaceHeroProps) {
   const routeHref = directionsHref(place);
   const callHref = telephoneHref(place.contact.phone);
+  const accent = getCategoryAccentMap([place.categorySlug]).get(place.categorySlug);
+  const style = accent ? { "--category-accent": accent } as CSSProperties : undefined;
+  const savedPlace = {
+    id: place.id,
+    name: place.name,
+    category: place.helpTypes[0] ?? place.categorySlug,
+    detailHref: `/lodz/${place.categorySlug}/${place.slug}`,
+    address: place.address,
+    status: place.status.label,
+    hours: place.status.todayHours,
+    phone: place.contact.phone,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  };
   return (
-    <section className="w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
-      <div className="min-w-0 space-y-4">
-        <div className="min-w-0 space-y-2">
-          <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">
-            {place.name}
-          </h1>
-          <p className="text-base font-extrabold leading-6 text-muted-foreground">
-            {place.helpTypes.join(" • ")}
-          </p>
-        </div>
-
-        {showStatus ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span
-              className={[
-                "inline-flex min-h-8 max-w-full items-center self-start rounded-full border px-3 text-xs font-extrabold tracking-wide",
-                statusClass[place.status.tone],
-              ].join(" ")}
-            >
-              {place.status.label}
-            </span>
-            <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-              <Clock3 aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-              <span className="min-w-0">{place.status.todayHours}</span>
-            </p>
+    <section className="place-detail-hero" style={style}>
+      <div className="place-detail-hero-heading">
+        <span className="place-detail-category-icon" aria-hidden="true">
+          <CategoryIcon slug={place.categorySlug} size={28} strokeWidth={1.9} />
+        </span>
+        <div className="min-w-0">
+          <p className="place-detail-eyebrow">{place.typeLabel}</p>
+          <div className="place-detail-title-row">
+            <h1>{place.name}</h1>
+            <PlaceCorrectionTrigger placeId={place.id} field="name" currentValue={place.name} />
           </div>
-        ) : null}
+          <p className="place-detail-category">{place.helpTypes.join(" • ")}</p>
+        </div>
+        <SavedPlaceButton place={savedPlace} compact />
+      </div>
 
-        <div className="grid min-w-0 gap-2 text-sm font-semibold text-foreground">
-          <p className="flex min-w-0 items-center gap-2">
-            <Navigation aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-            <span className="min-w-0">{place.distanceLabel}</span>
-          </p>
-          <p className="flex min-w-0 items-start gap-2 leading-6">
-            <MapPin
-              aria-hidden="true"
-              size={18}
-              className="mt-0.5 shrink-0 text-brand-strong"
-            />
-            <span className="min-w-0">{place.address}</span>
+      {showStatus ? (
+        <div className="place-detail-status-row">
+          <span className={`place-detail-status place-detail-status-${place.status.tone}`}>
+            {place.status.label}
+          </span>
+          <p className="place-detail-status-hours">
+            <Clock3 aria-hidden="true" size={17} />
+            <span>{place.status.todayHours}</span>
           </p>
         </div>
+      ) : null}
 
-        <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
-          {callHref ? (
-            <a
-              className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
-              href={callHref}
-            >
-              <Phone aria-hidden="true" size={17} />
-              {primaryCallLabel}
-            </a>
-          ) : null}
-          {routeHref ? <a
-            className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
+      <div className="place-detail-meta">
+        <p className="place-detail-meta-item">
+          <Navigation aria-hidden="true" size={17} />
+          <span>{place.distanceLabel}</span>
+        </p>
+        <p className="place-detail-meta-item">
+          <MapPin aria-hidden="true" size={17} />
+          <span>{place.address}</span>
+          <PlaceCorrectionTrigger placeId={place.id} field="address" currentValue={place.address} latitude={place.latitude} longitude={place.longitude} />
+        </p>
+      </div>
+
+      <div className="place-detail-actions">
+        {callHref ? (
+          <a className="place-detail-action place-detail-action-primary" href={callHref}>
+            <Phone aria-hidden="true" size={18} />
+            {primaryCallLabel}
+          </a>
+        ) : null}
+        {routeHref ? <a
+            className="place-detail-action place-detail-action-secondary"
             href={routeHref}
             target="_blank"
             rel="noreferrer"
           >
-            <Navigation aria-hidden="true" size={17} />
-            Wyznacz trasę
+            <Navigation aria-hidden="true" size={18} />
+            Trasa
           </a> : null}
           <SharePlaceButton
-            className="col-span-2 justify-self-start sm:col-span-1 sm:justify-self-end"
+            className="place-detail-action place-detail-action-tertiary"
             title={place.name}
           />
-        </div>
       </div>
     </section>
   );

@@ -10,31 +10,20 @@ export function VerificationInfo({ verification }: VerificationInfoProps) {
   const Icon = isVerified ? BadgeCheck : AlertTriangle;
 
   return (
-    <div
-      className={[
-        "rounded-xl border p-4",
-        isVerified
-          ? "border-border bg-surface-muted"
-          : "border-urgent-border bg-urgent-soft",
-      ].join(" ")}
-    >
-      <div className="flex min-w-0 items-start gap-3">
+    <div className="place-detail-verification">
+      <div className={isVerified ? "place-detail-verification-icon" : "place-detail-verification-icon-warning"}>
         <Icon
           aria-hidden="true"
           size={20}
-          className={[
-            "mt-0.5 shrink-0",
-            isVerified ? "text-brand-strong" : "text-urgent",
-          ].join(" ")}
         />
-        <div className="min-w-0">
-          <p className="font-extrabold leading-6 text-foreground">
+      </div>
+      <div className="min-w-0">
+          <p className="place-detail-verification-title">
             {verification.label}
           </p>
-          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
+          <p className="place-detail-verification-note">
             {verification.note}
           </p>
-        </div>
       </div>
     </div>
   );

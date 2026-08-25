@@ -6,10 +6,10 @@ type RequirementListProps = {
 };
 
 const toneClass: Record<DetailTone, string> = {
-  positive: "text-brand-strong",
-  warning: "text-urgent",
-  neutral: "text-muted-foreground",
-  unknown: "text-muted-foreground",
+  positive: "place-detail-requirement-icon-positive",
+  warning: "place-detail-requirement-icon-warning",
+  neutral: "place-detail-requirement-icon-neutral",
+  unknown: "place-detail-requirement-icon-unknown",
 };
 
 function RequirementIcon({ status }: { status: DetailTone }) {
@@ -26,11 +26,11 @@ function RequirementIcon({ status }: { status: DetailTone }) {
 
 export function RequirementList({ items }: RequirementListProps) {
   return (
-    <ul className="grid min-w-0 gap-2">
+    <ul className="place-detail-requirements">
       {items.map((item) => (
         <li
           key={`${item.label}-${item.status}`}
-          className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground"
+          className="place-detail-requirement"
         >
           <span className={toneClass[item.status]}>
             <RequirementIcon status={item.status} />
@@ -38,7 +38,7 @@ export function RequirementList({ items }: RequirementListProps) {
           <span className="min-w-0">
             {item.label}
             {item.note ? (
-              <span className="block text-sm font-semibold text-muted-foreground">
+              <span className="place-detail-requirement-note">
                 {item.note}
               </span>
             ) : null}

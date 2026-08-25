@@ -1,5 +1,8 @@
-import { Clock3 } from "lucide-react";
 import type { OpeningDay } from "@/data/demo-place-details";
+import { groupOpeningDays } from "./opening-hours-groups";
+
+export { groupOpeningDays } from "./opening-hours-groups";
+export type { OpeningHoursGroup } from "./opening-hours-groups";
 
 type OpeningHoursProps = {
   days: OpeningDay[];
@@ -20,7 +23,7 @@ function hoursFallbackLabel(day: OpeningDay) {
 function HoursValue({ day }: { day: OpeningDay }) {
   if (day.status === "open" && day.periods?.length) {
     return (
-      <div className="grid min-w-0 gap-0.5">
+    <div className="grid min-w-0 gap-0.5">
         {day.periods.map((period) => (
           <span key={period} className="min-w-0">
             {period}
@@ -34,37 +37,42 @@ function HoursValue({ day }: { day: OpeningDay }) {
 }
 
 export function OpeningHours({ days }: OpeningHoursProps) {
+  if (days.length === 0) {
+    return (
+      <p className="place-detail-hours-empty" role="status">
+        Brak potwierdzonych godzin.
+      </p>
+    );
+  }
+
+  const groups = groupOpeningDays(days);
+
   return (
-    <dl className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface">
-      {days.map((day) => (
+    <dl className="place-detail-hours">
+      {groups.map((group) => {
+        const day = group.days[0];
+        return (
         <div
-          key={day.day}
+          key={group.label}
           className={[
-            "grid min-w-0 grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-3 border-t border-border px-3 py-2 text-sm first:border-t-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]",
-            day.isToday ? "bg-brand-soft" : "bg-surface",
+            "place-detail-hour-row",
+            group.isToday ? "place-detail-hour-row-today" : "",
           ].join(" ")}
         >
-          <dt className="flex min-w-0 flex-wrap items-center gap-2 font-extrabold text-foreground">
-            {day.isToday ? (
-              <Clock3 aria-hidden="true" size={16} className="shrink-0 text-brand-strong" />
-            ) : null}
-            <span className="min-w-0">{day.day}</span>
-            {day.isToday ? (
-              <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-extrabold text-brand-strong">
+          <dt className="place-detail-hour-day">
+            <span>{group.label}</span>
+            {group.isToday ? (
+              <span className="place-detail-today">
                 Dziś
               </span>
             ) : null}
           </dt>
-          <dd
-            className={[
-              "min-w-0 text-right font-semibold leading-6",
-              day.status === "unknown" ? "text-muted-foreground" : "text-foreground",
-            ].join(" ")}
-          >
+          <dd className="place-detail-hour-value">
             <HoursValue day={day} />
           </dd>
         </div>
-      ))}
+        );
+      })}
     </dl>
   );
 }

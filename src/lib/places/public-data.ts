@@ -385,8 +385,37 @@ export async function getPublicPlaceDetail(categorySlug: string, slug: string) {
 }
 
 export async function getPublicPlaceContext(identifier: string) {
-  const place = await prisma.place.findFirst({ where: { ...visibleWhere(), OR: [{ id: uuidPattern.test(identifier) ? identifier : undefined }, { legacyId: identifier }, { slug: identifier }] }, include: { primaryCategory: true } });
-  return place ? { id: place.legacyId ?? place.id, slug: place.slug, name: place.name, address: place.addressLine, href: `/lodz/${place.primaryCategory.slug}/${place.slug}` } : undefined;
+  const place = await prisma.place.findFirst({
+    where: { ...visibleWhere(), OR: [{ id: uuidPattern.test(identifier) ? identifier : undefined }, { legacyId: identifier }, { slug: identifier }] },
+    include: {
+      primaryCategory: true,
+      categories: { include: { category: true }, orderBy: { sortOrder: "asc" } },
+      requirements: { orderBy: { sortOrder: "asc" } },
+      accessibility: { orderBy: { sortOrder: "asc" } },
+      accommodation: true,
+    },
+  });
+  return place
+    ? {
+        id: place.legacyId ?? place.id,
+        slug: place.slug,
+        name: place.name,
+        address: place.addressLine,
+        category: place.primaryCategory.name,
+        latitude: place.latitude === null ? undefined : Number(place.latitude),
+        longitude: place.longitude === null ? undefined : Number(place.longitude),
+        hours: place.todayHoursLabel ?? "Brak potwierdzonych godzin",
+        phone: place.phone ?? "Brak numeru telefonu",
+        email: place.email ?? undefined,
+        website: place.website ?? undefined,
+        categories: place.categories.map((item) => item.category.name).join(", "),
+        requirements: place.requirements.map((item) => item.label).join("\n"),
+        accessibility: place.accessibility.map((item) => item.label).join("\n"),
+        accommodation: place.accommodation?.importantNote ?? "",
+        description: place.description ?? "",
+        href: `/lodz/${place.primaryCategory.slug}/${place.slug}`,
+      }
+    : undefined;
 }
 
 export async function getPublicSitemapPlaces() {
