@@ -45,6 +45,10 @@ export function validateRuntimeEnv(
   } else if (rateLimitMode !== "upstash" || !hasUpstashConfig) {
     errors.push("RATE_LIMIT_MODE/UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN");
   }
+  const turnstileMode = environment.TURNSTILE_MODE ?? "disabled";
+  if (!["disabled", "required"].includes(turnstileMode)) errors.push("TURNSTILE_MODE");
+  if (turnstileMode === "required" && (isPlaceholder(environment.TURNSTILE_SITE_KEY) || isPlaceholder(environment.TURNSTILE_SECRET_KEY))) errors.push("TURNSTILE_SITE_KEY/TURNSTILE_SECRET_KEY");
+  if (turnstileMode === "required" && (environment.NEXT_PUBLIC_TURNSTILE_MODE !== "required" || isPlaceholder(environment.NEXT_PUBLIC_TURNSTILE_SITE_KEY))) errors.push("NEXT_PUBLIC_TURNSTILE_MODE/NEXT_PUBLIC_TURNSTILE_SITE_KEY");
   return { valid: errors.length === 0, errors };
 }
 

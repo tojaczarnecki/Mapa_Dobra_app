@@ -4,8 +4,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isAcceptableAdminPassword, verifyPassword } from "@/lib/admin/password";
-import { consumeLoginAttempt, resetLoginAttempts } from "@/lib/admin/rate-limit";
+import { consumeLoginAccountAttempt, consumeLoginAttempt, loginAccountKey, resetLoginAccountAttempts, resetLoginAttempts } from "@/lib/admin/rate-limit";
 import { getTrustedClientAddress } from "@/lib/security/rate-limiter";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
 import {
   createSessionToken,
   getSessionExpiry,
@@ -24,6 +25,11 @@ function normalizeEmail(value: FormDataEntryValue | null) {
   return value.trim().toLocaleLowerCase("pl-PL").slice(0, 320);
 }
 
+function safeNext(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.startsWith("/dla-organizacji/dostep?place=")) return "/admin";
+  return value;
+}
+
 export async function loginAdmin(
   _previousState: LoginActionState,
   formData: FormData,
@@ -35,12 +41,17 @@ export async function loginAdmin(
     const headerStore = await headers();
     const rateLimitKey = getTrustedClientAddress(headerStore);
     const rateLimit = await consumeLoginAttempt(rateLimitKey);
+    const accountKey = email ? loginAccountKey(email) : "admin-account:empty";
+    const accountRateLimit = await consumeLoginAccountAttempt(accountKey);
 
-    if (!rateLimit.allowed) {
+    if (!rateLimit.allowed || !accountRateLimit.allowed) {
       return {
         error: "Zbyt wiele prób logowania. Spróbuj ponownie za kilkanaście minut.",
       };
     }
+
+    const challenge = await verifyTurnstileToken(formData.get("turnstileToken"), new Request("https://internal.mapadobra.local", { headers: headerStore }));
+    if (!challenge.ok) return { error: INVALID_CREDENTIALS };
 
     if (!email || !isAcceptableAdminPassword(password)) {
       return { error: INVALID_CREDENTIALS };
@@ -82,10 +93,13 @@ export async function loginAdmin(
       });
     });
     await resetLoginAttempts(rateLimitKey);
+    await resetLoginAccountAttempts(accountKey);
     await setAdminSessionCookie(token, expiresAt);
   } catch (error) {
     throw error;
   }
 
-  redirect("/admin");
+  const destination = safeNext(formData.get("next"));
+  if (destination === "/admin") redirect("/admin");
+  redirect(destination);
 }
