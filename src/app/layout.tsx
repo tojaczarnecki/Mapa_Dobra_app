@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/app/site-header";
 import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { FirstVisitIntro } from "@/components/app/first-visit-intro";
+import { NotificationPrePrompt } from "@/components/notifications/notification-preprompt";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
           <SiteHeader />
           <PwaClient enabled />
           <FirstVisitIntro />
+          <NotificationPrePrompt />
           <main id="main-content">{children}</main>
           <SiteFooter />
           <MobileBottomNav />

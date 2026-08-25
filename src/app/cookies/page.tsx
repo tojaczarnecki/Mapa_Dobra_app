@@ -26,6 +26,7 @@ export default function CookiesPage() {
           <ul className="list-disc space-y-2 pl-5 leading-7 text-muted-foreground">
             <li><strong>localStorage</strong> — Mapa Dobra: zapis wyboru prywatności oraz zamknięcia komunikatu instalacji PWA. Okres działania: do usunięcia przez użytkownika w danych witryny.</li>
             <li><strong>Cache Storage</strong> — Mapa Dobra: cache service workera PWA dla zasobów aplikacji i strony offline. Okres działania: do aktualizacji lub usunięcia danych witryny przez przeglądarkę.</li>
+            <li><strong>Subskrypcja Web Push</strong> — tylko po osobnym włączeniu przez użytkownika. Serwer przechowuje techniczny endpoint urządzenia, klucze szyfrowania i wybrane kategorie powiadomień. Subskrypcję można usunąć w ustawieniach powiadomień.</li>
             <li><strong>Cookie sesyjne panelu administratora</strong> — Mapa Dobra: utrzymanie zalogowanej sesji panelu. Jest używane wyłącznie w chronionej części administracyjnej.</li>
           </ul>
         </section>
