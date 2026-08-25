@@ -67,6 +67,7 @@ export type NewPlaceSubmission = SubmissionBase & {
   proposedData: {
     name: string;
     organizationName: string;
+    organizationId?: string;
     helpCategories: HelpCategory[];
     address: {
       street: string;

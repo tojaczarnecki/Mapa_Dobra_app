@@ -26,7 +26,9 @@ export async function setAdminSessionCookie(token: string, expiresAt: Date) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/admin",
+    // The public submission endpoint must be able to verify an authenticated
+    // organization representative's organizationId without exposing session data.
+    path: "/",
     expires: expiresAt,
     priority: "high",
   });
@@ -64,6 +66,30 @@ export async function getCurrentAdmin() {
     return null;
   }
 
+  // Keep existing administrator sessions usable while a new optional
+  // organization-registration migration is being rolled out.
+  let organizationRegistration: { status: string } | null = null;
+  try {
+    organizationRegistration = await prisma.organizationRegistration.findUnique({
+      where: { adminUserId: session.adminUser.id },
+      select: { status: true },
+    });
+  } catch {
+    organizationRegistration = null;
+  }
+
+  let organizationMemberships: Array<{ organizationId: string; status: string }> = [];
+  try {
+    organizationMemberships = await prisma.organizationMembership.findMany({
+      where: { adminUserId: session.adminUser.id, status: "ACTIVE" },
+      select: { organizationId: true, status: true },
+    });
+  } catch {
+    // The membership migration is additive; existing admin login must remain
+    // usable while the deployment is being migrated.
+    organizationMemberships = [];
+  }
+
   const permissions = resolveEffectivePermissions(
     session.adminUser.role,
     session.adminUser.permissionOverrides,
@@ -72,7 +98,7 @@ export async function getCurrentAdmin() {
   return {
     sessionId: session.id,
     expiresAt: session.expiresAt,
-    user: { ...session.adminUser, permissions },
+    user: { ...session.adminUser, organizationRegistration, organizationMemberships, permissions },
   };
 }
 
@@ -97,5 +123,6 @@ export async function requirePlacePermission(permission: AdminPermission, placeI
 export async function requireAdmin() {
   const session = await getCurrentAdmin();
   if (!session) redirect("/admin/login");
+  if (session.user.organizationRegistration && session.user.organizationRegistration.status !== "APPROVED") redirect("/admin/oczekuje");
   return session;
 }

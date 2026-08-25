@@ -80,6 +80,7 @@ export function toNewPlaceCreateData(data: ValidNewPlaceSubmission) {
     requestId: data.requestId,
     name: data.name,
     organizationName: data.organizationName,
+    organizationId: data.organizationId,
     categories: data.categories.map((value) => helpCategoryMap[value]),
     streetAddress: data.streetAddress,
     postalCode: data.postalCode,

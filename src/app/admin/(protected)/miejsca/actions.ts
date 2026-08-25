@@ -679,3 +679,94 @@ export async function updateAccommodationAvailability(
     return { error: "Nie udało się zapisać dostępności. Spróbuj ponownie." };
   }
 }
+
+export async function confirmAccommodationAvailability(
+  _previousState: QuickAvailabilityActionState,
+  formData: FormData,
+): Promise<QuickAvailabilityActionState> {
+  const placeId = formData.get("placeId");
+  if (typeof placeId !== "string" || !uuidPattern.test(placeId)) {
+    return { error: "Nieprawidłowa placówka." };
+  }
+
+  const session = await requirePlacePermission("UPDATE_BED_AVAILABILITY", placeId);
+  const facilityUpdate = session.user.role === "PLACE_MANAGER";
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const place = await transaction.place.findUnique({
+        where: { id: placeId },
+        select: {
+          id: true,
+          accommodation: {
+            select: {
+              id: true,
+              availabilityState: true,
+              availabilityConfirmedAt: true,
+              capacityGroups: {
+                where: { active: true },
+                orderBy: { sortOrder: "asc" },
+              },
+            },
+          },
+        },
+      });
+      if (!place?.accommodation) throw new Error("NOT_FOUND");
+
+      const now = new Date();
+      await transaction.accommodationDetails.update({
+        where: { id: place.accommodation.id },
+        data: { availabilityConfirmedAt: now },
+      });
+
+      for (const group of place.accommodation.capacityGroups) {
+        const groupState = group.availableBeds === null
+          ? "UNKNOWN" as const
+          : group.availableBeds === 0
+            ? "FULL" as const
+            : group.availableBeds === 1
+              ? "FEW" as const
+              : "AVAILABLE" as const;
+        await transaction.accommodationAvailabilityHistory.create({
+          data: {
+            accommodationDetailsId: place.accommodation.id,
+            capacityGroupId: group.id,
+            availabilityState: groupState,
+            availableBeds: group.availableBeds,
+            totalBeds: group.totalBeds,
+            reportedAt: now,
+            adminUserId: session.user.id,
+            origin: facilityUpdate ? "FACILITY_REPRESENTATIVE" : "ADMIN_MANUAL",
+            note: facilityUpdate
+              ? "Placówka potwierdziła brak zmian w dostępności."
+              : "Administrator potwierdził brak zmian w dostępności.",
+          },
+        });
+      }
+
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "AVAILABILITY_UPDATED",
+          entityType: "PLACE",
+          entityId: place.id,
+          changedFields: ["accommodation.availabilityConfirmedAt"],
+          previousValues: { availabilityConfirmedAt: place.accommodation.availabilityConfirmedAt?.toISOString() ?? null },
+          newValues: { availabilityConfirmedAt: now.toISOString(), availabilityState: place.accommodation.availabilityState },
+          changeOrigin: facilityUpdate ? "FACILITY_REPRESENTATIVE" : "ADMIN_MANUAL",
+          note: facilityUpdate ? "Potwierdzenie placówki bez zmiany danych operacyjnych." : "Potwierdzenie aktualności danych bez zmiany danych operacyjnych.",
+        },
+      });
+      return now;
+    });
+
+    revalidatePath(`/admin/moje-miejsca/${placeId}`);
+    revalidatePath("/admin");
+    revalidatePath("/znajdz-nocleg");
+    revalidatePath("/mapa");
+    return { success: `Dane potwierdzone o ${result.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}.` };
+  } catch (error) {
+    if (error instanceof Error && error.message === "NOT_FOUND") return { error: "To miejsce nie ma modułu noclegowego." };
+    return { error: "Nie udało się potwierdzić danych. Spróbuj ponownie." };
+  }
+}

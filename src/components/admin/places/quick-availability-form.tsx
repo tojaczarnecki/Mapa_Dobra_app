@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
-import { updateAccommodationAvailability } from "@/app/admin/(protected)/miejsca/actions";
+import { confirmAccommodationAvailability, updateAccommodationAvailability } from "@/app/admin/(protected)/miejsca/actions";
 import type { QuickAvailabilityActionState } from "@/types/place-admin";
 
 type CapacityGroup = {
@@ -28,6 +28,7 @@ function SubmitButton() {
 export function QuickAvailabilityForm({ placeId, groups }: { placeId: string; groups: CapacityGroup[] }) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(groups.map((group) => [group.id, group.availableBeds?.toString() ?? ""])));
   const [state, formAction] = useActionState(updateAccommodationAvailability, initialState);
+  const [confirmationState, confirmationAction] = useActionState(confirmAccommodationAvailability, initialState);
   const updates = groups.map((group) => ({
     id: group.id,
     availableBeds: values[group.id] === "" ? null : Number(values[group.id]),
@@ -66,8 +67,15 @@ export function QuickAvailabilityForm({ placeId, groups }: { placeId: string; gr
           {state.error ? <p role="alert" className="text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : null}
           {state.success ? <p role="status" className="text-sm font-semibold text-brand-strong">{state.success}</p> : null}
         </div>
-        <SubmitButton />
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" formAction={confirmationAction} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold text-brand-strong hover:border-brand hover:bg-brand-soft disabled:opacity-60">
+            Potwierdź bez zmian
+          </button>
+          <SubmitButton />
+        </div>
       </div>
+      {confirmationState.error ? <p role="alert" className="mt-2 text-sm font-semibold text-[#8c2d0c]">{confirmationState.error}</p> : null}
+      {confirmationState.success ? <p role="status" className="mt-2 text-sm font-semibold text-brand-strong">{confirmationState.success}</p> : null}
     </form>
   );
 }

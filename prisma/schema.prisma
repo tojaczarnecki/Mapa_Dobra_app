@@ -112,6 +112,7 @@ enum AdminPermissionEffect {
 enum AdminTokenPurpose {
   INVITATION
   PASSWORD_RESET
+  ORGANIZATION_EMAIL_VERIFICATION
 }
 
 enum AuditAction {
@@ -164,6 +165,12 @@ enum AuditAction {
   KNOWLEDGE_UPDATED
   KNOWLEDGE_PUBLISHED
   KNOWLEDGE_ARCHIVED
+  ORGANIZATION_REGISTRATION_CREATED
+  ORGANIZATION_REGISTRATION_APPROVED
+  ORGANIZATION_REGISTRATION_REJECTED
+  PLACE_ACCESS_REQUESTED
+  PLACE_ACCESS_APPROVED
+  PLACE_ACCESS_REJECTED
 }
 
 enum AuditEntityType {
@@ -179,6 +186,8 @@ enum AuditEntityType {
   USER_PLACE_ACCESS
   HELP_REQUEST
   KNOWLEDGE_ARTICLE
+  ORGANIZATION_REGISTRATION
+  PLACE_ACCESS_REQUEST
 }
 
 enum HelpRequestStatus {
@@ -234,6 +243,26 @@ enum KnowledgeIntent {
   GOOD_PRACTICES
   VOLUNTEERING
   ORGANIZATIONS
+}
+
+enum OrganizationRegistrationStatus {
+  EMAIL_PENDING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum PlaceAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrganizationMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
 }
 
 enum PlacePublicationStatus {
@@ -445,6 +474,11 @@ model AdminUser {
   grantedPlaceAccesses          UserPlaceAccess[]                  @relation("UserPlaceAccessCreator")
   accessTokens                  AdminAccessToken[]                 @relation("AdminAccessTokenUser")
   createdAccessTokens           AdminAccessToken[]                 @relation("AdminAccessTokenCreator")
+  organizationRegistration     OrganizationRegistration?
+  reviewedOrganizationRegistrations OrganizationRegistration[] @relation("OrganizationRegistrationReviewer")
+  placeAccessRequests           PlaceAccessRequest[] @relation("PlaceAccessRequestUser")
+  reviewedPlaceAccessRequests   PlaceAccessRequest[] @relation("PlaceAccessRequestReviewer")
+  organizationMemberships       OrganizationMembership[]
 
   @@index([active])
   @@map("admin_users")
@@ -481,6 +515,21 @@ model UserPlaceAccess {
   @@index([placeId, active])
   @@index([adminUserId, active])
   @@map("user_place_access")
+}
+
+model OrganizationMembership {
+  id             String                      @id @default(uuid()) @db.Uuid
+  organizationId String                      @db.Uuid
+  adminUserId    String                      @db.Uuid
+  status         OrganizationMembershipStatus @default(ACTIVE)
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                    @updatedAt @db.Timestamptz(3)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  adminUser      AdminUser                    @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, adminUserId])
+  @@index([adminUserId, status])
+  @@map("organization_memberships")
 }
 
 model AdminAccessToken {
@@ -574,6 +623,11 @@ model Organization {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   places      Place[]
+  registrations OrganizationRegistration[]
+  possibleRegistrations OrganizationRegistration[] @relation("OrganizationRegistrationPossible")
+  accessRequests PlaceAccessRequest[]
+  memberships OrganizationMembership[]
+  newPlaceSubmissions NewPlaceSubmission[]
 
   @@index([active, name])
   @@map("organizations")
@@ -645,6 +699,59 @@ model KnowledgeArticleRelation {
 
   @@id([articleId, relatedArticleId])
   @@map("knowledge_article_relations")
+}
+
+model OrganizationRegistration {
+  id                    String                        @id @default(uuid()) @db.Uuid
+  adminUserId           String                        @unique @db.Uuid
+  organizationId        String?                       @db.Uuid
+  organizationName      String                        @db.VarChar(250)
+  nip                   String?                       @db.VarChar(20)
+  website               String?                       @db.VarChar(2048)
+  organizationPhone     String?                       @db.VarChar(50)
+  organizationEmail     String                        @db.VarChar(320)
+  applicantName         String                        @db.VarChar(160)
+  applicantEmail        String                        @db.VarChar(320)
+  applicantPhone        String?                       @db.VarChar(50)
+  applicantPosition     String?                       @db.VarChar(160)
+  status                OrganizationRegistrationStatus @default(EMAIL_PENDING)
+  possibleOrganizationId String?                      @db.Uuid
+  rejectionReason       String?                       @db.VarChar(1000)
+  verifiedAt            DateTime?                     @db.Timestamptz(3)
+  reviewedByAdminId     String?                       @db.Uuid
+  reviewedAt            DateTime?                     @db.Timestamptz(3)
+  createdAt             DateTime                      @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                      @updatedAt @db.Timestamptz(3)
+  adminUser             AdminUser                     @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  organization          Organization?                 @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  possibleOrganization  Organization?                 @relation("OrganizationRegistrationPossible", fields: [possibleOrganizationId], references: [id], onDelete: SetNull)
+  reviewedBy            AdminUser?                    @relation("OrganizationRegistrationReviewer", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([organizationEmail])
+  @@map("organization_registrations")
+}
+
+model PlaceAccessRequest {
+  id                String                  @id @default(uuid()) @db.Uuid
+  requestingUserId  String                  @db.Uuid
+  organizationId    String?                 @db.Uuid
+  placeId           String                  @db.Uuid
+  message           String?                 @db.VarChar(1000)
+  status            PlaceAccessRequestStatus @default(PENDING)
+  reviewedByAdminId String?                 @db.Uuid
+  reviewedAt        DateTime?               @db.Timestamptz(3)
+  createdAt         DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                @updatedAt @db.Timestamptz(3)
+  requestingUser    AdminUser               @relation("PlaceAccessRequestUser", fields: [requestingUserId], references: [id], onDelete: Cascade)
+  organization      Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  place             Place                    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  reviewedBy        AdminUser?               @relation("PlaceAccessRequestReviewer", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([requestingUserId, placeId, status])
+  @@index([status, createdAt])
+  @@index([placeId, status])
+  @@map("place_access_requests")
 }
 
 model Category {
@@ -725,6 +832,7 @@ model Place {
   importMatchCandidates   ImportCandidate[]         @relation("MatchedImportPlace")
   verificationContact     PlaceVerificationContact?
   userAccesses            UserPlaceAccess[]
+  accessRequests           PlaceAccessRequest[]
 
   @@index([recordKind, publicationStatus, city])
   @@index([verificationQueueStatus, recordKind, publicationStatus])
@@ -1095,6 +1203,7 @@ model NewPlaceSubmission {
   requestId                       String                      @unique @db.Uuid
   name                            String                      @db.VarChar(250)
   organizationName                String?                     @db.VarChar(250)
+  organizationId                  String?                     @db.Uuid
   categories                      HelpCategory[]
   streetAddress                   String?                     @db.VarChar(300)
   postalCode                      String?                     @db.VarChar(20)
@@ -1133,9 +1242,11 @@ model NewPlaceSubmission {
   updatedAt                       DateTime                    @updatedAt @db.Timestamptz(3)
   moderatedBy                     AdminUser?                  @relation("NewPlaceModerator", fields: [moderatedByAdminUserId], references: [id], onDelete: SetNull)
   publishedPlace                  Place?                      @relation("PublishedNewPlace", fields: [publishedPlaceId], references: [id], onDelete: SetNull)
+  organization                    Organization?               @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   draft                           SubmissionDraft?
 
   @@index([moderationStatus, createdAt])
   @@index([publishedPlaceId])
+  @@index([organizationId])
   @@map("new_place_submissions")
 }

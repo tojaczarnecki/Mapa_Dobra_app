@@ -10,6 +10,7 @@ import {
   getRequestAddress,
 } from "@/lib/submissions/rate-limit";
 import { validateNewPlaceSubmission } from "@/lib/submissions/validation";
+import { getCurrentAdmin } from "@/lib/admin/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,14 @@ export async function POST(request: Request) {
   const validation = validateNewPlaceSubmission(body);
   if (!validation.ok) {
     return submissionErrorResponse();
+  }
+
+  if (validation.data.organizationId) {
+    const session = await getCurrentAdmin();
+    const membership = session
+      ? await prisma.organizationMembership.findUnique({ where: { organizationId_adminUserId: { organizationId: validation.data.organizationId, adminUserId: session.user.id } }, select: { status: true } })
+      : null;
+    if (!membership || membership.status !== "ACTIVE") return submissionErrorResponse(403);
   }
 
   try {

@@ -132,6 +132,7 @@ export type ValidNewPlaceSubmission = {
   requestId: string;
   name: string;
   organizationName?: string;
+  organizationId?: string;
   categories: HelpCategoryValue[];
   streetAddress?: string;
   postalCode?: string;
@@ -387,11 +388,12 @@ export function validateNewPlaceSubmission(
 
   const name = requiredString(proposedData.name, 250);
   const organizationName = optionalString(proposedData.organizationName, 250);
+  const organizationId = proposedData.organizationId === undefined ? undefined : requiredString(proposedData.organizationId, 36);
   const categories = enumArray(proposedData.helpCategories, helpCategories, { min: 1 });
   const address = isRecord(proposedData.address) ? proposedData.address : null;
   const placeContact = isRecord(proposedData.placeContact) ? proposedData.placeContact : null;
   const requirements = enumArray(proposedData.conditions, requirementValues);
-  if (!name || organizationName === null || !categories || !address || !placeContact || !requirements) {
+  if (!name || organizationName === null || (proposedData.organizationId !== undefined && (!organizationId || !uuidPattern.test(organizationId))) || !categories || !address || !placeContact || !requirements) {
     return { ok: false, reason: "place-data" };
   }
 
@@ -479,6 +481,7 @@ export function validateNewPlaceSubmission(
       requestId,
       name,
       organizationName,
+      organizationId: organizationId ?? undefined,
       categories,
       streetAddress,
       postalCode,

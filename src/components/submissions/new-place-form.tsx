@@ -164,8 +164,8 @@ function joinPresent(values: string[], separator = ", ") {
   return values.filter((value) => value.trim()).join(separator);
 }
 
-export function NewPlaceForm() {
-  const [draft, setDraft] = useState<NewPlaceDraft>(initialDraft);
+export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { id: string; name: string } } = {}) {
+  const [draft, setDraft] = useState<NewPlaceDraft>(() => ({ ...initialDraft, organizationName: initialOrganization?.name ?? "" }));
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [protection, setProtection] = useState<SubmissionProtectionFields>({
@@ -375,6 +375,7 @@ export function NewPlaceForm() {
       proposedData: {
         name: draft.name.trim(),
         organizationName: draft.organizationName.trim(),
+        ...(initialOrganization ? { organizationId: initialOrganization.id } : {}),
         helpCategories: draft.helpCategories,
         address: {
           street: draft.street.trim(),
