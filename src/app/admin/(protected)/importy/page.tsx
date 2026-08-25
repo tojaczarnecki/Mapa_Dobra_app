@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ExternalLink, FileInput } from "lucide-react";
+import { ArrowRight, ExternalLink, FileInput, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
 
@@ -25,6 +25,7 @@ export default async function AdminImportsPage() {
         <p className="mb-1 text-sm font-bold text-brand-strong">Źródła danych</p>
         <h1 className="text-3xl font-bold">Importy</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Paczki źródłowe, kandydaci po deduplikacji i rekordy oczekujące na decyzję administratora.</p>
+        <Link href="/admin/importy/nowy" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e]"><Plus aria-hidden="true" size={17} />Nowy import</Link>
       </header>
       {batches.length ? <ol className="space-y-2">{batches.map((batch) => {
         const count = (status: string) => batch.candidates.filter((candidate) => candidate.status === status).length;

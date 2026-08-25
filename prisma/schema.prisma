@@ -204,6 +204,8 @@ enum AuditAction {
   CATEGORY_ACTIVATED
   CATEGORY_DEACTIVATED
   PLACE_IMPORTED
+  IMPORT_MAPPING_SAVED
+  IMPORT_STARTED
   VERIFICATION_STARTED
   IMPORT_CONFLICT_RESOLVED
   IMPORT_CANDIDATE_SKIPPED
@@ -250,6 +252,7 @@ enum AuditEntityType {
   ORGANIZATION
   CATEGORY
   IMPORT_CANDIDATE
+  IMPORT_BATCH
   USER_PLACE_ACCESS
   HELP_REQUEST
   KNOWLEDGE_ARTICLE
@@ -542,6 +545,7 @@ model AdminUser {
   accessTokens                  AdminAccessToken[]                 @relation("AdminAccessTokenUser")
   createdAccessTokens           AdminAccessToken[]                 @relation("AdminAccessTokenCreator")
   pushSubscriptions             PushSubscription[]
+  importBatches                 ImportBatch[]        @relation("ImportBatchUploader")
   organizationRegistration     OrganizationRegistration?
   reviewedOrganizationRegistrations OrganizationRegistration[] @relation("OrganizationRegistrationReviewer")
   placeAccessRequests           PlaceAccessRequest[] @relation("PlaceAccessRequestUser")
@@ -948,12 +952,18 @@ model ImportBatch {
   reviewCount        Int                 @default(0)
   skippedCount       Int                 @default(0)
   metadata           Json?
+  fileName           String?              @db.VarChar(255)
+  fileFormat         String?              @db.VarChar(12)
+  sheetName          String?              @db.VarChar(255)
+  uploadedByAdminUserId String?            @db.Uuid
   createdAt          DateTime            @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
   sourceEntries      ImportSourceEntry[]
   candidates         ImportCandidate[]
+  uploadedBy         AdminUser?           @relation("ImportBatchUploader", fields: [uploadedByAdminUserId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
+  @@index([uploadedByAdminUserId, createdAt])
   @@map("import_batches")
 }
 

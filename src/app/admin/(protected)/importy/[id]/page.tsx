@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { ImportMappingForm } from "@/components/admin/imports/import-mapping-form";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -13,6 +14,10 @@ const statusLabels = {
   SKIPPED: "Pominięte",
 } as const;
 type Status = keyof typeof statusLabels;
+
+function storedMetadata(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as { phase?: string; headers?: string[]; rows?: string[][]; mapping?: Record<string, string>; categoryMapping?: Record<string, string>; organizationMapping?: Record<string, string>; sheets?: Array<{ name: string; headers: string[]; rows: string[][] }> } : {};
+}
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -40,6 +45,11 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     },
   });
   if (!batch) notFound();
+  const batchMetadata = storedMetadata(batch.metadata);
+  const [mappingOptions, organizationOptions] = await Promise.all([
+    prisma.category.findMany({ where: { active: true }, select: { slug: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.organization.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
   const [counts, progressCandidates] = await Promise.all([
     prisma.importCandidate.groupBy({ by: ["status"], where: { importBatchId: id }, _count: { _all: true } }),
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { status: true, queueStatus: true, resolution: true, reviewReasons: true, createdPlace: { select: { verificationQueueStatus: true, verificationStatus: true } } } }),
@@ -57,8 +67,9 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
         <p className="text-sm font-bold text-brand-strong">{batch.key}</p>
         <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{batch.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{batch.publisher} · edycja {batch.edition}</p>
-        <a href={batch.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-strong hover:underline"><ExternalLink aria-hidden="true" size={16} /> Dokument źródłowy</a>
+        {batch.sourceUrl ? <a href={batch.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-strong hover:underline"><ExternalLink aria-hidden="true" size={16} /> Dokument źródłowy</a> : <p className="mt-2 text-sm text-muted-foreground">Źródło: plik {batch.fileFormat ?? "import"}</p>}
       </header>
+      {batchMetadata.phase !== "STAGED" && batchMetadata.rows && batchMetadata.headers ? <ImportMappingForm id={id} headers={batchMetadata.headers} rows={batchMetadata.rows} sheets={batchMetadata.sheets} initialSheet={batch.sheetName} initialMapping={batchMetadata.mapping ?? {}} categories={mappingOptions} organizations={organizationOptions} initialCategoryMapping={batchMetadata.categoryMapping ?? {}} initialOrganizationMapping={batchMetadata.organizationMapping ?? {}} /> : null}
       <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Postęp paczki">
         <Progress label="Nowe miejsca" value={importedPlaces} detail={`${verifiedPlaces} zweryfikowanych`} />
         <Progress label="Wymaga potwierdzenia" value={pendingPlaces} detail="bez automatycznej publikacji" urgent={pendingPlaces > 0} />
