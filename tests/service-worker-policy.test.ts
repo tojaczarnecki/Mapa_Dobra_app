@@ -8,4 +8,8 @@ test("service worker keeps live and administrative routes out of its static cach
     assert.equal(source.includes(`url.pathname.startsWith(\"${route}\")`), true);
   }
   assert.equal(source.includes('url.pathname.startsWith("/_next/static/")'), true);
+  assert.equal(source.includes('self.addEventListener("push"'), true);
+  assert.equal(source.includes('self.addEventListener("notificationclick"'), true);
+  assert.equal(source.includes("showNotification"), true);
+  assert.equal(source.includes("notification.data?.url"), true);
 });

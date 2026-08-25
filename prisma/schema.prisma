@@ -64,6 +64,20 @@ enum InformationState {
   UNKNOWN
 }
 
+enum NotificationCategory {
+  LOCAL_ALERT
+  SAVED_PLACES
+  GUIDES
+  VOLUNTEERING
+  PARTNER
+}
+
+enum NotificationDeliveryStatus {
+  SENT
+  FAILED
+  EXPIRED
+}
+
 enum AdminRole {
   SUPER_ADMIN
   ADMIN
@@ -113,6 +127,59 @@ enum AdminTokenPurpose {
   INVITATION
   PASSWORD_RESET
   ORGANIZATION_EMAIL_VERIFICATION
+}
+
+model PushSubscription {
+  id             String                  @id @default(uuid()) @db.Uuid
+  endpoint       String                  @unique @db.VarChar(2048)
+  p256dh         String                  @db.VarChar(255)
+  auth           String                  @db.VarChar(255)
+  userAgent      String?                 @db.VarChar(500)
+  locale         String?                 @db.VarChar(20)
+  region         String?                 @db.VarChar(120)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+  lastSeenAt     DateTime                @default(now()) @db.Timestamptz(3)
+  adminUserId    String?                 @db.Uuid
+  preferences    NotificationPreference?
+  deliveries     NotificationDelivery[]
+  adminUser      AdminUser?              @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([lastSeenAt])
+  @@index([adminUserId])
+  @@map("push_subscriptions")
+}
+
+model NotificationPreference {
+  id             String             @id @default(uuid()) @db.Uuid
+  subscriptionId String             @unique @db.Uuid
+  localAlerts    Boolean            @default(true)
+  savedPlaces    Boolean            @default(true)
+  guides         Boolean            @default(true)
+  volunteering   Boolean            @default(true)
+  partnerContent Boolean            @default(false)
+  quietHoursFrom String?            @db.VarChar(5)
+  quietHoursTo   String?            @db.VarChar(5)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+  subscription   PushSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model NotificationDelivery {
+  id             String                     @id @default(uuid()) @db.Uuid
+  subscriptionId String                     @db.Uuid
+  category       NotificationCategory
+  dedupeKey      String                     @db.VarChar(255)
+  status         NotificationDeliveryStatus
+  sentAt         DateTime?                  @db.Timestamptz(3)
+  createdAt      DateTime                   @default(now()) @db.Timestamptz(3)
+  subscription   PushSubscription            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, dedupeKey])
+  @@index([category, createdAt])
+  @@map("notification_deliveries")
 }
 
 enum AuditAction {
@@ -474,6 +541,7 @@ model AdminUser {
   grantedPlaceAccesses          UserPlaceAccess[]                  @relation("UserPlaceAccessCreator")
   accessTokens                  AdminAccessToken[]                 @relation("AdminAccessTokenUser")
   createdAccessTokens           AdminAccessToken[]                 @relation("AdminAccessTokenCreator")
+  pushSubscriptions             PushSubscription[]
   organizationRegistration     OrganizationRegistration?
   reviewedOrganizationRegistrations OrganizationRegistration[] @relation("OrganizationRegistrationReviewer")
   placeAccessRequests           PlaceAccessRequest[] @relation("PlaceAccessRequestUser")
