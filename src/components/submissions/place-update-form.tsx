@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Flag, LockKeyhole, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { FormDraftResume, FormDraftSavedStatus } from "@/components/forms/form-draft-ui";
+import { LocationAutocomplete, formatLocationSuggestion } from "@/components/location/location-autocomplete";
+import { PUBLIC_GEOGRAPHIC_CONTEXT } from "@/lib/geocoding/geographic-context";
+import type { GeocodingSuggestion } from "@/lib/geocoding/results";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
+import { useTurnstileToken } from "@/components/security/turnstile-token";
 import {
   createSubmissionRequestId,
   fieldDescriptionIds,
@@ -23,11 +31,28 @@ import type {
   SubmitterContact,
 } from "@/types/submissions";
 
+const LocationMap = dynamic(
+  () => import("@/components/help-requests/help-request-location-map").then((module) => module.HelpRequestLocationMap),
+  { ssr: false },
+);
+
 export type PlaceUpdateContext = {
   id: string;
   slug: string;
   name: string;
   address: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+  hours?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  categories?: string;
+  requirements?: string;
+  accessibility?: string;
+  accommodation?: string;
+  description?: string;
   href: string;
 };
 
@@ -51,11 +76,15 @@ export function PlaceUpdateForm({
   place?: PlaceUpdateContext;
   requestedPlace?: string;
 }) {
+  const turnstile = useTurnstileToken();
   const [placeReference, setPlaceReference] = useState("");
   const [reportTypes, setReportTypes] = useState<PlaceUpdateType[]>([]);
   const [description, setDescription] = useState("");
-  const [correctHours, setCorrectHours] = useState("");
+  const [correctHours, setCorrectHours] = useState(place?.hours === "Brak potwierdzonych godzin" ? "" : place?.hours ?? "");
   const [correctAddress, setCorrectAddress] = useState("");
+  const [correctAddressText, setCorrectAddressText] = useState("");
+  const [correctLatitude, setCorrectLatitude] = useState<number>();
+  const [correctLongitude, setCorrectLongitude] = useState<number>();
   const [correctPhone, setCorrectPhone] = useState("");
   const [closedSince, setClosedSince] = useState("");
   const [sourceType, setSourceType] = useState("");
@@ -70,7 +99,10 @@ export function PlaceUpdateForm({
   const [submitError, setSubmitError] = useState<string>();
   const isSubmittingRef = useRef(false);
   const requestIdRef = useRef<string | undefined>(undefined);
+  const [formStartedAt] = useState(() => Date.now());
   const successRef = useRef<HTMLDivElement>(null);
+  const formDraft = useFormDraft({ formType: "place-change", storage: "local", ttlMs: 7 * 24 * 60 * 60 * 1000, entityId: place?.id ?? requestedPlace, data: { placeReference, reportTypes, description, correctHours, correctAddress, correctAddressText, correctLatitude, correctLongitude, correctPhone, closedSince, sourceType, sourceUrl, contact }, enabled: !submission });
+  useUnsavedChangesGuard(!submission && formDraft.isDirty);
 
   useEffect(() => {
     if (submission) {
@@ -84,6 +116,21 @@ export function PlaceUpdateForm({
     if (field === "email" && errors.email) {
       setErrors((current) => ({ ...current, email: undefined }));
     }
+  }
+
+  function handleAddressChange(value: string) {
+    setCorrectAddressText(value);
+    setCorrectAddress(value);
+    setCorrectLatitude(undefined);
+    setCorrectLongitude(undefined);
+  }
+
+  function handleAddressSelect(suggestion: GeocodingSuggestion) {
+    const formatted = formatLocationSuggestion(suggestion).value;
+    setCorrectAddressText(formatted);
+    setCorrectAddress(formatted);
+    setCorrectLatitude(suggestion.latitude);
+    setCorrectLongitude(suggestion.longitude);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -134,9 +181,11 @@ export function PlaceUpdateForm({
       placeReference: place?.name ?? placeReference.trim(),
       reportTypes,
       description: description.trim(),
-      proposedData: {
-        hours: correctHours.trim(),
-        address: correctAddress.trim(),
+        proposedData: {
+          hours: correctHours.trim(),
+          address: correctAddress.trim(),
+          latitude: correctLatitude,
+          longitude: correctLongitude,
         phone: correctPhone.trim(),
         closedSince,
       },
@@ -156,13 +205,16 @@ export function PlaceUpdateForm({
     setIsSubmitting(true);
 
     try {
+      const turnstileToken = await turnstile.requestToken();
       const response = await fetch("/api/submissions/place-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...nextSubmission,
+        formStartedAt,
           requestId,
           protection,
+          turnstileToken,
         }),
       });
 
@@ -170,6 +222,7 @@ export function PlaceUpdateForm({
         throw new Error("Submission failed");
       }
 
+      formDraft.clear();
       setSubmission(nextSubmission);
     } catch {
       setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
@@ -183,7 +236,7 @@ export function PlaceUpdateForm({
     return (
       <div ref={successRef} tabIndex={-1}>
         <FormSuccess
-          title="Dziękujemy za zgłoszenie"
+          title="Dziękujemy. Zgłoszenie zmiany zostało wysłane do weryfikacji."
           actions={
             <>
               {place ? (
@@ -198,8 +251,8 @@ export function PlaceUpdateForm({
           }
         >
           <p>
-            Twoja informacja trafiła do weryfikacji. Nie zmieniamy danych
-            automatycznie. Najpierw sprawdzi je administrator Mapy Dobra.
+            Dane publiczne nie zmienią się automatycznie. Najpierw sprawdzi je
+            administrator Mapy Dobra.
           </p>
         </FormSuccess>
       </div>
@@ -212,16 +265,19 @@ export function PlaceUpdateForm({
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
           <Flag aria-hidden="true" size={23} />
         </div>
-        <h1 className="text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">
+        <h1 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
           Zgłoś zmianę
         </h1>
         <p className="max-w-2xl text-base font-semibold leading-7 text-muted-foreground">
-          Pomóż nam poprawić informacje. Każde zgłoszenie sprawdzamy przed zmianą danych.
+          Wskaż tylko to, co jest nieaktualne. Nie musisz przepisywać całej informacji o miejscu.
         </p>
       </header>
 
+      <FormDraftResume draft={formDraft.storedDraft} label={place ? `Zgłoś zmianę dla: ${place.name}` : "Zgłoś zmianę lub błąd"} onResume={() => { const restored = formDraft.resume(); if (restored) { const data = restored.data; setPlaceReference(data.placeReference); setReportTypes(data.reportTypes); setDescription(data.description); setCorrectHours(data.correctHours); setCorrectAddress(data.correctAddress); setCorrectAddressText(data.correctAddressText ?? data.correctAddress); setCorrectLatitude(data.correctLatitude); setCorrectLongitude(data.correctLongitude); setCorrectPhone(data.correctPhone); setClosedSince(data.closedSince); setSourceType(data.sourceType); setSourceUrl(data.sourceUrl); setContact(data.contact); } }} onDiscard={() => { formDraft.discard(); setPlaceReference(""); setReportTypes([]); setDescription(""); setCorrectHours(""); setCorrectAddress(""); setCorrectAddressText(""); setCorrectLatitude(undefined); setCorrectLongitude(undefined); setCorrectPhone(""); setClosedSince(""); setSourceType(""); setSourceUrl(""); setContact(emptyContact); }} />
+      <FormDraftSavedStatus saved={formDraft.lastSaved} />
+
       <form
-        className="min-w-0 divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-[0_16px_40px_rgb(17_24_39_/_6%)] sm:px-6"
+        className="min-w-0 space-y-8"
         onSubmit={handleSubmit}
         noValidate
       >
@@ -239,6 +295,7 @@ export function PlaceUpdateForm({
                 <MapPin aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
                 {place.address}
               </p>
+              {place.category ? <p className="mt-1 text-sm font-semibold text-muted-foreground">{place.category}</p> : null}
             </section>
           ) : (
             <FormField
@@ -350,7 +407,7 @@ export function PlaceUpdateForm({
           {reportTypes.some((type) => ["hours", "address", "phone", "temporary-closure", "permanent-closure"].includes(type)) ? (
             <div className="grid min-w-0 gap-4 rounded-lg border border-border bg-background p-3.5 sm:grid-cols-2">
               {reportTypes.includes("hours") ? (
-                <FormField id="update-correct-hours" label="Jakie są prawidłowe godziny?">
+                <FormField id="update-correct-hours" label="Jakie są prawidłowe godziny?" hint={place?.hours ? `Obecnie: ${place.hours}` : undefined}>
                   <input
                     id="update-correct-hours"
                     value={correctHours}
@@ -361,18 +418,18 @@ export function PlaceUpdateForm({
                 </FormField>
               ) : null}
               {reportTypes.includes("address") ? (
-                <FormField id="update-correct-address" label="Prawidłowy adres">
-                  <input
-                    id="update-correct-address"
-                    value={correctAddress}
-                    onChange={(event) => setCorrectAddress(event.target.value)}
-                    className={formControlClass}
-                    autoComplete="street-address"
+                <FormField id="update-correct-address" label="Nowy adres">
+                  <LocationAutocomplete
+                    value={correctAddressText || correctAddress}
+                    onChange={handleAddressChange}
+                    onSelect={handleAddressSelect}
+                    geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT}
+                    placeholder="Zacznij wpisywać ulicę lub adres"
                   />
                 </FormField>
               ) : null}
               {reportTypes.includes("phone") ? (
-                <FormField id="update-correct-phone" label="Prawidłowy numer telefonu">
+                <FormField id="update-correct-phone" label="Nowy numer telefonu" hint={place?.phone ? `Obecnie: ${place.phone}` : undefined}>
                   <input
                     id="update-correct-phone"
                     value={correctPhone}
@@ -384,7 +441,7 @@ export function PlaceUpdateForm({
                 </FormField>
               ) : null}
               {reportTypes.some((type) => ["temporary-closure", "permanent-closure"].includes(type)) ? (
-                <FormField id="update-closed-since" label="Od kiedy?">
+                <FormField id="update-closed-since" label="Od kiedy?" hint="Opcjonalnie">
                   <input
                     id="update-closed-since"
                     type="date"
@@ -393,6 +450,28 @@ export function PlaceUpdateForm({
                     className={formControlClass}
                   />
                 </FormField>
+              ) : null}
+            </div>
+          ) : null}
+
+          {reportTypes.includes("address") ? (
+            <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
+              {place?.latitude !== undefined && place.longitude !== undefined ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-extrabold text-muted-foreground">Obecny punkt</p>
+                  <LocationMap position={[place.latitude, place.longitude]} onPick={() => undefined} geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT} precision="address" />
+                </div>
+              ) : null}
+              {correctLatitude !== undefined && correctLongitude !== undefined ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-extrabold text-muted-foreground">Nowy punkt</p>
+                  <LocationMap
+                    position={[correctLatitude, correctLongitude]}
+                    onPick={([latitude, longitude]) => { setCorrectLatitude(latitude); setCorrectLongitude(longitude); }}
+                    geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT}
+                    precision="address"
+                  />
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -431,6 +510,17 @@ export function PlaceUpdateForm({
             />
           </FormField>
         </FormSection>
+
+        {reportTypes.length > 0 ? (
+          <FormSection title="Podsumowanie zmiany" description="Takie informacje trafią do weryfikacji." className="py-5 sm:py-6">
+            <dl className="divide-y divide-border rounded-lg border border-border bg-surface">
+              {reportTypes.includes("address") ? <div className="grid gap-1 px-3.5 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]"><dt className="text-sm font-bold text-muted-foreground">Adres</dt><dd className="whitespace-pre-line text-sm font-semibold"><strong>BYŁO:</strong> {place?.address ?? "Nie podano"}{"\n"}<strong>NOWA INFORMACJA:</strong> {correctAddress || "Nie podano"}</dd></div> : null}
+              {reportTypes.includes("hours") ? <div className="grid gap-1 px-3.5 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]"><dt className="text-sm font-bold text-muted-foreground">Godziny</dt><dd className="whitespace-pre-line text-sm font-semibold"><strong>BYŁO:</strong> {place?.hours ?? "Nie podano"}{"\n"}<strong>NOWE:</strong> {correctHours || "Nie podano"}</dd></div> : null}
+              {reportTypes.includes("phone") ? <div className="grid gap-1 px-3.5 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]"><dt className="text-sm font-bold text-muted-foreground">Telefon</dt><dd className="whitespace-pre-line text-sm font-semibold"><strong>BYŁO:</strong> {place?.phone ?? "Nie podano"}{"\n"}<strong>NOWY:</strong> {correctPhone || "Nie podano"}</dd></div> : null}
+              {reportTypes.some((type) => ["help-scope", "requirements", "other", "temporary-closure", "permanent-closure"].includes(type)) ? <div className="grid gap-1 px-3.5 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]"><dt className="text-sm font-bold text-muted-foreground">Opis</dt><dd className="text-sm font-semibold">{description || "Nie podano"}</dd></div> : null}
+            </dl>
+          </FormSection>
+        ) : null}
 
         <FormSection
           title="Kontakt do Ciebie – opcjonalnie"

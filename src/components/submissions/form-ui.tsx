@@ -3,7 +3,7 @@ import { Check, CheckCircle2, ChevronLeft, ChevronRight, Pencil } from "lucide-r
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 export const formControlClass =
-  "touch-target w-full min-w-0 rounded-lg border border-border bg-white px-3.5 py-3 text-base text-foreground shadow-sm transition placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30 disabled:cursor-not-allowed disabled:bg-surface-muted";
+  "touch-target min-h-12 w-full min-w-0 rounded-lg border border-border bg-white px-3.5 py-2.5 text-[15px] text-foreground transition placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/20 disabled:cursor-not-allowed disabled:bg-surface-muted";
 
 export const formSelectClass = `${formControlClass} pr-10`;
 
@@ -49,9 +49,9 @@ export function FormField({
 }) {
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="block text-sm font-extrabold leading-5 text-foreground">
+      <label htmlFor={id} className="block text-sm font-semibold leading-5 text-foreground">
         {label}
-        {required ? <span className="ml-1 text-urgent">(wymagane)</span> : null}
+        {required ? <span className="ml-1 text-urgent" aria-hidden="true">*</span> : null}
       </label>
       {hint ? (
         <p id={`${id}-hint`} className="mt-1 text-sm font-semibold leading-5 text-muted-foreground">
@@ -91,7 +91,7 @@ export function FormSection({
       ].join(" ")}
     >
       <div className="space-y-1">
-        <h2 className="text-xl font-extrabold leading-tight text-foreground sm:text-2xl">
+        <h2 className="text-xl font-semibold leading-tight text-foreground sm:text-2xl">
           {title}
         </h2>
         {description ? (
@@ -128,7 +128,7 @@ export function OptionCard({
           ? "flex min-h-14 min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border bg-surface px-3 py-2 text-left transition"
           : "flex min-h-14 min-w-0 cursor-pointer items-start gap-3 rounded-lg border bg-surface px-3.5 py-3 text-left transition",
         checked
-          ? "border-brand bg-brand-soft shadow-[0_0_0_1px_var(--brand)]"
+          ? "border-brand bg-brand-soft"
           : "border-border hover:border-brand hover:bg-brand-soft/50",
         className,
       ].join(" ")}
@@ -140,7 +140,7 @@ export function OptionCard({
         {...props}
       />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-extrabold leading-5 text-foreground sm:text-base">
+        <span className="block text-sm font-semibold leading-5 text-foreground sm:text-base">
           {label}
         </span>
         {description ? (
@@ -193,7 +193,7 @@ export function SubmissionStepper({
           <span
             key={index}
             className={[
-              "h-1.5 rounded-full",
+              "h-1 rounded-full",
               index < current ? "bg-brand" : "bg-surface-muted",
             ].join(" ")}
             aria-hidden="true"
@@ -294,7 +294,7 @@ export function FormSuccess({
   actions: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-brand bg-surface p-5 shadow-[0_16px_40px_rgb(17_24_39_/_7%)] sm:p-7" role="status" tabIndex={-1}>
+    <section className="rounded-lg border border-brand/30 bg-brand-soft/30 p-5 sm:p-7" role="status" tabIndex={-1}>
       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
         <CheckCircle2 aria-hidden="true" size={27} />
       </div>

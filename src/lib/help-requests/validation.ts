@@ -1,4 +1,5 @@
 import type { HelpRequestNeed, HelpRequestUrgency, InformationState } from "@/generated/prisma/enums";
+import { hasImpossibleFormTiming } from "../security/form-timing.ts";
 
 const needs = [
   "SAFE_PLACE",
@@ -56,6 +57,7 @@ export function validateHelpRequest(input: unknown): HelpRequestValidationResult
     return { ok: false, reason: "Nieprawidłowe dane zgłoszenia." };
   }
   const value = input as Record<string, unknown>;
+  if (hasImpossibleFormTiming(value.formStartedAt)) return { ok: false, reason: "Nieprawidłowy czas formularza." };
   if (typeof value.honeypot === "string" && value.honeypot.trim()) {
     return { ok: false, reason: "Nieprawidłowe dane zgłoszenia." };
   }
@@ -93,7 +95,12 @@ export function validateHelpRequest(input: unknown): HelpRequestValidationResult
   const latitude = optionalNumber(value.latitude, -90, 90);
   const longitude = optionalNumber(value.longitude, -180, 180);
   const locationAccuracy = optionalNumber(value.locationAccuracy, 0, 100_000);
-  if (latitude === null || longitude === null || locationAccuracy === null) {
+  if (
+    latitude === null ||
+    longitude === null ||
+    locationAccuracy === null ||
+    (latitude === undefined) !== (longitude === undefined)
+  ) {
     return { ok: false, reason: "Sprawdź lokalizację." };
   }
 

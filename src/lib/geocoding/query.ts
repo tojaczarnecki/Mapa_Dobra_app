@@ -68,7 +68,7 @@ export function prepareGeocodingAddress(input: GeocodingAddressInput): PreparedG
     simplifiedStreet: simplifyPatronName(street),
     buildingNumber,
     postalCode: compact(input.postalCode),
-    city: compact(input.city) || "Łódź",
+    city: compact(input.city),
     country: compact(input.country) || "Polska",
   };
 }

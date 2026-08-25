@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { geocoderUserAgent } from "./config";
+import type { GeographicContext } from "./geographic-context";
+import { geographicContextToSearchParams, PUBLIC_GEOGRAPHIC_CONTEXT } from "./geographic-context";
 import { buildGeocodingAttempts, prepareGeocodingAddress, type GeocodingAddressInput, type GeocodingAttempt } from "./query";
-import { normalizeGeocodingQuery, parseNominatimResults, scoreGeocodingSuggestion, type GeocodingSuggestion } from "./results";
+import { normalizeGeocodingQuery, parseNominatimResults, rankAutocompleteSuggestions, scoreGeocodingSuggestion, type GeocodingSuggestion } from "./results";
 
 export { buildGeocodingAttempts, prepareGeocodingAddress, type GeocodingAddressInput, type GeocodingAttempt } from "./query";
-export { geocodingResultMatchesAddress, normalizeGeocodingQuery, parseNominatimResults, scoreGeocodingSuggestion, type GeocodingSuggestion } from "./results";
+export { geocodingResultMatchesAddress, normalizeGeocodingQuery, parseNominatimResults, rankAutocompleteSuggestions, scoreGeocodingSuggestion, type GeocodingSuggestion } from "./results";
+export type { GeographicContext } from "./geographic-context";
 
 export const GEOCODER_PROVIDER = "NOMINATIM";
 const CACHE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
@@ -58,8 +61,11 @@ async function geocodeAttempt(attempt: GeocodingAttempt) {
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "5");
-  url.searchParams.set("countrycodes", "pl");
-  url.searchParams.set("viewbox", "19.30,51.90,19.70,51.60");
+  url.searchParams.set("countrycodes", PUBLIC_GEOGRAPHIC_CONTEXT.countryCode ?? "pl");
+  if (PUBLIC_GEOGRAPHIC_CONTEXT.bounds) {
+    const { west, north, east, south } = PUBLIC_GEOGRAPHIC_CONTEXT.bounds;
+    url.searchParams.set("viewbox", `${west},${north},${east},${south}`);
+  }
   url.searchParams.set("bounded", "1");
   const response = await rateLimitedFetch(url);
   if (!response.ok) throw new Error("Geokoder chwilowo nie odpowiada. Spróbuj ponownie później.");
@@ -101,4 +107,42 @@ export async function geocodePublicAddress(input: GeocodingAddressInput) {
     attempts: attemptReport,
     cached: attemptReport.length > 0 && attemptReport.every((attempt) => attempt.cached),
   };
+}
+
+export async function autocompletePublicAddress(query: string, context?: GeographicContext) {
+  const trimmed = query.normalize("NFKC").replace(/\s+/gu, " ").trim().slice(0, 200);
+  if (trimmed.length < 3) return { suggestions: [], cached: false };
+
+  const contextParams = geographicContextToSearchParams(context);
+  const normalizedQuery = normalizeGeocodingQuery(`autocomplete:${trimmed}:${contextParams.toString()}`);
+  const cached = await prisma.geocodingCache.findUnique({
+    where: { provider_normalizedQuery: { provider: GEOCODER_PROVIDER, normalizedQuery } },
+  });
+  if (cached) {
+    const cachedSuggestions = parseNominatimResults(cached.results, 7);
+    const maxAge = cachedSuggestions.length ? CACHE_MAX_AGE_MS : EMPTY_CACHE_MAX_AGE_MS;
+    if (cached.fetchedAt.getTime() >= Date.now() - maxAge) {
+      return { suggestions: rankAutocompleteSuggestions(cachedSuggestions, trimmed, context).slice(0, 7), cached: true };
+    }
+  }
+
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", trimmed);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("limit", "7");
+  url.searchParams.set("countrycodes", context?.countryCode?.toLowerCase() || "pl");
+  if (context?.bounds) {
+    url.searchParams.set("viewbox", `${context.bounds.west},${context.bounds.north},${context.bounds.east},${context.bounds.south}`);
+  }
+  const response = await rateLimitedFetch(url);
+  if (!response.ok) throw new Error("Geokoder chwilowo nie odpowiada.");
+  const raw = await response.json();
+  const parsed = parseNominatimResults(raw, 7);
+  await prisma.geocodingCache.upsert({
+    where: { provider_normalizedQuery: { provider: GEOCODER_PROVIDER, normalizedQuery } },
+    create: { provider: GEOCODER_PROVIDER, normalizedQuery, query: trimmed, results: raw, fetchedAt: new Date() },
+    update: { query: trimmed, results: raw, fetchedAt: new Date() },
+  });
+  return { suggestions: rankAutocompleteSuggestions(parsed, trimmed, context).slice(0, 7), cached: false };
 }

@@ -7,19 +7,19 @@ export const updateTypeGroups: Array<{
   {
     label: "Dane miejsca",
     options: [
-      { value: "hours", label: "Błędne godziny" },
-      { value: "address", label: "Błędny adres" },
-      { value: "phone", label: "Błędny telefon" },
-      { value: "online-contact", label: "Błędny e-mail / strona WWW" },
+      { value: "hours", label: "Godziny działania" },
+      { value: "address", label: "Adres / lokalizacja" },
+      { value: "phone", label: "Telefon / kontakt" },
+      { value: "online-contact", label: "E-mail / strona WWW" },
     ],
   },
   {
     label: "Pomoc i warunki",
     options: [
-      { value: "help-scope", label: "Zmienił się zakres pomocy" },
+      { value: "help-scope", label: "Rodzaj pomocy / usługi" },
       {
         value: "requirements",
-        label: "Zmieniły się warunki skorzystania z pomocy",
+        label: "Warunki skorzystania z pomocy",
       },
       { value: "other", label: "Inny błąd / inna zmiana" },
     ],
@@ -27,7 +27,7 @@ export const updateTypeGroups: Array<{
   {
     label: "Zamknięcie lub nocleg",
     options: [
-      { value: "temporary-closure", label: "Miejsce jest czasowo zamknięte" },
+      { value: "temporary-closure", label: "Miejsce jest zamknięte / nie działa" },
       { value: "permanent-closure", label: "Miejsce zostało zamknięte na stałe" },
       {
         value: "accommodation-availability",

@@ -17,6 +17,8 @@ function validPlaceUpdate() {
     proposedData: {
       hours: "Poniedziałek 10:00-16:00",
       address: "",
+      latitude: 51.7592,
+      longitude: 19.456,
       phone: "",
       closedSince: "",
     },
@@ -38,6 +40,8 @@ function validNewPlace() {
         postalCode: "90-001",
         city: "Łódź",
         district: "Śródmieście",
+        latitude: 51.7592,
+        longitude: 19.456,
       },
       placeContact: {
         phone: "+48123123123",
@@ -63,6 +67,23 @@ test("accepts a valid place update submission", () => {
   }
 });
 
+test("place update coordinates must be a valid complete pair", () => {
+  const valid = validPlaceUpdate();
+  valid.proposedData.address = "ul. Nowa 2, Łódź";
+  valid.proposedData.latitude = 51.7592;
+  valid.proposedData.longitude = 19.456;
+  const accepted = validatePlaceUpdateSubmission(valid);
+  assert.equal(accepted.ok, true);
+  if (accepted.ok) {
+    assert.equal(accepted.data.proposedLatitude, 51.7592);
+    assert.equal(accepted.data.proposedLongitude, 19.456);
+  }
+
+  const incomplete = validPlaceUpdate();
+  Reflect.deleteProperty(incomplete.proposedData, "longitude");
+  assert.equal(validatePlaceUpdateSubmission(incomplete).ok, false);
+});
+
 test("rejects invalid contact details and a filled honeypot", () => {
   const invalidEmail = validPlaceUpdate();
   invalidEmail.submitterContact.email = "niepoprawny-email";
@@ -79,7 +100,19 @@ test("accepts a valid new place submission", () => {
   if (result.ok) {
     assert.deepEqual(result.data.categories, ["food"]);
     assert.equal(result.data.city, "Łódź");
+    assert.equal(result.data.proposedLatitude, 51.7592);
+    assert.equal(result.data.proposedLongitude, 19.456);
   }
+});
+
+test("new place coordinates must be a valid complete pair", () => {
+  const missingLongitude = validNewPlace();
+  Reflect.deleteProperty(missingLongitude.proposedData.address, "longitude");
+  assert.equal(validateNewPlaceSubmission(missingLongitude).ok, false);
+
+  const invalidLatitude = validNewPlace();
+  invalidLatitude.proposedData.address.latitude = 95;
+  assert.equal(validateNewPlaceSubmission(invalidLatitude).ok, false);
 });
 
 test("keeps unknown accommodation information distinct from no", () => {

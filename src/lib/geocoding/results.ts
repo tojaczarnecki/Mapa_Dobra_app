@@ -1,3 +1,7 @@
+import type { GeographicContext } from "./geographic-context";
+
+export type GeocodingPrecision = "address" | "street" | "area";
+
 export type GeocodingSuggestion = {
   id: string;
   displayName: string;
@@ -11,6 +15,7 @@ export type GeocodingSuggestion = {
   postalCode: string | null;
   countryCode: string | null;
   resultType: string | null;
+  precision: GeocodingPrecision;
   quality: "HIGH" | "REVIEW" | "LOW" | "IMPROBABLE";
   qualityScore: number;
   qualityReasons: string[];
@@ -34,6 +39,8 @@ type NominatimResult = {
   address?: Record<string, string>;
   type?: string;
   category?: string;
+  addresstype?: string;
+  boundingbox?: string[];
 };
 
 export function normalizeGeocodingQuery(value: string) {
@@ -61,6 +68,13 @@ function meaningfulTokens(value: string) {
 
 function canonicalBuildingNumber(value: string | null) {
   return normalizeAddressPart(value ?? "").replace(/\s+/gu, "");
+}
+
+function resultPrecision(raw: NominatimResult, address: Record<string, string>): GeocodingPrecision {
+  const type = raw.addresstype ?? raw.type ?? "";
+  if (address.house_number || ["house", "building", "address"].includes(type)) return "address";
+  if (address.road || ["road", "street"].includes(type)) return "street";
+  return "area";
 }
 
 function isInLodz(latitude: number, longitude: number, city: string | null) {
@@ -119,10 +133,44 @@ export function geocodingResultMatchesAddress(suggestion: GeocodingSuggestion, s
   return expectedParts.every((part) => comparableResult.includes(part));
 }
 
-export function parseNominatimResults(value: unknown): GeocodingSuggestion[] {
+function contextTextMatches(value: string | null, expected: string | undefined) {
+  if (!value || !expected) return false;
+  return normalizeAddressPart(value) === normalizeAddressPart(expected);
+}
+
+function distanceScore(suggestion: GeocodingSuggestion, context: GeographicContext | undefined) {
+  if (!context?.center) return 0;
+  const latitudeDistance = (suggestion.latitude - context.center.lat) * 111;
+  const longitudeDistance = (suggestion.longitude - context.center.lng) * 111 * Math.cos(context.center.lat * Math.PI / 180);
+  const kilometers = Math.sqrt(latitudeDistance ** 2 + longitudeDistance ** 2);
+  return Math.max(0, 20 - Math.min(kilometers, 20));
+}
+
+export function rankAutocompleteSuggestions(
+  suggestions: GeocodingSuggestion[],
+  query: string,
+  context?: GeographicContext,
+) {
+  const queryParts = meaningfulTokens(query);
+  return suggestions
+    .map((suggestion) => {
+      const searchable = meaningfulTokens([suggestion.road, suggestion.houseNumber, suggestion.displayName].filter(Boolean).join(" "));
+      const matchingTokens = queryParts.filter((token) => searchable.includes(token)).length;
+      const score =
+        matchingTokens * 12 +
+        (contextTextMatches(suggestion.city, context?.city) ? 40 : 0) +
+        (contextTextMatches(suggestion.district, context?.municipality) ? 15 : 0) +
+        distanceScore(suggestion, context) +
+        (suggestion.importance ?? 0) * 5;
+      return { ...suggestion, qualityScore: score };
+    })
+    .sort((left, right) => right.qualityScore - left.qualityScore || (right.importance ?? 0) - (left.importance ?? 0));
+}
+
+export function parseNominatimResults(value: unknown, limit = 5): GeocodingSuggestion[] {
   if (!Array.isArray(value)) return [];
   const parsed: GeocodingSuggestion[] = [];
-  for (const raw of value.slice(0, 5) as NominatimResult[]) {
+  for (const raw of value.slice(0, limit) as NominatimResult[]) {
     const latitude = Number(raw.lat);
     const longitude = Number(raw.lon);
     if (!raw.display_name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
@@ -141,6 +189,7 @@ export function parseNominatimResults(value: unknown): GeocodingSuggestion[] {
       postalCode: address.postcode ?? null,
       countryCode: address.country_code ?? null,
       resultType: raw.type ?? raw.category ?? null,
+      precision: resultPrecision(raw, address),
       quality: "LOW",
       qualityScore: 0,
       qualityReasons: [],

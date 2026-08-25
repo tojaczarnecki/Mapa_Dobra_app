@@ -45,6 +45,8 @@ export type PlaceUpdateSubmission = SubmissionBase & {
   proposedData: {
     hours: string;
     address: string;
+    latitude?: number;
+    longitude?: number;
     phone: string;
     closedSince: string;
   };
@@ -74,6 +76,8 @@ export type NewPlaceSubmission = SubmissionBase & {
       postalCode: string;
       city: string;
       district: string;
+      latitude?: number;
+      longitude?: number;
     };
     placeContact: {
       phone: string;

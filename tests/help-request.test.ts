@@ -38,6 +38,7 @@ test("help request preserves immediate danger and location coordinates", () => {
 test("help request rejects invalid contact, coordinates and honeypot", () => {
   assert.equal(validateHelpRequest({ ...base, reporterEmail: "not-an-email" }).ok, false);
   assert.equal(validateHelpRequest({ ...base, latitude: 120 }).ok, false);
+  assert.equal(validateHelpRequest({ ...base, latitude: 51.759 }).ok, false);
   assert.equal(validateHelpRequest({ ...base, honeypot: "filled" }).ok, false);
 });
 

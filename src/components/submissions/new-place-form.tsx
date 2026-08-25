@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Info, LockKeyhole, MapPinned } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FormDraftResume, FormDraftSavedStatus } from "@/components/forms/form-draft-ui";
+import { LocationAutocomplete, formatLocationSuggestion } from "@/components/location/location-autocomplete";
+import { PUBLIC_GEOGRAPHIC_CONTEXT } from "@/lib/geocoding/geographic-context";
+import type { GeocodingSuggestion } from "@/lib/geocoding/results";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
+import { useTurnstileToken } from "@/components/security/turnstile-token";
 import {
   createSubmissionRequestId,
   fieldDescriptionIds,
@@ -35,6 +43,11 @@ import type {
   SubmitterContact,
 } from "@/types/submissions";
 
+const LocationMap = dynamic(
+  () => import("@/components/help-requests/help-request-location-map").then((module) => module.HelpRequestLocationMap),
+  { ssr: false },
+);
+
 type AccommodationDraft = {
   facilityType: string;
   audiences: string[];
@@ -53,9 +66,12 @@ type NewPlaceDraft = {
   organizationName: string;
   helpCategories: HelpCategory[];
   street: string;
+  addressText: string;
   postalCode: string;
   city: string;
   district: string;
+  latitude?: number;
+  longitude?: number;
   placePhone: string;
   placeEmail: string;
   placeWebsite: string;
@@ -99,6 +115,7 @@ const initialDraft: NewPlaceDraft = {
   organizationName: "",
   helpCategories: [],
   street: "",
+  addressText: "",
   postalCode: "",
   city: "Łódź",
   district: "",
@@ -165,6 +182,7 @@ function joinPresent(values: string[], separator = ", ") {
 }
 
 export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { id: string; name: string } } = {}) {
+  const turnstile = useTurnstileToken();
   const [draft, setDraft] = useState<NewPlaceDraft>(() => ({ ...initialDraft, organizationName: initialOrganization?.name ?? "" }));
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -176,6 +194,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
   const [submitError, setSubmitError] = useState<string>();
   const isSubmittingRef = useRef(false);
   const requestIdRef = useRef<string | undefined>(undefined);
+  const [formStartedAt] = useState(() => Date.now());
   const stepHeadingRef = useRef<HTMLDivElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
   const includesAccommodation = draft.helpCategories.includes("accommodation");
@@ -195,6 +214,8 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
   );
 
   const currentStep = steps[currentStepIndex] ?? steps[steps.length - 1];
+  const formDraft = useFormDraft({ formType: "new-place", storage: "local", ttlMs: 7 * 24 * 60 * 60 * 1000, data: draft, currentStep: currentStep.id, enabled: !submission });
+  useUnsavedChangesGuard(!submission && formDraft.isDirty);
 
   useEffect(() => {
     if (submission) {
@@ -205,6 +226,34 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
 
   function setField<K extends keyof NewPlaceDraft>(field: K, value: NewPlaceDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateAddressField(field: "postalCode" | "city" | "district", value: string) {
+    setDraft((current) => ({ ...current, [field]: value, latitude: undefined, longitude: undefined }));
+  }
+
+  function handleAddressChange(value: string) {
+    setDraft((current) => ({
+      ...current,
+      addressText: value,
+      street: value,
+      latitude: undefined,
+      longitude: undefined,
+    }));
+  }
+
+  function handleAddressSelect(suggestion: GeocodingSuggestion) {
+    const formatted = formatLocationSuggestion(suggestion).value;
+    setDraft((current) => ({
+      ...current,
+      addressText: formatted,
+      street: [suggestion.road, suggestion.houseNumber].filter(Boolean).join(" ") || formatted,
+      postalCode: suggestion.postalCode ?? current.postalCode,
+      city: suggestion.city ?? current.city,
+      district: suggestion.district ?? current.district,
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+    }));
   }
 
   function setAccommodationField<K extends keyof AccommodationDraft>(
@@ -382,6 +431,8 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
           postalCode: draft.postalCode.trim(),
           city: draft.city.trim(),
           district: draft.district.trim(),
+          latitude: draft.latitude,
+          longitude: draft.longitude,
         },
         placeContact: {
           phone: draft.placePhone.trim(),
@@ -416,13 +467,16 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
     setIsSubmitting(true);
 
     try {
+      const turnstileToken = await turnstile.requestToken();
       const response = await fetch("/api/submissions/new-place", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...nextSubmission,
+        formStartedAt,
           requestId,
           protection,
+          turnstileToken,
         }),
       });
 
@@ -430,6 +484,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
         throw new Error("Submission failed");
       }
 
+      formDraft.clear();
       setSubmission(nextSubmission);
     } catch {
       setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
@@ -440,6 +495,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
   }
 
   function resetForm() {
+    formDraft.clear();
     setDraft({
       ...initialDraft,
       helpCategories: [],
@@ -457,7 +513,8 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
   }
 
   const addressSummary = joinPresent([
-    draft.street,
+    draft.addressText || draft.street,
+    draft.addressText ? "" : draft.street,
     joinPresent([draft.postalCode, draft.city], " "),
     draft.district,
   ]);
@@ -542,7 +599,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
     return (
       <div ref={successRef} tabIndex={-1}>
         <FormSuccess
-          title="Dziękujemy"
+          title="Dziękujemy. Zgłoszenie zostało wysłane do weryfikacji."
           actions={
             <>
               <SuccessLink href="/" primary>
@@ -559,8 +616,8 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
           }
         >
           <p>
-            Zgłoszone miejsce trafiło do weryfikacji. Nie pojawi się w Mapie Dobra
-            automatycznie. Administrator sprawdzi informacje przed publikacją.
+            Zgłoszone miejsce trafiło do kolejki weryfikacji. Nie pojawi się w Mapie
+            Dobra automatycznie — administrator sprawdzi informacje przed publikacją.
           </p>
         </FormSuccess>
       </div>
@@ -569,11 +626,13 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      <FormDraftResume draft={formDraft.storedDraft} label="Zgłoś nowe miejsce" onResume={() => { const restored = formDraft.resume(); if (restored) { setDraft(restored.data); const restoredSteps = ["basic", "location", "help", ...(restored.data.helpCategories.includes("accommodation") ? ["accommodation"] : []), "source", "summary"]; const nextIndex = restoredSteps.indexOf(String(restored.currentStep)); if (nextIndex >= 0) setCurrentStepIndex(nextIndex); } }} onDiscard={() => { formDraft.discard(); resetForm(); }} />
+      <FormDraftSavedStatus saved={formDraft.lastSaved} />
       <header className="space-y-1.5 sm:space-y-2">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
           <MapPinned aria-hidden="true" size={23} />
         </div>
-        <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">
+        <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-4xl">
           Znasz miejsce, którego tutaj brakuje?
         </h1>
         <p className="max-w-2xl text-base font-semibold leading-6 text-muted-foreground sm:leading-7">
@@ -582,7 +641,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
       </header>
 
       <form
-        className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_16px_40px_rgb(17_24_39_/_6%)] sm:p-6"
+        className="min-w-0 space-y-8"
         onSubmit={handleSubmit}
         noValidate
       >
@@ -698,17 +757,17 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
           {currentStep.id === "location" ? (
             <FormSection
               title="Lokalizacja i kontakt"
-              description="Podaj tyle informacji, ile znasz. Nie uruchamiamy jeszcze geokodowania."
+              description="Wpisz adres i wybierz podpowiedź, aby dokładnie wskazać miejsce. Możesz też wpisać adres ręcznie."
               compact
             >
               <div className="grid min-w-0 gap-3">
-                <FormField id="new-place-street" label="Ulica i numer">
-                  <input
-                    id="new-place-street"
-                    value={draft.street}
-                    onChange={(event) => setField("street", event.target.value)}
-                    className={formControlClass}
-                    autoComplete="street-address"
+                <FormField id="new-place-street" label="Adres miejsca">
+                  <LocationAutocomplete
+                    value={draft.addressText ?? draft.street}
+                    onChange={handleAddressChange}
+                    onSelect={handleAddressSelect}
+                    geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT}
+                    placeholder="Zacznij wpisywać ulicę lub adres"
                   />
                 </FormField>
                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
@@ -716,7 +775,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
                     <input
                       id="new-place-postal-code"
                       value={draft.postalCode}
-                      onChange={(event) => setField("postalCode", event.target.value)}
+                      onChange={(event) => updateAddressField("postalCode", event.target.value)}
                       className={formControlClass}
                       inputMode="numeric"
                       autoComplete="postal-code"
@@ -727,7 +786,7 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
                     <input
                       id="new-place-city"
                       value={draft.city}
-                      onChange={(event) => setField("city", event.target.value)}
+                      onChange={(event) => updateAddressField("city", event.target.value)}
                       className={formControlClass}
                       autoComplete="address-level2"
                     />
@@ -737,12 +796,33 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
                   <input
                     id="new-place-district"
                     value={draft.district}
-                    onChange={(event) => setField("district", event.target.value)}
+                    onChange={(event) => updateAddressField("district", event.target.value)}
                     className={formControlClass}
                     autoComplete="address-level3"
                   />
                 </FormField>
               </div>
+
+              {draft.latitude !== undefined && draft.longitude !== undefined ? (
+                <div className="mt-4 space-y-2">
+                  <div>
+                    <h3 className="text-lg font-extrabold text-foreground">Sprawdź punkt na mapie</h3>
+                    <p className="mt-1 text-sm font-semibold leading-5 text-muted-foreground">
+                      Marker pokazuje wybrane współrzędne. Kliknij mapę, jeśli chcesz je lekko poprawić.
+                    </p>
+                  </div>
+                  <LocationMap
+                    position={[draft.latitude, draft.longitude]}
+                    onPick={([latitude, longitude]) => setDraft((current) => ({ ...current, latitude, longitude }))}
+                    geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT}
+                    precision="address"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm font-semibold leading-5 text-muted-foreground">
+                  Bez wybranej podpowiedzi mapa nie pokaże punktu, ale ręcznie wpisany adres nadal trafi do weryfikacji.
+                </p>
+              )}
 
               <div className="border-t border-border pt-4">
                 <h3 className="text-lg font-extrabold text-foreground">Kontakt do miejsca</h3>
@@ -1201,6 +1281,17 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
               description="Możesz wrócić do dowolnej sekcji. Nie trzeba osobno potwierdzać każdego pola."
             >
               <SubmissionSummary items={summaryItems} onEdit={goToStep} />
+              {draft.latitude !== undefined && draft.longitude !== undefined ? (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-base font-extrabold text-foreground">Podgląd lokalizacji</h3>
+                  <LocationMap
+                    position={[draft.latitude, draft.longitude]}
+                    onPick={([latitude, longitude]) => setDraft((current) => ({ ...current, latitude, longitude }))}
+                    geographicContext={PUBLIC_GEOGRAPHIC_CONTEXT}
+                    precision="address"
+                  />
+                </div>
+              ) : null}
               <div className="flex items-start gap-2 rounded-lg bg-brand-soft px-3.5 py-3 text-sm font-semibold leading-5 text-foreground">
                 <Info aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} />
                 Zgłoszenie trafi do weryfikacji i nie zostanie opublikowane automatycznie.

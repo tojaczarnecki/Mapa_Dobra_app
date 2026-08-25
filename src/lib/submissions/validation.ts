@@ -1,3 +1,5 @@
+import { hasImpossibleFormTiming } from "../security/form-timing.ts";
+
 type UnknownRecord = Record<string, unknown>;
 
 export const placeUpdateTypes = [
@@ -118,6 +120,8 @@ export type ValidPlaceUpdateSubmission = {
   description: string;
   proposedPhone?: string;
   proposedAddress?: string;
+  proposedLatitude?: number;
+  proposedLongitude?: number;
   proposedOpeningHours?: string;
   proposedWebsite?: string;
   proposedOtherValue?: string;
@@ -138,6 +142,8 @@ export type ValidNewPlaceSubmission = {
   postalCode?: string;
   city: string;
   district?: string;
+  proposedLatitude?: number;
+  proposedLongitude?: number;
   phone?: string;
   email?: string;
   website?: string;
@@ -201,6 +207,14 @@ function optionalUrl(value: unknown) {
   }
 }
 
+function optionalCoordinate(value: unknown, min: number, max: number) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
+    return null;
+  }
+  return value;
+}
+
 function enumValue<T extends readonly string[]>(value: unknown, allowed: T) {
   return typeof value === "string" && allowed.includes(value) ? (value as T[number]) : null;
 }
@@ -252,6 +266,7 @@ export function validatePlaceUpdateSubmission(
   value: unknown,
 ): ValidationResult<ValidPlaceUpdateSubmission> {
   if (!isRecord(value)) return { ok: false, reason: "invalid-body" };
+  if (hasImpossibleFormTiming(value.formStartedAt)) return { ok: false, reason: "form-timing" };
   if (hasFilledHoneypot(value)) return { ok: false, reason: "honeypot" };
 
   const requestId = requiredString(value.requestId, 36);
@@ -274,6 +289,8 @@ export function validatePlaceUpdateSubmission(
 
   const proposedPhone = optionalString(proposedData.phone, 50);
   const proposedAddress = optionalString(proposedData.address, 400);
+  const proposedLatitude = optionalCoordinate(proposedData.latitude, -90, 90);
+  const proposedLongitude = optionalCoordinate(proposedData.longitude, -180, 180);
   const proposedOpeningHours = optionalString(proposedData.hours, 1200);
   const proposedWebsite = optionalUrl(proposedData.website);
   const proposedOtherValue = optionalString(proposedData.closedSince, 2000);
@@ -284,6 +301,9 @@ export function validatePlaceUpdateSubmission(
     proposedOpeningHours === null ||
     proposedWebsite === null ||
     proposedOtherValue === null
+    || proposedLatitude === null
+    || proposedLongitude === null
+    || (proposedLatitude === undefined) !== (proposedLongitude === undefined)
   ) {
     return { ok: false, reason: "proposed-data" };
   }
@@ -299,6 +319,8 @@ export function validatePlaceUpdateSubmission(
       description,
       proposedPhone,
       proposedAddress,
+      proposedLatitude,
+      proposedLongitude,
       proposedOpeningHours,
       proposedWebsite,
       proposedOtherValue,
@@ -376,6 +398,7 @@ export function validateNewPlaceSubmission(
   value: unknown,
 ): ValidationResult<ValidNewPlaceSubmission> {
   if (!isRecord(value)) return { ok: false, reason: "invalid-body" };
+  if (hasImpossibleFormTiming(value.formStartedAt)) return { ok: false, reason: "form-timing" };
   if (hasFilledHoneypot(value)) return { ok: false, reason: "honeypot" };
 
   const requestId = requiredString(value.requestId, 36);
@@ -401,6 +424,8 @@ export function validateNewPlaceSubmission(
   const postalCode = optionalString(address.postalCode, 20);
   const city = requiredString(address.city, 120);
   const district = optionalString(address.district, 120);
+  const proposedLatitude = optionalCoordinate(address.latitude, -90, 90);
+  const proposedLongitude = optionalCoordinate(address.longitude, -180, 180);
   const phone = optionalString(placeContact.phone, 50);
   const email = optionalEmail(placeContact.email);
   const website = optionalUrl(placeContact.website);
@@ -417,6 +442,9 @@ export function validateNewPlaceSubmission(
     website === null ||
     openingHoursDescription === null ||
     description === null
+    || proposedLatitude === null
+    || proposedLongitude === null
+    || (proposedLatitude === undefined) !== (proposedLongitude === undefined)
   ) {
     return { ok: false, reason: "field-format" };
   }
@@ -487,6 +515,8 @@ export function validateNewPlaceSubmission(
       postalCode,
       city,
       district,
+      proposedLatitude,
+      proposedLongitude,
       phone,
       email,
       website,

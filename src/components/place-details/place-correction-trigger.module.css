@@ -1,0 +1,83 @@
+.trigger {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #566574;
+  opacity: 0.75;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  transition: color 160ms ease, opacity 160ms ease;
+  white-space: nowrap;
+}
+
+.trigger::before {
+  position: absolute;
+  content: "";
+  inset: -10px;
+}
+
+.trigger:hover {
+  color: #0f766e;
+  opacity: 1;
+}
+
+.triggerCompact {
+  flex: 0 0 auto;
+}
+
+.trigger:focus-visible {
+  color: #0f766e;
+  opacity: 1;
+  outline: 3px solid color-mix(in srgb, #0f766e 35%, transparent);
+  outline-offset: 2px;
+}
+
+.trigger:active {
+  color: #0b5f58;
+  opacity: 1;
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(15 27 38 / 42%);
+  padding: 0;
+}
+
+.dialog {
+  width: min(100%, 42rem);
+  max-height: min(100dvh, 46rem);
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: #ffffff;
+  box-shadow: 0 -16px 50px rgb(15 27 38 / 18%);
+}
+
+@media (min-width: 640px) {
+  .backdrop {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .dialog {
+    border-radius: 1rem;
+  }
+}

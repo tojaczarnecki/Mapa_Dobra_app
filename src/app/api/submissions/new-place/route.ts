@@ -10,15 +10,14 @@ import {
   getRequestAddress,
 } from "@/lib/submissions/rate-limit";
 import { validateNewPlaceSubmission } from "@/lib/submissions/validation";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
 import { getCurrentAdmin } from "@/lib/admin/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const rateLimit = await consumeSubmissionRateLimit(
-    `new-place:${getRequestAddress(request)}`,
-  );
+  const rateLimit = await consumeSubmissionRateLimit(`new-place:${getRequestAddress(request)}`, Date.now(), "newPlace");
 
   if (!rateLimit.allowed) {
     const response = submissionErrorResponse(429);
@@ -27,6 +26,8 @@ export async function POST(request: Request) {
   }
 
   const body = await readSubmissionBody(request);
+  const challenge = await verifyTurnstileToken(body && typeof body === "object" ? (body as Record<string, unknown>).turnstileToken : undefined, request);
+  if (!challenge.ok) return submissionErrorResponse(403);
   const validation = validateNewPlaceSubmission(body);
   if (!validation.ok) {
     return submissionErrorResponse();

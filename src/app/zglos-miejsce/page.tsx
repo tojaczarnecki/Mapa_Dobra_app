@@ -17,7 +17,7 @@ export default async function ReportNewPlacePage() {
     ? await prisma.organization.findUnique({ where: { id: organizationMembership.organizationId }, select: { id: true, name: true } })
     : undefined;
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
+    <div className="public-service-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
       <NewPlaceForm initialOrganization={initialOrganization ?? undefined} />
     </div>
   );

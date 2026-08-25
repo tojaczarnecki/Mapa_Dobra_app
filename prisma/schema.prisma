@@ -1168,6 +1168,8 @@ model PlaceUpdateSubmission {
   description            String                      @db.VarChar(4000)
   proposedPhone          String?                     @db.VarChar(50)
   proposedAddress        String?                     @db.VarChar(400)
+  proposedLatitude      Float?
+  proposedLongitude     Float?
   proposedOpeningHours   String?                     @db.VarChar(1200)
   proposedWebsite        String?                     @db.VarChar(2048)
   proposedOtherValue     String?                     @db.VarChar(2000)
@@ -1209,6 +1211,8 @@ model NewPlaceSubmission {
   postalCode                      String?                     @db.VarChar(20)
   city                            String                      @db.VarChar(120)
   district                        String?                     @db.VarChar(120)
+  proposedLatitude                Float?
+  proposedLongitude               Float?
   phone                           String?                     @db.VarChar(50)
   email                           String?                     @db.VarChar(320)
   website                         String?                     @db.VarChar(2048)
