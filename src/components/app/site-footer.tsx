@@ -11,6 +11,7 @@ const findLinks = [
   { href: "/mapa", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra" },
 ];
 
 const contributeLinks = [
@@ -108,21 +109,20 @@ export function SiteFooter() {
         </nav>
 
         <section className="site-footer-install-module" aria-labelledby="site-footer-install-title">
-          <div className="site-footer-install-heading">
-            <span className="site-footer-install-icon" aria-hidden="true"><Smartphone size={22} /></span>
-            <div>
-              <h2 id="site-footer-install-title">Zainstaluj Mapę Dobra — bezpłatnie</h2>
-              <p>Miej pomoc zawsze pod ręką. Bez opłat, bez App Store i Google Play.</p>
-            </div>
+          <span className="site-footer-install-icon" aria-hidden="true"><Smartphone size={23} /></span>
+          <div className="site-footer-install-content">
+            <p className="site-footer-install-eyebrow">MAPA DOBRA NA TELEFONIE</p>
+            <h2 id="site-footer-install-title">Mapa Dobra zawsze pod ręką</h2>
+            <p>Zainstaluj aplikację na ekranie głównym. Bez App Store i Google Play.</p>
+            <ul className="site-footer-install-benefits" aria-label="Korzyści instalacji">
+              {["Bezpłatna", "Szybki dostęp", "Działa jak aplikacja"].map((benefit) => (
+                <li key={benefit}><Check aria-hidden="true" size={16} />{benefit}</li>
+              ))}
+            </ul>
           </div>
-          <ul className="site-footer-install-benefits" aria-label="Korzyści instalacji">
-            {["Bezpłatna", "Szybki dostęp z ekranu głównego", "Działa jak aplikacja", "Nie musisz jej szukać w przeglądarce"].map((benefit) => (
-              <li key={benefit}><Check aria-hidden="true" size={16} />{benefit}</li>
-            ))}
-          </ul>
           {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
             <Download aria-hidden="true" size={17} />
-            Zainstaluj bezpłatnie
+            Zainstaluj Mapę Dobra
           </button> : null}
         </section>
       </div>

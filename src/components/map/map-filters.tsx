@@ -3,6 +3,7 @@
 import { Check, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapCategory } from "@/data/demo-map-places";
+import { CategoryChip } from "@/components/categories/category-chip";
 import styles from "./map.module.css";
 
 export type MapCategoryFilter = "all" | MapCategory;
@@ -10,13 +11,14 @@ export type MapCategoryFilter = "all" | MapCategory;
 const categoryFilters: Array<{
   value: MapCategoryFilter;
   label: string;
+  accentSlug?: string;
 }> = [
   { value: "all", label: "Wszystkie" },
-  { value: "food", label: "Jedzenie" },
-  { value: "accommodation", label: "Nocleg" },
-  { value: "hygiene", label: "Higiena" },
-  { value: "medical", label: "Medyczna" },
-  { value: "legal", label: "Prawna" },
+  { value: "food", label: "Jedzenie", accentSlug: "food" },
+  { value: "accommodation", label: "Nocleg", accentSlug: "accommodation" },
+  { value: "hygiene", label: "Higiena", accentSlug: "hygiene" },
+  { value: "medical", label: "Medyczna", accentSlug: "medical" },
+  { value: "legal", label: "Prawna", accentSlug: "legal" },
 ];
 
 type MapFiltersProps = {
@@ -87,26 +89,20 @@ export function MapFilters({
           aria-label="Kategorie miejsc na mapie"
         >
           {categoryFilters.map((filter) => (
-            <button
+            <CategoryChip
               key={filter.value}
-              type="button"
-              className={[
-                "filter-chip",
-                category === filter.value ? "filter-chip-strong bg-brand-soft" : "",
-              ].join(" ")}
-              aria-pressed={category === filter.value}
+              label={filter.label}
+              slug={filter.accentSlug}
+              active={category === filter.value}
               onClick={() => onCategoryChange(filter.value)}
-            >
-              {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
-              {filter.label}
-            </button>
+            />
           ))}
           <button
             type="button"
-            className={[
-              "filter-chip",
-              filtersOpen || activeAdditionalFilters > 0
-                ? "filter-chip-strong bg-brand-soft"
+              className={[
+                "filter-chip",
+                filtersOpen || activeAdditionalFilters > 0
+                ? "filter-chip-strong"
                 : "",
             ].join(" ")}
             aria-expanded={filtersOpen}
@@ -146,7 +142,7 @@ export function MapFilters({
               type="button"
               className={[
                 "filter-chip w-full",
-                openNow ? "filter-chip-strong bg-brand-soft" : "",
+                openNow ? "filter-chip-strong" : "",
               ].join(" ")}
               aria-pressed={openNow}
               onClick={() => onOpenNowChange(!openNow)}
@@ -158,7 +154,7 @@ export function MapFilters({
               type="button"
               className={[
                 "filter-chip w-full",
-                free ? "filter-chip-strong bg-brand-soft" : "",
+                free ? "filter-chip-strong" : "",
               ].join(" ")}
               aria-pressed={free}
               onClick={() => onFreeChange(!free)}

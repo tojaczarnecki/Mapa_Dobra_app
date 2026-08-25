@@ -5,14 +5,12 @@ import type { CSSProperties } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { getCategoryAccentMap } from "@/lib/home/category-accent";
 import { CategoryIcon } from "@/lib/home/category-visuals";
-import { MapPlaceCard } from "./map-place-card";
 import styles from "./map.module.css";
 
 type MapResultsPanelProps = {
   places: MapPlace[];
   selectedPlace?: MapPlace;
   onSelect: (place: MapPlace) => void;
-  onClearSelection: () => void;
 };
 
 function visiblePlaceCountLabel(count: number) {
@@ -67,7 +65,6 @@ export function MapResultsPanel({
   places,
   selectedPlace,
   onSelect,
-  onClearSelection,
 }: MapResultsPanelProps) {
   const selectedPlaceId = selectedPlace?.id;
 
@@ -80,36 +77,20 @@ export function MapResultsPanel({
             {places.length} {visiblePlaceCountLabel(places.length)}
           </p>
         </div>
-        {selectedPlace ? (
-          <button
-            type="button"
-            className={styles.backToList}
-            onClick={onClearSelection}
-          >
-            Wróć do listy
-          </button>
-        ) : null}
       </div>
 
       <div className={styles.resultsBody}>
-        {selectedPlace ? (
-          <div className={styles.detailWrap}>
-            <p className={styles.detailEyebrow}>Wybrane miejsce</p>
-            <MapPlaceCard place={selectedPlace} />
-          </div>
-        ) : (
-          <ul className={styles.resultsList}>
-            {places.map((place) => (
-              <li key={place.id}>
-                <MapResultRow
-                  place={place}
-                  active={selectedPlaceId === place.id}
-                  onSelect={onSelect}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul className={styles.resultsList}>
+          {places.map((place) => (
+            <li key={place.id}>
+              <MapResultRow
+                place={place}
+                active={selectedPlaceId === place.id}
+                onSelect={onSelect}
+              />
+            </li>
+          ))}
+        </ul>
       </div>
     </aside>
   );

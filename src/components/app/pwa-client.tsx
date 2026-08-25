@@ -2,7 +2,7 @@
 
 import { Download, Share, WifiOff, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
 
@@ -26,14 +26,27 @@ function isIosSafari() {
 export function PwaClient({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
   const [offline, setOffline] = useState(false);
+  const [reconnected, setReconnected] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [iosInstructions, setIosInstructions] = useState(false);
   const [standalone, setStandalone] = useState(false);
+  const connectionInitialized = useRef(false);
+  const reconnectTimer = useRef<number | undefined>(undefined);
   const [dismissed, setDismissed] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(DISMISSED_KEY) === "1");
 
   useEffect(() => {
-    const updateConnection = () => setOffline(!navigator.onLine);
+    const updateConnection = () => {
+      const online = navigator.onLine;
+      setOffline(!online);
+      if (online && connectionInitialized.current) {
+        setReconnected(true);
+        if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = window.setTimeout(() => setReconnected(false), 2600);
+      }
+      connectionInitialized.current = true;
+    };
+    const onNetworkFailure = () => setOffline(true);
     const updateStandalone = () => setStandalone(isStandalone());
     const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
@@ -58,6 +71,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     updateStandalone();
     window.addEventListener("online", updateConnection);
     window.addEventListener("offline", updateConnection);
+    window.addEventListener("mapa-dobra:network-failure", onNetworkFailure);
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("mapa-dobra:open-install", onOpenInstall);
@@ -69,8 +83,10 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     }
 
     return () => {
+      if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
+      window.removeEventListener("mapa-dobra:network-failure", onNetworkFailure);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("mapa-dobra:open-install", onOpenInstall);
@@ -96,7 +112,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
 
   return (
     <>
-      {offline ? <div className="offline-notice" role="status" aria-live="polite"><WifiOff aria-hidden="true" size={18} /><span>Brak połączenia z internetem. Niektóre informacje mogą być niedostępne lub nieaktualne.</span></div> : null}
+      {offline ? <div className="offline-notice" role="status" aria-live="polite"><WifiOff aria-hidden="true" size={18} /><span>Brak połączenia. Pokazujemy zapisane dane.</span></div> : reconnected ? <div className="offline-notice offline-notice-reconnected" role="status" aria-live="polite"><span>Połączenie przywrócone.</span></div> : null}
       {showPublicInstallUi && showInstall ? <aside className="pwa-install-notice" aria-label="Instalacja Mapy Dobra">
         <div className="pwa-install-icon" aria-hidden="true"><Download size={20} /></div>
         <div className="min-w-0 flex-1">

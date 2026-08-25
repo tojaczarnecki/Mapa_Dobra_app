@@ -4,20 +4,63 @@ import Image from "next/image";
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const links = [
   { href: "/szukaj", label: "Szukaj" },
   { href: "/mapa", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/encyklopedia", label: "Encyklopedia" },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const headerRef = useRef<HTMLElement>(null);
+  const lastScrollRef = useRef(0);
+  const frameRef = useRef<number | undefined>(undefined);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    lastScrollRef.current = Math.max(window.scrollY, 0);
+    const frame = window.requestAnimationFrame(() => setHidden(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (frameRef.current !== undefined) return;
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = undefined;
+        if (!window.matchMedia("(max-width: 767px)").matches) { setHidden(false); return; }
+        if (document.body.dataset.mobileOverlayOpen === "true") return;
+        const current = Math.max(window.scrollY, 0);
+        const previous = lastScrollRef.current;
+        const delta = current - previous;
+        lastScrollRef.current = current;
+        if (current <= 20) return setHidden(false);
+        const active = document.activeElement;
+        if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active?.getAttribute("contenteditable") === "true") return;
+        if (Math.abs(delta) < 8) return;
+        if (delta < 0) setHidden(false);
+        else if (current > 100) setHidden(true);
+      });
+    };
+    const showForFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && headerRef.current?.contains(event.target)) setHidden(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("focusin", showForFocus);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("focusin", showForFocus);
+      if (frameRef.current !== undefined) window.cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
 
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <header className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""}`}>
+    <header ref={headerRef} className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""} ${hidden ? "site-header-hidden" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"

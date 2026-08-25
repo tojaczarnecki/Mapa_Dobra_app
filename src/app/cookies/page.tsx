@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Cookies | Mapa Dobra", alternates: c
 
 export default function CookiesPage() {
   return (
-    <div className="mx-auto w-full max-w-[800px] px-4 py-10 sm:px-6 md:py-16 lg:px-8">
+    <div className="cookies-page mx-auto w-full max-w-[800px] px-4 py-10 sm:px-6 md:py-16 lg:px-8">
       <article className="rounded-xl border border-border bg-surface p-6 sm:p-8">
         <h1 className="text-3xl font-semibold text-[#18364D]">Cookies</h1>
         <p className="mt-4 leading-7 text-muted-foreground">Poniżej opisujemy technologie faktycznie używane przez publiczną część Mapy Dobra. Nie korzystamy obecnie z narzędzi analitycznych ani marketingowych.</p>

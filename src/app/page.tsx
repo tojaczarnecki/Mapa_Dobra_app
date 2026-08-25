@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   BedDouble,
   Brain,
@@ -13,7 +14,9 @@ import {
 import { CategoryTile } from "@/components/home/category-tile";
 import { HomeSearchAutocomplete } from "@/components/home/home-search-autocomplete";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
+import { KnowledgeCardView } from "@/components/knowledge/knowledge-card";
 import { getCategoryAccentMap } from "@/lib/home/category-accent";
+import { getPublicKnowledgeArticles } from "@/lib/knowledge";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
@@ -38,6 +41,9 @@ const categoryIconMap = {
 
 export default async function Home() {
   const publicPlaces = await getPublicSearchPlaces();
+  const knowledgeArticles = await getPublicKnowledgeArticles();
+  const featuredKnowledge = knowledgeArticles.filter((article) => article.featured);
+  const homeKnowledge = (featuredKnowledge.length ? featuredKnowledge : knowledgeArticles).slice(0, 3);
   const categories = Array.from(
     new Map(
       publicPlaces.flatMap((place) =>
@@ -112,6 +118,22 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      {homeKnowledge.length ? (
+        <section className="home-knowledge-section" aria-labelledby="home-knowledge-title">
+          <div className="home-knowledge-heading">
+            <div>
+              <p className="home-knowledge-eyebrow">WARTO WIEDZIEĆ</p>
+              <h2 id="home-knowledge-title">Encyklopedia Dobra</h2>
+              <p>Praktyczne wskazówki, jak uzyskać pomoc i jak mądrze pomagać.</p>
+            </div>
+          </div>
+          <div className="home-knowledge-preview">
+            {homeKnowledge.slice(0, 3).map((article) => <KnowledgeCardView key={article.id} article={article} variant="compact" />)}
+          </div>
+          <Link className="home-knowledge-all" href="/encyklopedia">Zobacz całą Encyklopedię Dobra <span aria-hidden="true">→</span></Link>
+        </section>
+      ) : null}
     </div>
   );
 }

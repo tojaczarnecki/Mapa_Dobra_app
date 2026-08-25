@@ -14,6 +14,8 @@ import {
 import type { MapPlace } from "@/data/demo-map-places";
 import { PlaceStatusBadge } from "@/components/places/place-status-badge";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
+import { detailHrefWithSource } from "@/lib/places/detail-return";
+import { SavedPlaceButton } from "@/components/saved/saved-place-button";
 import styles from "./map.module.css";
 
 const accommodationStatus = {
@@ -47,9 +49,11 @@ function compactAccommodationNote(state: MapPlace["status"]) {
 export function MapPlaceCard({
   place,
   compactAccommodation = false,
+  scrollBodyFocusable = false,
 }: {
   place: MapPlace;
   compactAccommodation?: boolean;
+  scrollBodyFocusable?: boolean;
 }) {
   const isAccommodation = place.status.kind === "accommodation";
   const callHref = telephoneHref(place.phone);
@@ -58,13 +62,26 @@ export function MapPlaceCard({
   const showAdmissionsToday =
     place.status.kind === "accommodation" &&
     place.status.admissionsToday !== place.status.availabilityLabel;
+  const detailHref = detailHrefWithSource(place.detailsHref, "mapa");
+  const savedPlace = {
+    id: place.id,
+    name: place.name,
+    category: place.helpTypes[0] ?? "Pomoc",
+    detailHref,
+    address: place.address,
+    status: place.status.kind === "standard" ? place.status.status : place.status.availabilityLabel,
+    hours: place.status.kind === "standard" ? place.status.todayHours : place.status.confirmed,
+    phone: place.phone,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  };
 
   const placeHeading = (
     <div className={["min-w-0 space-y-1", useCompactAccommodation ? "pr-10" : ""].join(" ")}>
-      <h2 className="text-lg font-extrabold leading-tight text-foreground">
+      <h2 className="text-lg font-semibold leading-tight text-foreground">
         {place.name}
       </h2>
-      <p className="text-sm font-bold text-muted-foreground">
+      <p className="text-sm font-normal text-muted-foreground">
         {place.helpTypes.join(" • ")}
       </p>
     </div>
@@ -74,7 +91,7 @@ export function MapPlaceCard({
     place.status.kind === "standard" ? (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <PlaceStatusBadge status={place.status.status} />
-        <span className="text-sm font-bold text-foreground">{place.status.todayHours}</span>
+        <span className="text-sm font-medium text-foreground">{place.status.todayHours}</span>
       </div>
     ) : useCompactAccommodation ? (
       <div
@@ -83,14 +100,14 @@ export function MapPlaceCard({
           accommodationStatus[place.status.availabilityState].className,
         ].join(" ")}
       >
-        <p className="flex items-center gap-2 text-sm font-extrabold leading-5">
+        <p className="flex items-center gap-2 text-sm font-semibold leading-5">
           {(() => {
             const Icon = accommodationStatus[place.status.availabilityState].icon;
             return <Icon aria-hidden="true" className="shrink-0" size={18} />;
           })()}
           {place.status.availabilityLabel}
         </p>
-        <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs font-bold leading-5">
+        <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs font-medium leading-5">
           <p>{place.status.confirmed}</p>
           {showAdmissionsToday ? <p>{place.status.admissionsToday}</p> : null}
         </div>
@@ -110,15 +127,15 @@ export function MapPlaceCard({
           accommodationStatus[place.status.availabilityState].className,
         ].join(" ")}
       >
-        <p className="flex items-center gap-2 text-base font-extrabold leading-5">
+        <p className="flex items-center gap-2 text-base font-semibold leading-5">
           {(() => {
             const Icon = accommodationStatus[place.status.availabilityState].icon;
             return <Icon aria-hidden="true" className="shrink-0" size={19} />;
           })()}
           {place.status.availabilityLabel}
         </p>
-        <p className="text-sm font-bold">{place.status.confirmed}</p>
-        <p className="text-sm font-semibold">{place.status.admissionsToday}</p>
+        <p className="text-sm font-medium">{place.status.confirmed}</p>
+        <p className="text-sm font-medium">{place.status.admissionsToday}</p>
         {place.status.availabilityNote ? (
           <p className="text-xs font-semibold leading-5 text-muted-foreground">
             {place.status.availabilityNote}
@@ -131,7 +148,7 @@ export function MapPlaceCard({
     );
 
   const placeLocation = (
-    <div className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
+    <div className="grid min-w-0 gap-1.5 text-sm font-medium text-foreground">
       <p className="flex min-w-0 items-center gap-2">
         <Navigation aria-hidden="true" className="shrink-0 text-brand-strong" size={17} />
         {place.distanceLabel}
@@ -148,6 +165,7 @@ export function MapPlaceCard({
       className={[
         "grid min-w-0 gap-2",
         styles.mapPlaceActions,
+        callHref ? styles.mapPlaceActionsHasPhone : "",
         useCompactAccommodation ? styles.compactAccommodationActions : "",
       ].join(" ")}
     >
@@ -184,7 +202,7 @@ export function MapPlaceCard({
         </span>
       )}
       <Link
-        href={place.detailsHref}
+        href={detailHref}
         className={[
           "place-card-action",
           styles.mapCtaTertiary,
@@ -206,19 +224,21 @@ export function MapPlaceCard({
           : "space-y-3 p-3.5 sm:p-4",
       ].join(" ")}
     >
-      {useCompactAccommodation ? (
-        <div className={styles.compactAccommodationBody}>
-          {placeHeading}
-          {placeStatus}
-          {placeLocation}
-        </div>
-      ) : (
-        <>
-          {placeHeading}
-          {placeStatus}
-          {placeLocation}
-        </>
-      )}
+      <div className={styles.mapPlaceHeader}>
+        {placeHeading}
+        <SavedPlaceButton place={savedPlace} compact />
+      </div>
+      <div
+        className={[
+          styles.mapPlaceBody,
+          useCompactAccommodation ? styles.compactAccommodationBody : "",
+        ].join(" ")}
+        tabIndex={scrollBodyFocusable ? 0 : undefined}
+        aria-label={scrollBodyFocusable ? `Informacje o miejscu: ${place.name}` : undefined}
+      >
+        {placeStatus}
+        {placeLocation}
+      </div>
       {placeActions}
     </article>
   );

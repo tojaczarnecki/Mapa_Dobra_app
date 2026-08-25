@@ -51,12 +51,12 @@ export function MapControls({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Czego potrzebujesz?"
-            className="h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30"
+            className={`${styles.mapSearchInput} h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-normal text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30`}
           />
         </label>
         <button
           type="button"
-          className="touch-target inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-3 text-sm font-extrabold text-brand-strong shadow-sm transition hover:bg-brand-soft disabled:cursor-wait disabled:opacity-65 sm:px-4"
+          className={`${styles.mapLocateButton} touch-target inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-3 text-sm font-semibold text-brand-strong shadow-sm transition hover:bg-brand-soft disabled:cursor-wait disabled:opacity-65 sm:px-4`}
           onClick={onLocate}
           disabled={locationPending}
           aria-describedby={locationMessage ? "map-location-status" : undefined}
@@ -74,7 +74,7 @@ export function MapControls({
       {locationMessage ? (
         <p
           id="map-location-status"
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground"
+          className={`${styles.mapLocationStatus} rounded-md border border-border bg-surface px-3 py-2 text-sm font-normal leading-5 text-muted-foreground`}
           role="status"
         >
           {locationMessage}

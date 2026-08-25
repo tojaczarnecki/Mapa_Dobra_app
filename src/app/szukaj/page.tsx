@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { List, LocateFixed, Map as MapIcon, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { getCategoryAccentMap } from "@/lib/home/category-accent";
+import { CategoryChip } from "@/components/categories/category-chip";
 import { NoResults } from "@/components/places/no-results";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchSortSelect } from "@/components/places/search-sort-select";
@@ -117,7 +118,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               </summary>
               <div className="search-category-options">
                 {categories.map(([slug, label]) => (
-                  <Link key={slug} href={searchHref(current, "kategoria", slug)} className={category === slug ? "search-category-option-active" : ""} aria-current={category === slug ? "true" : undefined}>{label}</Link>
+                  <CategoryChip
+                    key={slug}
+                    label={label}
+                    slug={slug}
+                    active={category === slug}
+                    href={searchHref(current, "kategoria", slug)}
+                  />
                 ))}
               </div>
             </details>
@@ -137,7 +144,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
           <div className="search-results-list">
             {places.map((place) => <PlaceCard key={place.id} place={place} accent={categoryAccents.get(place.categorySlug)} />)}
-            {places.length === 0 ? <NoResults /> : null}
+            {places.length === 0 ? <NoResults mapHref={current.toString() ? `/mapa?${current.toString()}` : "/mapa"} /> : null}
           </div>
         </section>
 

@@ -125,6 +125,8 @@ export function MapExperience({
   const [tileError, setTileError] = useState(false);
   const [mapResetKey, setMapResetKey] = useState(0);
   const initialLocateRequested = useRef(false);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const desktopCloseRef = useRef<HTMLButtonElement>(null);
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
@@ -200,6 +202,26 @@ export function MapExperience({
     handleLocate();
   }, [handleLocate, initialLocate]);
 
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedPlaceId(undefined);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedPlaceId]);
+
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      (isDesktop ? desktopCloseRef.current : mobileCloseRef.current)?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedPlaceId]);
+
   const clearFilters = useCallback(() => {
     setQuery("");
     setCategory("all");
@@ -251,12 +273,15 @@ export function MapExperience({
           </MapErrorBoundary>
 
           {tileError ? (
-            <div className={styles.tileError} role="alert">
-              <AlertTriangle aria-hidden="true" size={18} />
-              <span>Kafelki mapy nie wczytały się. Lista miejsc nadal działa.</span>
-              <button type="button" onClick={retryMap}>
-                Ponów
-              </button>
+            <div className={styles.tileFallback} role="alert">
+              <div className={styles.tileFallbackMessage}>
+                <AlertTriangle aria-hidden="true" size={20} />
+                <div>
+                  <strong>Podgląd mapy jest chwilowo niedostępny</strong>
+                  <span>Lista miejsc i zapisane miejsca nadal działają.</span>
+                </div>
+                <button type="button" onClick={retryMap}>Ponów</button>
+              </div>
             </div>
           ) : null}
 
@@ -281,6 +306,7 @@ export function MapExperience({
                 type="button"
                 className={styles.closeSheetButton}
                 aria-label="Zamknij kartę miejsca"
+                ref={mobileCloseRef}
                 onClick={() => setSelectedPlaceId(undefined)}
               >
                 <X aria-hidden="true" size={21} />
@@ -288,7 +314,28 @@ export function MapExperience({
               <MapPlaceCard
                 place={selectedPlace}
                 compactAccommodation={compactAccommodationSheet}
+                scrollBodyFocusable
               />
+            </div>
+          ) : null}
+
+          {selectedPlace ? (
+            <div
+              className={styles.desktopDetailPanel}
+              role="dialog"
+              aria-modal="false"
+              aria-label={`Szczegóły miejsca: ${selectedPlace.name}`}
+            >
+              <button
+                type="button"
+                className={styles.desktopDetailClose}
+                aria-label="Zamknij szczegóły miejsca"
+                ref={desktopCloseRef}
+                onClick={() => setSelectedPlaceId(undefined)}
+              >
+                <X aria-hidden="true" size={20} />
+              </button>
+              <MapPlaceCard place={selectedPlace} />
             </div>
           ) : null}
 
@@ -310,7 +357,6 @@ export function MapExperience({
           places={visiblePlaces}
           selectedPlace={selectedPlace}
           onSelect={handlePlaceSelect}
-          onClearSelection={() => setSelectedPlaceId(undefined)}
         />
       </div>
     </div>

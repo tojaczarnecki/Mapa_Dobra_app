@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Home, Map, Menu, Search, Smartphone, X } from "lucide-react";
+import { BedDouble, Bell, BookOpen, Bookmark, ChevronRight, Flag, Grid2X2, Home, LifeBuoy, Map, MapPinPlus, Menu, Search, Smartphone, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -12,11 +12,14 @@ const primaryItems = [
 ];
 
 const moreItems = [
-  { href: "/#kategorie", label: "Kategorie" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
-  { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
-  { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce" },
-  { href: "/zglos-zmiane", label: "Zgłoś zmianę" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra", icon: BookOpen, group: "use" },
+  { href: "/zapisane", label: "Zapisane miejsca", icon: Bookmark, group: "use" },
+  { href: "/ustawienia/powiadomienia", label: "Powiadomienia", icon: Bell, group: "use" },
+  { href: "/#kategorie", label: "Kategorie", icon: Grid2X2, group: "use" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś", icon: BedDouble, group: "use", quickPath: true },
+  { href: "/uruchom-pomoc", label: "Uruchom pomoc", icon: LifeBuoy, group: "use", prominent: true },
+  { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce", icon: MapPinPlus, group: "engage" },
+  { href: "/zglos-zmiane", label: "Zgłoś zmianę", icon: Flag, group: "engage" },
 ];
 
 function isStandalone() {
@@ -44,6 +47,11 @@ export function MobileBottomNav() {
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const installAvailable = useSyncExternalStore(subscribeToInstallState, getInstallAvailability, () => false);
+
+  useEffect(() => {
+    document.body.dataset.mobileOverlayOpen = moreOpen ? "true" : "false";
+    return () => { delete document.body.dataset.mobileOverlayOpen; };
+  }, [moreOpen]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -83,6 +91,7 @@ export function MobileBottomNav() {
   if (pathname.startsWith("/admin")) return null;
 
   const closeMore = () => setMoreOpen(false);
+  const isMoreItemActive = (href: string) => href === "/#kategorie" ? pathname === "/" : pathname === href;
 
   return (
     <>
@@ -132,12 +141,26 @@ export function MobileBottomNav() {
             </button>
           </div>
           <nav aria-label="Więcej opcji" className="mobile-more-links">
-            {moreItems.map((item) => (
-              <Link key={item.href} href={item.href} onClick={closeMore}>
-                <span>{item.label}</span>
-                <ChevronRight aria-hidden="true" size={19} />
-              </Link>
-            ))}
+            <section className="mobile-more-group mobile-more-group-primary" aria-labelledby="mobile-more-use-title">
+              <h3 id="mobile-more-use-title">Korzystaj z Mapy Dobra</h3>
+              {moreItems.filter((item) => item.group === "use").map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMore} className={`${item.quickPath ? "mobile-more-link-quick " : ""}${item.prominent ? "mobile-more-link-prominent " : ""}${isMoreItemActive(item.href) ? "mobile-more-link-active" : ""}`} aria-current={isMoreItemActive(item.href) ? "page" : undefined}>
+                  <item.icon aria-hidden="true" size={21} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                  <ChevronRight aria-hidden="true" size={19} />
+                </Link>
+              ))}
+            </section>
+            <section className="mobile-more-group mobile-more-group-engage" aria-labelledby="mobile-more-engage-title">
+              <h3 id="mobile-more-engage-title">Zaangażuj się</h3>
+              {moreItems.filter((item) => item.group === "engage").map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMore} className={isMoreItemActive(item.href) ? "mobile-more-link-active" : ""} aria-current={isMoreItemActive(item.href) ? "page" : undefined}>
+                  <item.icon aria-hidden="true" size={20} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                  <ChevronRight aria-hidden="true" size={18} />
+                </Link>
+              ))}
+            </section>
           </nav>
           {installAvailable ? <button type="button" className="mobile-more-install" onClick={() => { closeMore(); window.dispatchEvent(new Event("mapa-dobra:open-install")); }}>
             <Smartphone aria-hidden="true" size={20} />
