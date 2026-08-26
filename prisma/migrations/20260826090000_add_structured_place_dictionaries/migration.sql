@@ -89,7 +89,11 @@ INSERT INTO "accessibility_definitions" ("id", "slug", "label", "sortOrder", "sy
   (gen_random_uuid(), 'ramp', 'Podjazd', 20, 'RAMP', CURRENT_TIMESTAMP),
   (gen_random_uuid(), 'elevator', 'Winda', 30, 'ELEVATOR', CURRENT_TIMESTAMP),
   (gen_random_uuid(), 'accessible-toilet', 'Dostępna toaleta', 40, 'ACCESSIBLE_TOILET', CURRENT_TIMESTAMP),
-  (gen_random_uuid(), 'accessible-shower', 'Dostępny prysznic', 50, 'ACCESSIBLE_SHOWER', CURRENT_TIMESTAMP);
+  (gen_random_uuid(), 'accessible-shower', 'Dostępny prysznic', 50, 'ACCESSIBLE_SHOWER', CURRENT_TIMESTAMP),
+  (gen_random_uuid(), 'wheelchair-place', 'Miejsce dla osoby na wózku', 60, 'WHEELCHAIR_PLACE', CURRENT_TIMESTAMP),
+  (gen_random_uuid(), 'assistance-dog', 'Pies asystujący', 70, 'ASSISTANCE_DOG', CURRENT_TIMESTAMP),
+  (gen_random_uuid(), 'care-services', 'Usługi opiekuńcze', 80, 'CARE_SERVICES', CURRENT_TIMESTAMP),
+  (gen_random_uuid(), 'stay-with-assistant', 'Pobyt z asystentem', 90, 'STAY_WITH_ASSISTANT', CURRENT_TIMESTAMP);
 
 UPDATE "place_requirements" AS row
 SET "definitionId" = definition."id"
