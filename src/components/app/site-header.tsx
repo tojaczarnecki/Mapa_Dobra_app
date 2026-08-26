@@ -7,10 +7,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const links = [
-  { href: "/szukaj", label: "Szukaj" },
+  { href: "/szukaj", label: "Znajdź pomoc" },
   { href: "/mapa", label: "Mapa" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
-  { href: "/encyklopedia", label: "Encyklopedia" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra" },
 ];
 
 export function SiteHeader() {

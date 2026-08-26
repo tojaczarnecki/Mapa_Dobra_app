@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUp, Check, Download, Smartphone } from "lucide-react";
+import { ArrowUp, Download, Smartphone } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 const findLinks = [
-  { href: "/szukaj", label: "Szukaj pomocy" },
+  { href: "/szukaj", label: "Znajdź pomoc" },
   { href: "/mapa", label: "Mapa" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
   { href: "/encyklopedia", label: "Encyklopedia Dobra" },
 ];
@@ -93,18 +93,18 @@ export function SiteFooter() {
       </div>
       <div className="site-footer-divider" />
       <div className="site-footer-links">
-        <nav aria-label="Znajdź pomoc" className="site-footer-group">
-          <h2>Znajdź pomoc</h2>
+        <nav aria-label="Pomoc" className="site-footer-group">
+          <h2>Pomoc</h2>
           {findLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
         </nav>
 
-        <nav aria-label="Zaangażuj się" className="site-footer-group">
-          <h2>Zaangażuj się</h2>
+        <nav aria-label="Współtwórz" className="site-footer-group">
+          <h2>Współtwórz</h2>
           {contributeLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
         </nav>
 
-        <nav aria-label="Informacje i dokumenty" className="site-footer-group">
-          <h2>Informacje i dokumenty</h2>
+        <nav aria-label="Informacje" className="site-footer-group">
+          <h2>Informacje</h2>
           {informationLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
           <button type="button" className="site-footer-group-link" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-cookie-settings"))}>Ustawienia cookies</button>
         </nav>
@@ -113,13 +113,8 @@ export function SiteFooter() {
           <span className="site-footer-install-icon" aria-hidden="true"><Smartphone size={23} /></span>
           <div className="site-footer-install-content">
             <p className="site-footer-install-eyebrow">MAPA DOBRA NA TELEFONIE</p>
-            <h2 id="site-footer-install-title">Mapa Dobra zawsze pod ręką</h2>
-            <p>Zainstaluj aplikację na ekranie głównym. Bez App Store i Google Play.</p>
-            <ul className="site-footer-install-benefits" aria-label="Korzyści instalacji">
-              {["Bezpłatna", "Szybki dostęp", "Działa jak aplikacja"].map((benefit) => (
-                <li key={benefit}><Check aria-hidden="true" size={16} />{benefit}</li>
-              ))}
-            </ul>
+            <h2 id="site-footer-install-title">Zainstaluj Mapę Dobra</h2>
+            <p>Szybki dostęp do mapy i pomocy z ekranu głównego.</p>
           </div>
           {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
             <Download aria-hidden="true" size={17} />
@@ -131,13 +126,15 @@ export function SiteFooter() {
       <div className="site-footer-bottom">
         <div className="site-footer-bottom-inner">
           <span>© 2026 Mapa Dobra</span>
-          <div className="site-footer-social" aria-label="Media społecznościowe">
-            {socialProfiles.map(({ platform, href }) => {
-              const label = `Mapa Dobra na ${platform}`;
-              const content = <SocialIcon platform={platform} />;
-              return href ? <a key={platform} href={href} className="site-footer-social-item" aria-label={label} title={label} target="_blank" rel="noopener noreferrer">{content}</a> : <span key={platform} className="site-footer-social-item site-footer-social-item-disabled" role="img" aria-label={label} title={label}>{content}</span>;
-            })}
-          </div>
+          {socialProfiles.some(({ href }) => Boolean(href)) ? (
+            <div className="site-footer-social" aria-label="Media społecznościowe">
+              {socialProfiles.flatMap(({ platform, href }) => {
+                const label = `Mapa Dobra na ${platform}`;
+                const content = <SocialIcon platform={platform} />;
+                return href ? [<a key={platform} href={href} className="site-footer-social-item" aria-label={label} title={label} target="_blank" rel="noopener noreferrer">{content}</a>] : [];
+              })}
+            </div>
+          ) : null}
           <button type="button" className="site-footer-top" onClick={scrollToTop}>
             <ArrowUp aria-hidden="true" size={17} />
             Do góry

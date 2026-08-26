@@ -1641,7 +1641,7 @@ input {
 }
 
 .site-footer-install-module {
-  background: linear-gradient(110deg, #fbfefd 0%, #f3faf8 64%, #fffaf0 150%);
+  background: linear-gradient(110deg, #ffffff 0%, #f3faf8 72%, #f8fcfb 100%);
   border: 1px solid #cfe4df;
   border-radius: 1.25rem;
   display: grid;
@@ -3064,6 +3064,11 @@ input {
   .mobile-more-layer {
     display: none;
   }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .site-header-install { display: none; }
+  .site-header-link { font-size: 0.875rem; padding-left: 0.625rem; padding-right: 0.625rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

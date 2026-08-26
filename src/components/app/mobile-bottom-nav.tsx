@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { BedDouble, Bell, BookOpen, Bookmark, ChevronRight, Flag, Grid2X2, Home, LifeBuoy, Map, MapPinPlus, Menu, Search, Smartphone, X } from "lucide-react";
+import { BedDouble, Bell, BookOpen, Bookmark, ChevronRight, Flag, Home, LifeBuoy, Map, MapPinPlus, Menu, Search, Smartphone, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const primaryItems = [
   { href: "/", label: "Start", icon: Home },
-  { href: "/szukaj", label: "Szukaj", icon: Search },
+  { href: "/szukaj", label: "Pomoc", icon: Search },
   { href: "/mapa", label: "Mapa", icon: Map },
 ];
 
 const moreItems = [
-  { href: "/encyklopedia", label: "Encyklopedia Dobra", icon: BookOpen, group: "use" },
-  { href: "/zapisane", label: "Zapisane miejsca", icon: Bookmark, group: "use" },
-  { href: "/ustawienia/powiadomienia", label: "Powiadomienia", icon: Bell, group: "use" },
-  { href: "/#kategorie", label: "Kategorie", icon: Grid2X2, group: "use" },
-  { href: "/znajdz-nocleg", label: "Nocleg na dziś", icon: BedDouble, group: "use", quickPath: true },
-  { href: "/uruchom-pomoc", label: "Uruchom pomoc", icon: LifeBuoy, group: "use", prominent: true },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś", icon: BedDouble, group: "quick", quickPath: true },
+  { href: "/uruchom-pomoc", label: "Uruchom pomoc", icon: LifeBuoy, group: "quick", prominent: true },
+  { href: "/zapisane", label: "Zapisane miejsca", icon: Bookmark, group: "personal" },
+  { href: "/ustawienia/powiadomienia", label: "Powiadomienia", icon: Bell, group: "personal" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra", icon: BookOpen, group: "learn" },
   { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce", icon: MapPinPlus, group: "engage" },
   { href: "/zglos-zmiane", label: "Zgłoś zmianę", icon: Flag, group: "engage" },
 ];
@@ -141,13 +140,31 @@ export function MobileBottomNav() {
             </button>
           </div>
           <nav aria-label="Więcej opcji" className="mobile-more-links">
-            <section className="mobile-more-group mobile-more-group-primary" aria-labelledby="mobile-more-use-title">
-              <h3 id="mobile-more-use-title">Korzystaj z Mapy Dobra</h3>
-              {moreItems.filter((item) => item.group === "use").map((item) => (
+            <section className="mobile-more-group mobile-more-group-primary" aria-labelledby="mobile-more-quick-title">
+              <h3 id="mobile-more-quick-title">Szybko</h3>
+              {moreItems.filter((item) => item.group === "quick").map((item) => (
                 <Link key={item.href} href={item.href} onClick={closeMore} className={`${item.quickPath ? "mobile-more-link-quick " : ""}${item.prominent ? "mobile-more-link-prominent " : ""}${isMoreItemActive(item.href) ? "mobile-more-link-active" : ""}`} aria-current={isMoreItemActive(item.href) ? "page" : undefined}>
                   <item.icon aria-hidden="true" size={21} strokeWidth={1.8} />
                   <span>{item.label}</span>
                   <ChevronRight aria-hidden="true" size={19} />
+                </Link>
+              ))}
+            </section>
+            <section className="mobile-more-group" aria-labelledby="mobile-more-personal-title">
+              <h3 id="mobile-more-personal-title">Dla mnie</h3>
+              {moreItems.filter((item) => item.group === "personal").map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMore} className={`${item.quickPath ? "mobile-more-link-quick " : ""}${item.prominent ? "mobile-more-link-prominent " : ""}${isMoreItemActive(item.href) ? "mobile-more-link-active" : ""}`} aria-current={isMoreItemActive(item.href) ? "page" : undefined}>
+                  <item.icon aria-hidden="true" size={21} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                  <ChevronRight aria-hidden="true" size={19} />
+                </Link>
+              ))}
+            </section>
+            <section className="mobile-more-group" aria-labelledby="mobile-more-learn-title">
+              <h3 id="mobile-more-learn-title">Dowiedz się</h3>
+              {moreItems.filter((item) => item.group === "learn").map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMore} className={isMoreItemActive(item.href) ? "mobile-more-link-active" : ""} aria-current={isMoreItemActive(item.href) ? "page" : undefined}>
+                  <item.icon aria-hidden="true" size={20} strokeWidth={1.8} /><span>{item.label}</span><ChevronRight aria-hidden="true" size={18} />
                 </Link>
               ))}
             </section>
