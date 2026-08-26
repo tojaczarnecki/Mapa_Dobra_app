@@ -17,6 +17,7 @@ const findLinks = [
 const contributeLinks = [
   { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce" },
   { href: "/zglos-zmiane", label: "Zgłoś zmianę" },
+  { href: "/dla-organizacji", label: "Dla organizacji" },
 ];
 
 const informationLinks = [

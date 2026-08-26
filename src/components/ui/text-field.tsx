@@ -3,16 +3,22 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   icon?: ReactNode;
   label: string;
+  helperText?: string;
+  error?: string;
 };
 
 export function TextField({
   icon,
   label,
   id,
+  helperText,
+  error,
   className = "",
   ...props
 }: TextFieldProps) {
   const inputId = id ?? props.name ?? "text-field";
+  const helperId = `${inputId}-helper`;
+  const errorId = `${inputId}-error`;
 
   return (
     <div className="space-y-2">
@@ -30,14 +36,18 @@ export function TextField({
         ) : null}
         <input
           id={inputId}
+          aria-describedby={error ? errorId : helperText ? helperId : undefined}
+          aria-invalid={error ? true : undefined}
           className={[
-            "touch-target w-full rounded-lg border border-border bg-white px-4 py-3 text-base text-foreground shadow-sm transition placeholder:text-slate-500 hover:border-slate-400 focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
+            "ui-input touch-target w-full rounded-lg border bg-white px-4 py-3 text-base text-foreground transition placeholder:text-slate-500 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:opacity-70 read-only:bg-surface-muted",
+            error ? "border-danger" : "border-border",
             icon ? "pl-12" : "",
             className,
           ].join(" ")}
           {...props}
         />
       </div>
+      {error ? <p id={errorId} className="ui-field-error" role="alert">{error}</p> : helperText ? <p id={helperId} className="ui-field-helper">{helperText}</p> : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { PwaClient } from "@/components/app/pwa-client";
@@ -9,6 +10,15 @@ import { FirstVisitIntro } from "@/components/app/first-visit-intro";
 import { NotificationPrePrompt } from "@/components/notifications/notification-preprompt";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
+
+const sourceSans = localFont({
+  src: [
+    { path: "./fonts/SourceSans3-Regular.ttf", weight: "400" },
+    { path: "./fonts/SourceSans3-SemiBold.ttf", weight: "600" },
+  ],
+  display: "swap",
+  variable: "--font-source-sans-3",
+});
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -37,7 +47,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="pl">
+    <html lang="pl" className={sourceSans.variable}>
       <body>
         <div className="min-h-screen bg-background text-foreground">
           <a className="skip-link" href="#main-content">

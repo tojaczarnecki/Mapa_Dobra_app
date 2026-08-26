@@ -60,7 +60,7 @@ export function SiteHeader() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <header ref={headerRef} className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""} ${hidden ? "site-header-hidden" : ""}`}>
+    <header ref={headerRef} className={`site-header sticky top-0 ${pathname === "/" ? "site-header-home" : ""} ${hidden ? "site-header-hidden" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"
