@@ -26,6 +26,7 @@ export type ContactDetails = {
   email?: string;
   website?: string;
   social?: string;
+  socialLinks?: Array<{ platform: string; url: string; label?: string }>;
 };
 
 export type VerificationDetails = {

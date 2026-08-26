@@ -55,6 +55,10 @@ export async function saveOrganization(
         phone: input.phone || null,
         email: input.email || null,
         website: input.website || null,
+        nip: input.nip || null,
+        regon: input.regon || null,
+        krs: input.krs || null,
+        legalForm: input.legalForm || null,
       };
       const saved = existing
         ? await transaction.organization.update({ where: { id: existing.id }, data: values })
@@ -62,7 +66,7 @@ export async function saveOrganization(
             data: { ...values, slug: await uniqueOrganizationSlug(transaction, input.name) },
           });
       const previousValues = existing
-        ? { name: existing.name, description: existing.description, phone: existing.phone, email: existing.email, website: existing.website, active: existing.active }
+        ? { name: existing.name, description: existing.description, phone: existing.phone, email: existing.email, website: existing.website, nip: existing.nip, regon: existing.regon, krs: existing.krs, legalForm: existing.legalForm, active: existing.active }
         : null;
       const newValues = { ...values, active: saved.active };
       const changedFields = Object.keys(newValues).filter((key) => (

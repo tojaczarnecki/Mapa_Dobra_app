@@ -22,6 +22,10 @@ test("organization validation checks required name, email, URL and limits", () =
   valid.set("phone", "+48 500 000 000");
   valid.set("email", "kontakt@example.com");
   valid.set("website", "https://example.com");
+  valid.set("nip", "526-104-08-28");
+  valid.set("regon", "123456789");
+  valid.set("krs", "0000123456");
+  valid.set("legalForm", "Fundacja");
   assert.equal(validateOrganizationForm(valid).ok, true);
 
   valid.set("email", "niepoprawny-email");

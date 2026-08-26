@@ -1,4 +1,5 @@
 import { compareOrganizationNames } from "../admin/directory-validation.ts";
+import { normalizeNip } from "../structured-data.ts";
 
 export const organizationRegistrationStatuses = ["EMAIL_PENDING", "PENDING_REVIEW", "APPROVED", "REJECTED", "SUSPENDED"] as const;
 
@@ -15,13 +16,15 @@ export function organizationRegistrationInput(input: Record<string, unknown>) {
   const jobTitle = typeof input.jobTitle === "string" ? input.jobTitle : typeof input.applicantPosition === "string" ? input.applicantPosition : "";
   const password = typeof input.password === "string" ? input.password : "";
   if (organizationName.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(organizationEmail) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(applicantEmail) || applicantName.length < 2 || password.length < 12) return null;
+  const nip = typeof input.nip === "string" && input.nip.trim() ? normalizeNip(input.nip) : null;
+  if (typeof input.nip === "string" && input.nip.trim() && !nip) return null;
   return {
     organizationName,
     applicantName,
     organizationEmail,
     applicantEmail,
     password,
-    nip: typeof input.nip === "string" ? input.nip.trim().slice(0, 20) : null,
+    nip,
     website: typeof input.website === "string" ? input.website.trim().slice(0, 2048) : null,
     organizationPhone: typeof input.organizationPhone === "string" ? input.organizationPhone.trim().slice(0, 50) : null,
     applicantPhone: typeof input.applicantPhone === "string" ? input.applicantPhone.trim().slice(0, 50) : null,

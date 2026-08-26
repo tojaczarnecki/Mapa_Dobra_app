@@ -405,6 +405,15 @@ enum AccessibilityFeature {
   OTHER
 }
 
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  YOUTUBE
+  TIKTOK
+  OTHER
+}
+
 enum AccommodationType {
   SHELTER
   NIGHT_SHELTER
@@ -691,6 +700,10 @@ model Organization {
   phone       String?  @db.VarChar(50)
   email       String?  @db.VarChar(320)
   website     String?  @db.VarChar(2048)
+  nip         String?  @db.VarChar(10)
+  regon       String?  @db.VarChar(14)
+  krs         String?  @db.VarChar(10)
+  legalForm   String?  @db.VarChar(160)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
@@ -892,8 +905,10 @@ model Place {
   openingHours            OpeningHours[]
   requirements            PlaceRequirement[]
   accessibility           PlaceAccessibility[]
-  knowledgeArticles       KnowledgeArticlePlace[]
+  audienceDefinitions     PlaceAudience[]
+  socialLinks             PlaceSocialLink[]
   accommodation           AccommodationDetails?
+  knowledgeArticles       KnowledgeArticlePlace[]
   lastEditedBy            AdminUser?                @relation("PlaceLastEditor", fields: [lastEditedByAdminUserId], references: [id], onDelete: SetNull)
   verifiedBy              AdminUser?                @relation("PlaceVerifier", fields: [verifiedByAdminUserId], references: [id], onDelete: SetNull)
   updateSubmissions       PlaceUpdateSubmission[]   @relation("SubmissionTargetPlace")
@@ -1092,7 +1107,9 @@ model PlaceRequirement {
   label     String           @db.VarChar(240)
   note      String?          @db.VarChar(500)
   sortOrder Int              @default(0)
+  definitionId String?       @db.Uuid
   place     Place            @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  definition RequirementDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
 
   @@unique([placeId, kind, sortOrder])
   @@index([placeId, sortOrder])
@@ -1107,11 +1124,88 @@ model PlaceAccessibility {
   label     String               @db.VarChar(240)
   note      String?              @db.VarChar(500)
   sortOrder Int                  @default(0)
+  definitionId String?           @db.Uuid
   place     Place                @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  definition AccessibilityDefinition? @relation(fields: [definitionId], references: [id], onDelete: SetNull)
 
   @@unique([placeId, feature, sortOrder])
   @@index([placeId, sortOrder])
   @@map("place_accessibility")
+}
+
+model RequirementDefinition {
+  id          String            @id @default(uuid()) @db.Uuid
+  slug        String            @unique @db.VarChar(160)
+  label       String            @db.VarChar(240)
+  description String?           @db.VarChar(1000)
+  sortOrder   Int               @default(0)
+  active      Boolean           @default(true)
+  systemKey   String?           @unique @db.VarChar(80)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  requirements PlaceRequirement[]
+
+  @@index([active, sortOrder])
+  @@map("requirement_definitions")
+}
+
+model AccessibilityDefinition {
+  id            String                @id @default(uuid()) @db.Uuid
+  slug          String                @unique @db.VarChar(160)
+  label         String                @db.VarChar(240)
+  description   String?               @db.VarChar(1000)
+  sortOrder     Int                   @default(0)
+  active        Boolean               @default(true)
+  systemKey     String?               @unique @db.VarChar(80)
+  createdAt     DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime              @updatedAt @db.Timestamptz(3)
+  accessibility PlaceAccessibility[]
+
+  @@index([active, sortOrder])
+  @@map("accessibility_definitions")
+}
+
+model AudienceDefinition {
+  id          String          @id @default(uuid()) @db.Uuid
+  slug        String          @unique @db.VarChar(160)
+  label       String          @db.VarChar(240)
+  description String?         @db.VarChar(1000)
+  sortOrder   Int             @default(0)
+  active      Boolean         @default(true)
+  systemKey   String?         @unique @db.VarChar(80)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  places      PlaceAudience[]
+
+  @@index([active, sortOrder])
+  @@map("audience_definitions")
+}
+
+model PlaceAudience {
+  placeId      String             @db.Uuid
+  definitionId String             @db.Uuid
+  place        Place              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  definition   AudienceDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  @@id([placeId, definitionId])
+  @@index([definitionId])
+  @@map("place_audience")
+}
+
+model PlaceSocialLink {
+  id        String        @id @default(uuid()) @db.Uuid
+  placeId   String        @db.Uuid
+  platform  SocialPlatform
+  url       String        @db.VarChar(2048)
+  label     String?       @db.VarChar(160)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+  place     Place         @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, platform])
+  @@index([placeId, sortOrder])
+  @@map("place_social_links")
 }
 
 model AccommodationDetails {

@@ -1,5 +1,6 @@
 import type { CategoryFormValue, OrganizationFormValue } from "@/types/admin-directory";
 import { normalizeHttpUrl } from "../urls.ts";
+import { normalizeKrs, normalizeNip, normalizeRegon } from "../structured-data.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
@@ -63,13 +64,21 @@ export function validateOrganizationForm(formData: FormData):
   const phone = text(formData.get("phone"), 50);
   const email = text(formData.get("email"), 320);
   const website = text(formData.get("website"), 2048);
-  if ((id && !uuidPattern.test(id)) || !name || name.length < 2 || description === null || phone === null || email === null || website === null) {
+  const nip = text(formData.get("nip"), 20);
+  const regon = text(formData.get("regon"), 20);
+  const krs = text(formData.get("krs"), 20);
+  const legalForm = text(formData.get("legalForm"), 160);
+  if ((id && !uuidPattern.test(id)) || !name || name.length < 2 || description === null || phone === null || email === null || website === null || nip === null || regon === null || krs === null || legalForm === null) {
     return { ok: false, error: "Sprawdź wymagane pola i limity długości." };
   }
   if (email && !emailPattern.test(email)) return { ok: false, error: "Podaj poprawny adres e-mail." };
   const normalizedWebsite = website ? normalizeHttpUrl(website) : null;
   if (website && !normalizedWebsite) return { ok: false, error: "Wpisz poprawny adres strony, np. mapadobra.pl" };
-  return { ok: true, data: { id: id || undefined, name, description, phone, email, website: normalizedWebsite ?? "" } };
+  const normalizedNip = nip ? normalizeNip(nip) : null;
+  const normalizedRegon = regon ? normalizeRegon(regon) : null;
+  const normalizedKrs = krs ? normalizeKrs(krs) : null;
+  if (nip && !normalizedNip || regon && !normalizedRegon || krs && !normalizedKrs) return { ok: false, error: "Sprawdź NIP, REGON i KRS." };
+  return { ok: true, data: { id: id || undefined, name, description, phone, email, website: normalizedWebsite ?? "", nip: normalizedNip ?? "", regon: normalizedRegon ?? "", krs: normalizedKrs ?? "", legalForm } };
 }
 
 export function validateCategoryForm(formData: FormData):

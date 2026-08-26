@@ -56,6 +56,10 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
             <span className="mb-1.5 block">Strona WWW</span>
             <input name="website" type="url" maxLength={2048} placeholder="https://…" defaultValue={initialData.website} className={fieldClass} />
           </label>
+          <label className="block text-sm font-bold"><span className="mb-1.5 block">NIP</span><input name="nip" inputMode="numeric" autoComplete="off" maxLength={20} defaultValue={initialData.nip} className={fieldClass} /><span className="mt-1 block text-xs font-normal text-muted-foreground">Dane rejestrowe będzie można później pobrać automatycznie.</span></label>
+          <label className="block text-sm font-bold"><span className="mb-1.5 block">REGON</span><input name="regon" inputMode="numeric" autoComplete="off" maxLength={20} defaultValue={initialData.regon} className={fieldClass} /></label>
+          <label className="block text-sm font-bold"><span className="mb-1.5 block">KRS</span><input name="krs" inputMode="numeric" autoComplete="off" maxLength={20} defaultValue={initialData.krs} className={fieldClass} /></label>
+          <label className="block text-sm font-bold"><span className="mb-1.5 block">Forma prawna</span><input name="legalForm" maxLength={160} defaultValue={initialData.legalForm} className={fieldClass} /></label>
           <label className="block text-sm font-bold sm:col-span-2">
             <span className="mb-1.5 block">Opis</span>
             <textarea name="description" maxLength={2000} rows={5} defaultValue={initialData.description} className={`${fieldClass} resize-y`} />

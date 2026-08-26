@@ -44,6 +44,11 @@ export function PlaceContact({ contact, placeId }: PlaceContactProps) {
           {contact.social}
         </p>
       ) : null}
+      {contact.socialLinks?.map((link) => (
+        <p key={`${link.platform}-${link.url}`} className="place-detail-contact-row">
+          <a className="font-semibold text-brand-strong underline" href={link.url} target="_blank" rel="noreferrer">{link.label ?? link.platform}</a>
+        </p>
+      ))}
     </div>
   );
 }

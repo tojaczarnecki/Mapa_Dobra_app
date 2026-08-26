@@ -12,6 +12,10 @@ export type OrganizationFormValue = {
   phone: string;
   email: string;
   website: string;
+  nip: string;
+  regon: string;
+  krs: string;
+  legalForm: string;
 };
 
 export type CategoryFormValue = {

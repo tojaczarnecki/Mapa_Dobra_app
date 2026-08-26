@@ -34,6 +34,7 @@ const publicPlaceInclude = {
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
   requirements: { orderBy: { sortOrder: "asc" as const } },
   accessibility: { orderBy: { sortOrder: "asc" as const } },
+  socialLinks: { orderBy: { sortOrder: "asc" as const } },
   accommodation: {
     include: {
       capacityGroups: { where: { active: true }, orderBy: { sortOrder: "asc" as const } },
@@ -239,7 +240,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     services: place.services,
     accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
     description: place.description?.split(/\n\s*\n/u).filter(Boolean) ?? [],
-    contact: { phone: place.phone ?? undefined, email: place.email ?? undefined, website: place.website ?? undefined, social: place.socialMedia ?? undefined },
+    contact: { phone: place.phone ?? undefined, email: place.email ?? undefined, website: place.website ?? undefined, social: place.socialMedia ?? undefined, socialLinks: place.socialLinks.map((link) => ({ platform: link.platform, url: link.url, label: link.label ?? undefined })) },
     openingHours: openingDays(place),
     verification: {
       label: place.verificationStatus === "VERIFIED" ? relativeAge(place.verifiedAt, true) : "Dane wymagają potwierdzenia",
