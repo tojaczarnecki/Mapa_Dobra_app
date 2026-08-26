@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ClipboardCheck } from "lucide-react";
+import { ArrowRight, ClipboardCheck, HeartHandshake, MapPinned, SearchCheck } from "lucide-react";
 import { SubmissionList } from "@/components/admin/submission-list";
 import { moderationStatusLabels } from "@/lib/admin/labels";
 import { resolveAvailabilityState } from "@/lib/accommodations/freshness";
@@ -35,7 +35,8 @@ export default async function AdminDashboardPage() {
     const placeCount = session.user.permissions.includes("VIEW_PLACES") ? await prisma.place.count() : 0;
     return <div className="space-y-5"><header><p className="text-sm font-bold text-brand-strong">Panel administracyjny</p><h1 className="mt-1 text-3xl font-bold">Dashboard</h1><p className="mt-2 text-sm text-muted-foreground">Zakres widoku wynika z bieżących uprawnień konta.</p></header><section className="rounded-lg border border-border bg-white p-5"><h2 className="font-bold">Dostępne dane</h2><p className="mt-2 text-sm text-muted-foreground">Miejsca w zakresie odczytu: <strong className="text-foreground">{placeCount}</strong></p>{session.user.permissions.includes("VIEW_PLACES") ? <Link href="/admin/miejsca" className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong">Otwórz miejsca</Link> : null}</section></div>;
   }
-  const { metrics, latest } = await getDashboardData();
+  const { metrics, latest, actionCounts } = await getDashboardData();
+  const can = (permission: (typeof session.user.permissions)[number]) => session.user.permissions.includes(permission);
 
   return (
     <div className="space-y-7">
@@ -55,6 +56,30 @@ export default async function AdminDashboardPage() {
           Otwórz kolejkę
         </Link>
       </header>
+
+      <section aria-labelledby="action-items-heading">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div><p className="mb-1 text-xs font-bold uppercase tracking-wide text-brand-strong">Priorytety</p><h2 id="action-items-heading" className="text-xl font-bold">Do zrobienia</h2></div>
+          <p className="text-sm text-muted-foreground">Najważniejsze kolejki na teraz</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {can("MODERATE_SUBMISSIONS") ? <ActionItem href="/admin/zgloszenia?status=pending" label="Nowe zgłoszenia" description="Czekają na moderację" count={actionCounts.submissions} icon={ClipboardCheck} /> : null}
+          {can("VIEW_HELP_REQUESTS") ? <ActionItem href="/admin/zgloszenia-pomocy?status=NEW" label="Zgłoszenia pomocy" description="Wymagają reakcji" count={actionCounts.helpRequests} icon={HeartHandshake} tone="urgent" /> : null}
+          {can("VERIFY_PLACES") ? <ActionItem href="/admin/weryfikacja" label="Miejsca do weryfikacji" description="Kolejka jakości danych" count={actionCounts.verification} icon={SearchCheck} tone="warning" /> : null}
+          {can("UPDATE_BED_AVAILABILITY") || can("VIEW_PLACES") ? <ActionItem href="/admin/miejsca?accommodation=yes" label="Noclegi do sprawdzenia" description="Brak aktualizacji w 24 h" count={actionCounts.staleAccommodations} icon={MapPinned} tone="warning" /> : null}
+        </div>
+      </section>
+
+      <section aria-labelledby="admin-areas-heading">
+        <h2 id="admin-areas-heading" className="mb-3 text-lg font-bold">Obszary pracy</h2>
+        <div className="divide-y divide-border border-y border-border bg-white">
+          {can("VIEW_PLACES") ? <AreaRow href="/admin/miejsca" label="Miejsca" description="Baza miejsc, statusy i edycja" /> : null}
+          {can("MODERATE_SUBMISSIONS") || can("VIEW_HELP_REQUESTS") ? <AreaRow href="/admin/zgloszenia" label="Zgłoszenia" description="Zmiany, nowe miejsca i pomoc" /> : null}
+          {can("VIEW_KNOWLEDGE") ? <AreaRow href="/admin/encyklopedia" label="Treści" description="Encyklopedia Dobra i kategorie" /> : null}
+          {can("VIEW_ORGANIZATIONS") ? <AreaRow href="/admin/organizacje" label="Organizacje" description="Organizacje i dostęp do miejsc" /> : null}
+          {can("VIEW_IMPORTS") ? <AreaRow href="/admin/importy" label="Narzędzia" description="Importy i operacje techniczne" /> : null}
+        </div>
+      </section>
 
       <section aria-labelledby="queue-status-heading">
         <h2 id="queue-status-heading" className="mb-4 text-lg font-bold">
@@ -96,4 +121,13 @@ export default async function AdminDashboardPage() {
       </section>
     </div>
   );
+}
+
+function ActionItem({ href, label, description, count, icon: Icon, tone = "neutral" }: { href: string; label: string; description: string; count: number; icon: typeof ClipboardCheck; tone?: "neutral" | "warning" | "urgent" }) {
+  const toneClass = tone === "urgent" ? "border-urgent/40" : tone === "warning" ? "border-[#d7a548]/60" : "border-border";
+  return <Link href={href} className={`group flex min-w-0 items-start gap-3 rounded-lg border bg-white p-4 transition hover:border-brand hover:shadow-sm ${toneClass}`}><Icon aria-hidden="true" className={tone === "urgent" ? "mt-0.5 shrink-0 text-urgent" : tone === "warning" ? "mt-0.5 shrink-0 text-[#9a6815]" : "mt-0.5 shrink-0 text-brand-strong"} size={19} /><span className="min-w-0 flex-1"><strong className="block text-sm">{label}</strong><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span><span className="text-2xl font-bold leading-none">{count}</span><ArrowRight aria-hidden="true" className="mt-1 shrink-0 text-muted-foreground transition group-hover:text-brand-strong" size={17} /></Link>;
+}
+
+function AreaRow({ href, label, description }: { href: string; label: string; description: string }) {
+  return <Link href={href} className="group flex min-h-14 items-center justify-between gap-4 px-4 py-3 hover:bg-brand-soft/40"><span className="min-w-0"><strong className="block text-sm">{label}</strong><span className="block text-xs text-muted-foreground">{description}</span></span><ArrowRight aria-hidden="true" className="shrink-0 text-muted-foreground group-hover:text-brand-strong" size={18} /></Link>;
 }

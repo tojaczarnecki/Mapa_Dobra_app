@@ -5,6 +5,7 @@ import {
   sourceTypeLabels,
   updateTypeLabels,
 } from "@/lib/admin/labels";
+import { getVerificationQueueItems } from "@/lib/verification/queue";
 
 export type AdminSubmissionKind = "place-update" | "new-place";
 
@@ -100,7 +101,8 @@ export async function getSubmissionSummaries({
 
 export async function getDashboardData() {
   const statuses = ["PENDING", "UNDER_REVIEW", "APPROVED", "REJECTED"] as const;
-  const [updateGroups, newPlaceGroups, latest] = await Promise.all([
+  const staleBefore = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [updateGroups, newPlaceGroups, latest, helpRequests, staleAccommodations, verificationItems] = await Promise.all([
     prisma.placeUpdateSubmission.groupBy({
       by: ["moderationStatus"],
       _count: { _all: true },
@@ -110,6 +112,9 @@ export async function getDashboardData() {
       _count: { _all: true },
     }),
     getSubmissionSummaries({ sort: "newest" }),
+    prisma.helpRequest.count({ where: { status: { in: ["NEW", "REVIEWING"] } } }),
+    prisma.accommodationDetails.count({ where: { OR: [{ availabilityConfirmedAt: null }, { availabilityConfirmedAt: { lt: staleBefore } }] } }),
+    getVerificationQueueItems(),
   ]);
 
   const countFor = (
@@ -124,6 +129,12 @@ export async function getDashboardData() {
       return { status, placeUpdates, newPlaces, total: placeUpdates + newPlaces };
     }),
     latest: latest.slice(0, 6),
+    actionCounts: {
+      submissions: countFor(updateGroups, "PENDING") + countFor(newPlaceGroups, "PENDING"),
+      helpRequests,
+      verification: verificationItems.filter((item) => item.queueStatus !== "VERIFIED" && item.queueStatus !== "SKIPPED").length,
+      staleAccommodations,
+    },
   };
 }
 
