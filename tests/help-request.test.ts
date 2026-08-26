@@ -35,6 +35,17 @@ test("help request preserves immediate danger and location coordinates", () => {
   }
 });
 
+test("public urgency cannot be spoofed by a crafted payload", () => {
+  const result = validateHelpRequest({
+    emergencyAnswer: "NO",
+    urgency: "IMMEDIATE",
+    needs: ["FOOD"],
+    description: "Potrzebna jest informacja o najbliższym posiłku.",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.data.urgency, "UNKNOWN");
+});
+
 test("help request rejects invalid contact, coordinates and honeypot", () => {
   assert.equal(validateHelpRequest({ ...base, reporterEmail: "not-an-email" }).ok, false);
   assert.equal(validateHelpRequest({ ...base, latitude: 120 }).ok, false);

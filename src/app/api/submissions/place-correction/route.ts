@@ -3,6 +3,7 @@ import { readSubmissionBody, submissionErrorResponse, submissionSuccessResponse 
 import { consumeSubmissionRateLimit, getRequestAddress } from "@/lib/submissions/rate-limit";
 import { encodeContextualCorrection, contextualCorrectionFields, contextualCorrectionLabels, type ContextualCorrectionField } from "@/lib/submissions/contextual-correction";
 import { hasImpossibleFormTiming } from "@/lib/security/form-timing";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
 import type { PlaceUpdateType, SubmissionSourceType } from "@/generated/prisma/enums";
 
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
   const body = await readSubmissionBody(request);
   if (!body || typeof body !== "object") return submissionErrorResponse();
   const value = body as Record<string, unknown>;
+  const challenge = await verifyTurnstileToken(value.turnstileToken, request);
+  if (!challenge.ok) return submissionErrorResponse(403);
   if (hasImpossibleFormTiming(value.formStartedAt)) return submissionErrorResponse();
   const requestId = stringValue(value.requestId, 36);
   const placeIdentifier = stringValue(value.placeId, 200);

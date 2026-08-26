@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Save, X } from "lucide-react";
 import { saveKnowledgeArticle, type KnowledgeActionState } from "@/app/admin/(protected)/encyklopedia/actions";
 import { MarkdownEditor } from "@/components/admin/knowledge/markdown-editor";
+import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
+import { clearFormDraft } from "@/lib/form-drafts";
 
 type Article = { id?: string; title?: string; slug?: string; excerpt?: string; content?: string; status?: string; intent?: string; contentType?: string; tags?: string[]; categorySlugs?: string[]; placeIds?: string[]; relatedArticleIds?: string[]; readingTime?: number | null; featured?: boolean; important?: boolean; partnerContent?: boolean; partnerName?: string | null; partnerDisclosure?: string | null; authorDisplayName?: string | null; emergencyNote?: string | null; geographicScope?: string | null; seoTitle?: string | null; seoDescription?: string | null; notificationEligible?: boolean; notificationCategory?: string | null };
 type Option = { slug: string; name: string };
@@ -25,20 +29,48 @@ function TokenInput({ name, initialValues = [], label, placeholder }: { name: st
 function SaveButton() { const { pending } = useFormStatus(); return <button type="submit" disabled={pending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white disabled:cursor-wait disabled:opacity-60"><Save size={17} aria-hidden="true" /> {pending ? "Zapisywanie…" : "Zapisz materiał"}</button>; }
 
 export function KnowledgeForm({ article = {}, categories = [], relatedArticles = [] }: { article?: Article; categories?: Option[]; relatedArticles?: RelatedOption[] }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, action] = useActionState(saveKnowledgeArticle, initialState);
   const [selectedCategories, setSelectedCategories] = useState(article.categorySlugs ?? []);
   const [selectedRelated, setSelectedRelated] = useState(article.relatedArticleIds ?? []);
   const [partner, setPartner] = useState(Boolean(article.partnerContent));
   const [notifications, setNotifications] = useState(Boolean(article.notificationEligible));
-  useEffect(() => { if (state.success) window.scrollTo({ top: 0, behavior: "smooth" }); }, [state.success]);
-  return <form action={action} className="grid max-w-[920px] gap-6">
+  const [content, setContent] = useState(article.content ?? "");
+  const [draftData, setDraftData] = useState<Record<string, string | string[]>>({});
+  const draft = useFormDraft({ formType: "knowledge-article", storage: "session", ttlMs: 7 * 24 * 60 * 60 * 1000, data: draftData, enabled: !state.success });
+  useUnsavedChanges(draft.isDirty);
+  useEffect(() => { if (state.success) { clearFormDraft("knowledge-article", "session"); window.scrollTo({ top: 0, behavior: "smooth" }); } }, [state.success]);
+  function snapshot(form: HTMLFormElement) {
+    const data: Record<string, string | string[]> = {};
+    for (const [key, value] of new FormData(form).entries()) {
+      if (typeof value !== "string") continue;
+      data[key] = data[key] === undefined ? value : Array.isArray(data[key]) ? [...data[key] as string[], value] : [data[key] as string, value];
+    }
+    return data;
+  }
+  function restore(data: Record<string, string | string[]>) {
+    if (!formRef.current) return;
+    for (const [name, value] of Object.entries(data)) {
+      const field = formRef.current.elements.namedItem(name);
+      const values = Array.isArray(value) ? value : [value];
+      if (field instanceof HTMLInputElement && field.type === "checkbox") field.checked = values.includes(field.value) || values.includes("on");
+      else if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) field.value = values[0] ?? "";
+    }
+    setSelectedCategories(Array.isArray(data.categorySlugs) ? data.categorySlugs : data.categorySlugs ? [data.categorySlugs] : []);
+    setSelectedRelated(Array.isArray(data.relatedArticleIds) ? data.relatedArticleIds : data.relatedArticleIds ? [data.relatedArticleIds] : []);
+    setPartner(data.partnerContent === "on");
+    setNotifications(data.notificationEligible === "on");
+    setContent(typeof data.content === "string" ? data.content : "");
+    setDraftData(data);
+  }
+  return <><FormDraftResume draft={draft.storedDraft} label="Artykuł Encyklopedii Dobra" onResume={() => { const restored = draft.resume(); if (restored) restore(restored.data); }} onDiscard={draft.discard} /><form ref={formRef} action={action} onChange={(event) => setDraftData(snapshot(event.currentTarget))} className="grid max-w-[920px] gap-6">
     <input type="hidden" name="id" value={article.id ?? ""} />
     <section className="grid gap-4" aria-labelledby="article-basics"><h2 id="article-basics" className="text-lg font-bold text-brand-strong">Podstawowe informacje</h2><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold sm:col-span-2">Tytuł *<input name="title" defaultValue={article.title} required maxLength={240} className={inputClass} /></label><label className="text-sm font-bold">Adres URL<input name="slug" defaultValue={article.slug} placeholder="wygeneruje się z tytułu" className={inputClass} /><span className="mt-1 block text-xs font-normal text-muted-foreground">Slug jest używany tylko w adresie publicznego artykułu.</span></label><label className="text-sm font-bold">Czas czytania (min)<input name="readingTime" type="number" min="1" max="999" defaultValue={article.readingTime ?? ""} className={inputClass} /></label><label className="text-sm font-bold sm:col-span-2">Zajawka *<textarea name="excerpt" defaultValue={article.excerpt} required maxLength={600} rows={3} className={`${inputClass} min-h-0`} /></label></div></section>
     <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">Redakcja</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><label className="text-sm font-bold">Intencja<select name="intent" defaultValue={article.intent ?? "NEED_HELP"} className={inputClass}><option value="NEED_HELP">Potrzebuję pomocy</option><option value="HELP_SOMEONE">Chcę komuś pomóc</option><option value="GOOD_PRACTICES">Dobre praktyki</option><option value="VOLUNTEERING">Zaangażowanie i wolontariat</option><option value="ORGANIZATIONS">Dla organizacji i firm</option></select></label><label className="text-sm font-bold">Typ materiału<select name="contentType" defaultValue={article.contentType ?? "GUIDE"} className={inputClass}><option value="GUIDE">Poradnik</option><option value="HOW_TO">Jak to zrobić</option><option value="EXPLAINER">Wyjaśnienie</option><option value="CHECKLIST">Lista kontrolna</option><option value="FAQ">FAQ</option><option value="GOOD_PRACTICE">Dobra praktyka</option><option value="CASE_STUDY">Studium przypadku</option><option value="PARTNER_CONTENT">Materiał partnerski</option><option value="ANNOUNCEMENT">Informacja</option></select></label><label className="text-sm font-bold">Status<select name="status" defaultValue={article.status ?? "DRAFT"} className={inputClass}><option value="DRAFT">Szkic</option><option value="PUBLISHED">Opublikowany</option><option value="ARCHIVED">Archiwalny</option></select></label></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 text-sm font-semibold"><input type="checkbox" name="featured" defaultChecked={article.featured} /> Polecany materiał</label><label className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 text-sm font-semibold"><input type="checkbox" name="important" defaultChecked={article.important} /> Ważna informacja</label><label className="text-sm font-bold">Autor / podpis<input name="authorDisplayName" defaultValue={article.authorDisplayName ?? ""} placeholder="np. Zespół Mapy Dobra" className={inputClass} /></label><label className="text-sm font-bold">Zakres geograficzny<input name="geographicScope" defaultValue={article.geographicScope ?? ""} placeholder="np. Polska, Łódź" className={inputClass} /></label></div></section>
-    <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">Treść artykułu</h2><p className="mt-1 text-sm text-muted-foreground">Formatuj tekst wizualnie. Tytuł artykułu jest osobnym nagłówkiem, dlatego w treści dostępne są H2 i H3.</p><div className="mt-4"><MarkdownEditor name="content" initialValue={article.content} required /></div></section>
+    <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">Treść artykułu</h2><p className="mt-1 text-sm text-muted-foreground">Formatuj tekst wizualnie. Tytuł artykułu jest osobnym nagłówkiem, dlatego w treści dostępne są H2 i H3.</p><div className="mt-4"><MarkdownEditor name="content" initialValue={article.content} value={content} onValueChange={(value) => { setContent(value); setDraftData((current) => ({ ...current, content: value })); }} required /></div></section>
     <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">Powiązania i tagi</h2><div className="mt-4 grid gap-5"><TokenInput name="tags" initialValues={article.tags} label="Tagi" placeholder="Wpisz tag i naciśnij Enter" /><div><span className="text-sm font-bold">Powiązane kategorie pomocy</span><div className="mt-2 flex flex-wrap gap-2">{categories.map((category) => <label key={category.slug} className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${selectedCategories.includes(category.slug) ? "border-brand bg-brand-soft text-brand-strong" : "border-border bg-white"}`}><input type="checkbox" name="categorySlugs" value={category.slug} checked={selectedCategories.includes(category.slug)} onChange={() => setSelectedCategories((current) => current.includes(category.slug) ? current.filter((item) => item !== category.slug) : [...current, category.slug])} />{category.name}</label>)}</div><p className="mt-1 text-xs font-normal text-muted-foreground">Wybierz nazwy publiczne. System zapisuje powiązanie z istniejącą kategorią.</p></div><label className="text-sm font-bold">Powiązane miejsca<input name="placeIds" defaultValue={article.placeIds?.join(", ")} placeholder="ID miejsc, po przecinku" className={inputClass} /></label><div><span className="text-sm font-bold">Powiązane artykuły</span><div className="mt-2 grid gap-2 sm:grid-cols-2">{relatedArticles.map((item) => <label key={item.id} className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 text-sm"><input type="checkbox" name="relatedArticleIds" value={item.id} checked={selectedRelated.includes(item.id)} onChange={() => setSelectedRelated((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} />{item.title}</label>)}</div></div></div></section>
     <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">Współpraca i publikacja</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 text-sm font-semibold sm:col-span-2"><input type="checkbox" name="partnerContent" checked={partner} onChange={(event) => setPartner(event.target.checked)} /> Materiał partnerski</label>{partner ? <><label className="text-sm font-bold">Nazwa partnera<input name="partnerName" defaultValue={article.partnerName ?? ""} className={inputClass} /></label><label className="text-sm font-bold">Ujawnienie współpracy<input name="partnerDisclosure" defaultValue={article.partnerDisclosure ?? ""} className={inputClass} /></label></> : null}<label className="text-sm font-bold">Pilna informacja<input name="emergencyNote" defaultValue={article.emergencyNote ?? ""} className={inputClass} /></label><label className="text-sm font-bold">Kategoria powiadomień<input name="notificationCategory" defaultValue={article.notificationCategory ?? ""} className={inputClass} /></label><label className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 text-sm font-semibold sm:col-span-2"><input type="checkbox" name="notificationEligible" checked={notifications} onChange={(event) => setNotifications(event.target.checked)} /> Można powiadomić o tym materiale</label></div></section>
     <section className={sectionClass}><h2 className="text-lg font-bold text-brand-strong">SEO i udostępnianie</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold">Tytuł SEO<input name="seoTitle" defaultValue={article.seoTitle ?? ""} className={inputClass} /></label><label className="text-sm font-bold">Opis SEO<textarea name="seoDescription" defaultValue={article.seoDescription ?? ""} rows={2} className={`${inputClass} min-h-0`} /></label></div></section>
     {state.error ? <p role="alert" className="rounded-lg border border-[#d99a7c] bg-[#fff5ef] p-3 text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : null}{state.success ? <p role="status" className="rounded-lg border border-brand/25 bg-brand-soft p-3 text-sm font-semibold text-brand-strong">{state.success}</p> : null}<div className="flex flex-wrap gap-2"><SaveButton /><Link href="/admin/encyklopedia" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold">Anuluj</Link></div>
-  </form>;
+  </form></>;
 }

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         locale: subscription.locale,
         region: subscription.region,
         lastSeenAt: new Date(),
-        ...(admin ? { adminUserId: admin.user.id } : {}),
+        adminUserId: admin?.user.id ?? null,
         ...(preferences ? { preferences: { upsert: { create: preferences, update: preferences } } } : {}),
       },
       include: { preferences: true },

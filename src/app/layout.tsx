@@ -32,6 +32,7 @@ export const metadata: Metadata = {
     title: "Mapa Dobra",
   },
   formatDetection: { telephone: false },
+  robots: process.env.DEPLOYMENT_ENV === "staging" ? { index: false, follow: false } : undefined,
   icons: {
     icon: [{ url: "/icon.png", sizes: "256x256", type: "image/png" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],

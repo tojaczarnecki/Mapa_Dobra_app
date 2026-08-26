@@ -3,10 +3,13 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = getSiteBaseUrl();
+  const staging = process.env.DEPLOYMENT_ENV === "staging";
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: ["/admin", "/api"] },
+      staging
+        ? { userAgent: "*", disallow: "/" }
+        : { userAgent: "*", allow: "/", disallow: ["/admin", "/api"] },
     ],
-    sitemap: baseUrl ? new URL("/sitemap.xml", baseUrl).toString() : undefined,
+    sitemap: staging || !baseUrl ? undefined : new URL("/sitemap.xml", baseUrl).toString(),
   };
 }

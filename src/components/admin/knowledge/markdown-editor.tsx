@@ -92,14 +92,15 @@ function cleanPastedHtml(value: string) {
   return doc.body.innerHTML;
 }
 
-type Props = { name: string; initialValue?: string; required?: boolean };
+type Props = { name: string; initialValue?: string; value?: string; onValueChange?: (value: string) => void; required?: boolean };
 const toolButton = "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-brand-strong hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
-export function MarkdownEditor({ name, initialValue = "", required = false }: Props) {
+export function MarkdownEditor({ name, initialValue = "", value: controlledValue, onValueChange, required = false }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const hiddenRef = useRef<HTMLInputElement>(null);
   const selectionRef = useRef<Range | null>(null);
-  const [value, setValue] = useState(initialValue);
+  const [localValue, setLocalValue] = useState(controlledValue ?? initialValue);
+  const value = controlledValue ?? localValue;
   const [preview, setPreview] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
@@ -107,11 +108,17 @@ export function MarkdownEditor({ name, initialValue = "", required = false }: Pr
   useUnsavedChanges(dirty);
 
   useEffect(() => { if (editorRef.current) editorRef.current.innerHTML = markdownToHtml(initialValue); }, [initialValue]);
+  useEffect(() => {
+    if (controlledValue === undefined) return;
+    if (editorRef.current && htmlToMarkdown(editorRef.current) !== controlledValue) editorRef.current.innerHTML = markdownToHtml(controlledValue);
+    if (hiddenRef.current) hiddenRef.current.value = controlledValue;
+  }, [controlledValue]);
 
   function sync() {
     if (!editorRef.current) return;
     const next = htmlToMarkdown(editorRef.current);
-    setValue(next);
+    setLocalValue(next);
+    onValueChange?.(next);
     if (hiddenRef.current) hiddenRef.current.value = next;
   }
   function command(commandName: string, commandValue?: string) {
@@ -164,7 +171,7 @@ export function MarkdownEditor({ name, initialValue = "", required = false }: Pr
     </div> : null}
     <div ref={editorRef} contentEditable={!preview} suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="Treść artykułu" data-placeholder="Zacznij pisać artykuł…" onInput={sync} onPaste={paste} className={`knowledge-editor min-h-[340px] p-5 outline-none ${preview ? "hidden" : ""}`} />
     {preview ? <div className="knowledge-content min-h-[340px] p-5" dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /> : null}
-    <input ref={hiddenRef} type="hidden" name={name} defaultValue={initialValue} required={required} />
+    <input ref={hiddenRef} type="hidden" name={name} value={value} readOnly required={required} />
     <div className="flex items-center gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground"><Quote size={14} aria-hidden="true" />Wyróżnienie, listy i linki są zapisywane w bezpiecznym Markdown.</div>
   </div>;
 }

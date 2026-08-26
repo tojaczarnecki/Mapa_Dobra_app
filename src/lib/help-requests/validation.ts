@@ -17,7 +17,6 @@ const needs = [
 ] as const satisfies readonly HelpRequestNeed[];
 
 const emergencyAnswers = ["YES", "NO", "UNKNOWN"] as const satisfies readonly InformationState[];
-const urgencies = ["IMMEDIATE", "STANDARD", "UNKNOWN"] as const satisfies readonly HelpRequestUrgency[];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 export type ValidHelpRequest = {
@@ -108,9 +107,7 @@ export function validateHelpRequest(input: unknown): HelpRequestValidationResult
     ok: true,
     data: {
       emergencyAnswer: emergencyAnswer as InformationState,
-      urgency: urgencies.includes(value.urgency as HelpRequestUrgency)
-        ? value.urgency as HelpRequestUrgency
-        : emergencyAnswer === "YES" ? "IMMEDIATE" : "UNKNOWN",
+      urgency: emergencyAnswer === "YES" ? "IMMEDIATE" : "UNKNOWN",
       needs: selectedNeeds as HelpRequestNeed[],
       description,
       addressText: addressText ?? undefined,

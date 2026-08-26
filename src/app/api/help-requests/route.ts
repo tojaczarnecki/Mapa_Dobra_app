@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const body = await readSubmissionBody(request);
   const challenge = await verifyTurnstileToken(body && typeof body === "object" ? (body as Record<string, unknown>).turnstileToken : undefined, request);
-  if (!challenge.ok && challenge.reason !== "unavailable") return submissionErrorResponse(403);
+  if (!challenge.ok) return submissionErrorResponse(403);
   const validation = validateHelpRequest(body);
   if (!validation.ok) return submissionErrorResponse(400);
 

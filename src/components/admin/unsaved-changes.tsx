@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 
 type Registry = {
   setDirty: (key: symbol, dirty: boolean) => void;
@@ -10,36 +11,16 @@ const UnsavedChangesContext = createContext<Registry | null>(null);
 
 export function UnsavedChangesProvider({ children }: { children: React.ReactNode }) {
   const dirtyKeys = useRef(new Set<symbol>());
+  const [dirtyCount, setDirtyCount] = useState(0);
   const registry = useMemo<Registry>(() => ({
     setDirty(key, dirty) {
       if (dirty) dirtyKeys.current.add(key);
       else dirtyKeys.current.delete(key);
+      setDirtyCount(dirtyKeys.current.size);
     },
   }), []);
 
-  useEffect(() => {
-    function warnBeforeUnload(event: BeforeUnloadEvent) {
-      if (!dirtyKeys.current.size) return;
-      event.preventDefault();
-    }
-    function guardAdminLink(event: MouseEvent) {
-      if (!dirtyKeys.current.size || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target instanceof Element ? event.target.closest("a[href]") : null;
-      if (!(target instanceof HTMLAnchorElement) || target.target === "_blank") return;
-      const next = new URL(target.href, window.location.href);
-      if (next.origin !== window.location.origin || !next.pathname.startsWith("/admin") || next.href === window.location.href) return;
-      if (!window.confirm("Masz niezapisane zmiany. Opuścić tę stronę i je utracić?")) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    }
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    document.addEventListener("click", guardAdminLink, true);
-    return () => {
-      window.removeEventListener("beforeunload", warnBeforeUnload);
-      document.removeEventListener("click", guardAdminLink, true);
-    };
-  }, []);
+  useUnsavedChangesGuard(dirtyCount > 0);
 
   return <UnsavedChangesContext.Provider value={registry}>{children}</UnsavedChangesContext.Provider>;
 }

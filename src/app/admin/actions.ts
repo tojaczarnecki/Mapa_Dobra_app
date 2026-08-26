@@ -11,7 +11,7 @@ import {
 } from "@/lib/admin/session";
 
 export async function logoutAdmin() {
-  await requireAdmin();
+  const session = await requireAdmin();
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
 
@@ -20,6 +20,11 @@ export async function logoutAdmin() {
       where: { tokenHash: hashSessionToken(token) },
     });
   }
+
+  await prisma.pushSubscription.updateMany({
+    where: { adminUserId: session.user.id },
+    data: { adminUserId: null },
+  });
 
   await clearAdminSessionCookie();
   redirect("/admin/login");

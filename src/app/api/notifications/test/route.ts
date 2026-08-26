@@ -3,14 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/notifications-server";
 
 export async function POST(request: Request) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ ok: false }, { status: 400 }); }
   const subscriptionId = body && typeof body === "object" && typeof (body as Record<string, unknown>).subscriptionId === "string"
     ? (body as Record<string, string>).subscriptionId
     : null;
   if (!subscriptionId) return Response.json({ ok: false }, { status: 400 });
-  const subscription = await prisma.pushSubscription.findUnique({ where: { id: subscriptionId } });
+  const subscription = await prisma.pushSubscription.findFirst({
+    where: {
+      id: subscriptionId,
+      ...(admin.user.role === "SUPER_ADMIN" ? {} : { adminUserId: admin.user.id }),
+    },
+  });
   if (!subscription) return Response.json({ ok: false }, { status: 404 });
   try {
     const result = await sendPushNotification(subscription, {

@@ -9,6 +9,7 @@ import { createSubmissionRequestId } from "@/components/submissions/form-ui";
 import { FormDraftResume, FormDraftSavedStatus } from "@/components/forms/form-draft-ui";
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
+import { useTurnstileToken } from "@/components/security/turnstile-token";
 import { contextualCorrectionLabels, type ContextualCorrectionField } from "@/lib/submissions/contextual-correction";
 import styles from "./place-correction-trigger.module.css";
 
@@ -38,6 +39,7 @@ export function PlaceCorrectionTrigger({ placeId, field, currentValue, latitude,
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const turnstile = useTurnstileToken();
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const formStartedAtRef = useRef<number>(0);
@@ -104,6 +106,7 @@ export function PlaceCorrectionTrigger({ placeId, field, currentValue, latitude,
     setBusy(true);
     setError("");
     try {
+      const turnstileToken = await turnstile.requestToken();
       const response = await fetch("/api/submissions/place-correction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,6 +120,7 @@ export function PlaceCorrectionTrigger({ placeId, field, currentValue, latitude,
           latitude: nextLatitude,
           longitude: nextLongitude,
           protection: { contactWebsite: "" },
+          turnstileToken,
         }),
       });
       if (!response.ok) throw new Error("SUBMISSION_FAILED");
