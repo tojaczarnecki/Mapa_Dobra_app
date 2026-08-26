@@ -24,6 +24,7 @@ import { deriveTodayHoursLabel, validateOpeningSchedule } from "@/lib/places/ope
 import type {
   AdminAccommodation,
   AdminOpeningDay,
+  AdminSocialLink,
   PlaceAdminPayload,
   PlaceFormActionState,
   TriState,
@@ -31,6 +32,15 @@ import type {
 
 type CategoryOption = { id: string; slug: string; name: string; active: boolean };
 type OrganizationOption = { id: string; name: string; active: boolean };
+
+const socialPlatforms: Array<{ value: AdminSocialLink["platform"]; label: string }> = [
+  { value: "FACEBOOK", label: "Facebook" },
+  { value: "INSTAGRAM", label: "Instagram" },
+  { value: "LINKEDIN", label: "LinkedIn" },
+  { value: "YOUTUBE", label: "YouTube" },
+  { value: "TIKTOK", label: "TikTok" },
+  { value: "OTHER", label: "Inne" },
+];
 
 const formSections = [
   { id: "podstawowe", label: "Podstawowe" },
@@ -541,7 +551,21 @@ export function PlaceForm({
           <Field label="Telefon" type="tel" value={payload.phone} onChange={(phone) => update({ phone })} />
           <Field label="E-mail" type="email" value={payload.email} onChange={(email) => update({ email })} />
           <Field label="Strona WWW" type="url" value={payload.website} onChange={(website) => update({ website })} />
-          <Field label="Social media" type="url" value={payload.socialMedia} onChange={(socialMedia) => update({ socialMedia })} />
+          <div className="sm:col-span-2">
+            <p className="mb-2 text-sm font-bold">Social media</p>
+            <div className="space-y-2">
+              {payload.socialLinks.map((link, index) => (
+                <div key={`${link.platform}-${index}`} className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]">
+                  <select className={fieldClass} aria-label={`Platforma social media ${index + 1}`} value={link.platform} onChange={(event) => update({ socialLinks: payload.socialLinks.map((item, itemIndex) => itemIndex === index ? { ...item, platform: event.target.value as AdminSocialLink["platform"] } : item) })}>
+                    {socialPlatforms.map((platform) => <option key={platform.value} value={platform.value}>{platform.label}</option>)}
+                  </select>
+                  <input className={fieldClass} type="url" placeholder="https://…" aria-label={`Link social media ${index + 1}`} value={link.url} onChange={(event) => update({ socialLinks: payload.socialLinks.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item) })} />
+                  <button type="button" className="min-h-11 rounded-lg px-3 text-sm font-bold text-muted-foreground hover:bg-surface-muted" aria-label={`Usuń profil social media ${index + 1}`} onClick={() => update({ socialLinks: payload.socialLinks.filter((_, itemIndex) => itemIndex !== index) })}>Usuń</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => update({ socialLinks: [...payload.socialLinks, { platform: "OTHER", url: "", label: "" }] })}><Plus aria-hidden="true" size={17} /> Dodaj profil</button>
+          </div>
         </div>
       </FormSection>
 

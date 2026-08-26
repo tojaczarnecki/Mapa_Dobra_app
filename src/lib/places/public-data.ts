@@ -32,8 +32,9 @@ const publicPlaceInclude = {
   primaryCategory: true,
   categories: { where: { category: { active: true } }, include: { category: true }, orderBy: { sortOrder: "asc" as const } },
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
-  requirements: { orderBy: { sortOrder: "asc" as const } },
-  accessibility: { orderBy: { sortOrder: "asc" as const } },
+  requirements: { include: { definition: true }, orderBy: { sortOrder: "asc" as const } },
+  accessibility: { include: { definition: true }, orderBy: { sortOrder: "asc" as const } },
+  audienceDefinitions: { include: { definition: true }, orderBy: { definition: { sortOrder: "asc" as const } } },
   socialLinks: { orderBy: { sortOrder: "asc" as const } },
   accommodation: {
     include: {
@@ -196,7 +197,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     capacityGroups: accommodation.capacityGroups.map((group) => publicAvailability?.state === "stale"
       ? { label: group.label, total: group.totalBeds ?? undefined, note: typeof group.availableBeds === "number" ? `Ostatnio zgłoszono ${group.availableBeds} wolnych miejsc` : "Brak aktualnych danych" }
       : { label: group.label, free: group.availableBeds ?? undefined, total: group.totalBeds ?? undefined }),
-    audience: accommodation.targetGroups.length ? accommodation.targetGroups : place.audience,
+    audience: accommodation.targetGroups.length ? accommodation.targetGroups : place.audienceDefinitions.map((item) => item.definition.label),
     admissionRequirements: [
       triRequirement("ostatni meldunek w Łodzi", accommodation.lodzRegistrationRequired),
       triRequirement("skierowanie", accommodation.referralRequired),
@@ -212,7 +213,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
       status: accommodation.petPolicy === "UNKNOWN" ? "unknown" : accommodation.petPolicy === "NOT_ACCEPTED" ? "warning" : "positive",
       note: accommodation.petNote ?? undefined,
     }],
-    accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
+    accessibility: place.accessibility.map((item) => ({ label: item.definition?.label ?? item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
     overnightInfo: [
       ["Wyżywienie", accommodation.mealsInfo], ["Higiena", accommodation.hygieneInfo], ["Bagaż", accommodation.luggageInfo],
       ["Godzina powrotu", accommodation.returnTimeInfo], ["Maksymalny pobyt", accommodation.maxStayInfo], ["Odpłatność", accommodation.feeInfo],
@@ -235,10 +236,10 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     latitude: place.latitude === null ? undefined : Number(place.latitude),
     longitude: place.longitude === null ? undefined : Number(place.longitude),
     coordinatesLabel: place.district ? `Łódź, ${place.district}` : "Łódź",
-    requirements: place.requirements.map((item) => ({ label: conditionLabel(item), status: requirementTone(item), note: item.note ?? undefined })),
-    audience: place.audience,
+    requirements: place.requirements.map((item) => ({ label: conditionLabel({ ...item, label: item.definition?.label ?? item.label }), status: requirementTone(item), note: item.note ?? undefined })),
+    audience: place.audienceDefinitions.length ? place.audienceDefinitions.map((item) => item.definition.label) : place.audience,
     services: place.services,
-    accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
+    accessibility: place.accessibility.map((item) => ({ label: item.definition?.label ?? item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
     description: place.description?.split(/\n\s*\n/u).filter(Boolean) ?? [],
     contact: { phone: place.phone ?? undefined, email: place.email ?? undefined, website: place.website ?? undefined, social: place.socialMedia ?? undefined, socialLinks: place.socialLinks.map((link) => ({ platform: link.platform, url: link.url, label: link.label ?? undefined })) },
     openingHours: openingDays(place),

@@ -92,6 +92,12 @@ export type AdminAccessibility = {
   note: string;
 };
 
+export type AdminSocialLink = {
+  platform: "FACEBOOK" | "INSTAGRAM" | "LINKEDIN" | "YOUTUBE" | "TIKTOK" | "OTHER";
+  url: string;
+  label: string;
+};
+
 export type AdminCapacityGroup = {
   id?: string;
   label: string;
@@ -151,6 +157,7 @@ export type PlaceAdminPayload = {
   email: string;
   website: string;
   socialMedia: string;
+  socialLinks: AdminSocialLink[];
   publicationStatus: PlacePublicationStatusValue;
   operationalStatus: PlaceOperationalStatusValue;
   todayHoursLabel: string;

@@ -5,6 +5,7 @@ import type {
   AdminAccessibility,
   AdminAccommodation,
   AdminRequirement,
+  AdminSocialLink,
   PetPolicyValue,
   PlaceAdminPayload,
   PlacePublicationStatusValue,
@@ -123,6 +124,23 @@ function stringArray(value: unknown, maxItems = 30, maxLength = 240) {
   const normalized = value.map((item) => text(item, maxLength, true));
   if (normalized.some((item) => item === null)) return null;
   return Array.from(new Set(normalized as string[]));
+}
+
+function socialLinks(value: unknown) {
+  if (!Array.isArray(value) || value.length > 10) return null;
+  const platforms = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "YOUTUBE", "TIKTOK", "OTHER"] as const;
+  const result: AdminSocialLink[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || !platforms.includes(item.platform as typeof platforms[number])) return null;
+    const url = text(item.url, 2048);
+    const label = text(item.label, 160);
+    if (!url || label === null) return null;
+    const normalized = normalizeHttpUrl(url);
+    if (!normalized) return null;
+    result.push({ platform: item.platform as AdminSocialLink["platform"], url: normalized, label });
+  }
+  if (new Set(result.map((item) => item.platform)).size !== result.length) return null;
+  return result;
 }
 
 function optionalNumber(value: unknown, min: number, max: number) {
@@ -290,6 +308,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const email = text(value.email, 320);
   const website = text(value.website, 2048);
   const socialMedia = text(value.socialMedia, 2048);
+  const parsedSocialLinks = socialLinks(value.socialLinks ?? []);
   const publicationStatus = enumValue(value.publicationStatus, publicationStatuses);
   const operationalStatus = enumValue(value.operationalStatus, operationalStatuses);
   const todayHoursLabel = text(value.todayHoursLabel, 240);
@@ -339,6 +358,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
     (email && !emailPattern.test(email)) ||
     website === null ||
     socialMedia === null ||
+    !parsedSocialLinks ||
     !publicationStatus ||
     !operationalStatus ||
     todayHoursLabel === null ||
@@ -385,6 +405,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
       email,
       website: normalizedWebsite ?? "",
       socialMedia: normalizedSocialMedia ?? "",
+      socialLinks: parsedSocialLinks,
       publicationStatus,
       operationalStatus,
       todayHoursLabel,

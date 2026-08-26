@@ -10,6 +10,7 @@ import {
   requiresOperationalStatusOnRepublish,
   validatePlaceStatusCombination,
 } from "@/lib/places/publication-status";
+import { syncPlaceStructuredRelations } from "@/lib/places/structured-relations";
 import type {
   PlaceAdminPayload,
   PlaceFormActionState,
@@ -51,7 +52,7 @@ function placeScalarData(
     phone: payload.phone || null,
     email: payload.email || null,
     website: payload.website || null,
-    socialMedia: payload.socialMedia || null,
+    socialMedia: payload.socialLinks[0]?.url || payload.socialMedia || null,
     operationalStatus: payload.operationalStatus,
     todayHoursLabel: deriveTodayHoursLabel(payload.openingHours.operation),
     audience: payload.audience,
@@ -113,6 +114,9 @@ function auditSnapshot(place: {
   openingHours: unknown[];
   requirements: unknown[];
   accessibility: unknown[];
+  audience: string[];
+  audienceDefinitions: unknown[];
+  socialLinks: unknown[];
   accommodation: unknown;
   organizationId: string | null;
 }) {
@@ -129,6 +133,9 @@ function auditSnapshot(place: {
     openingHours: place.openingHours,
     requirements: place.requirements,
     accessibility: place.accessibility,
+    audience: place.audience,
+    audienceDefinitions: place.audienceDefinitions,
+    socialLinks: place.socialLinks,
     accommodation: place.accommodation,
     organizationId: place.organizationId,
   };
@@ -146,6 +153,8 @@ const placeAuditInclude = {
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
   requirements: { orderBy: { sortOrder: "asc" as const } },
   accessibility: { orderBy: { sortOrder: "asc" as const } },
+  audienceDefinitions: { include: { definition: true }, orderBy: { definition: { sortOrder: "asc" as const } } },
+  socialLinks: { orderBy: { sortOrder: "asc" as const } },
   accommodation: { include: { capacityGroups: { orderBy: { sortOrder: "asc" as const } } } },
 } satisfies Prisma.PlaceInclude;
 
@@ -257,26 +266,7 @@ export async function savePlace(
           ...(payload.isAccommodation ? openingRows(payload.openingHours.admission, "ADMISSION") : []),
         ].map((item) => ({ ...item, placeId: place.id })),
       });
-      await transaction.placeRequirement.createMany({
-        data: payload.requirements.map((item, sortOrder) => ({
-          placeId: place.id,
-          kind: item.kind,
-          state: item.state,
-          label: item.label,
-          note: item.note || null,
-          sortOrder,
-        })),
-      });
-      await transaction.placeAccessibility.createMany({
-        data: payload.accessibility.map((item, sortOrder) => ({
-          placeId: place.id,
-          feature: item.feature,
-          state: item.state,
-          label: item.label,
-          note: item.note || null,
-          sortOrder,
-        })),
-      });
+      await syncPlaceStructuredRelations(transaction, place.id, payload.requirements, payload.accessibility, payload.audience, payload.socialLinks);
 
       if (payload.isAccommodation && payload.accommodation) {
         const priorAccommodation = existing?.accommodation;

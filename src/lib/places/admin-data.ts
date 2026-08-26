@@ -8,6 +8,7 @@ import {
 import type {
   AdminAccommodation,
   AdminOpeningDay,
+  AdminSocialLink,
   PlaceAdminPayload,
 } from "@/types/place-admin";
 
@@ -27,6 +28,7 @@ export const adminPlaceInclude = {
   },
   requirements: { orderBy: { sortOrder: "asc" as const } },
   accessibility: { orderBy: { sortOrder: "asc" as const } },
+  socialLinks: { orderBy: { sortOrder: "asc" as const } },
   accommodation: {
     include: {
       capacityGroups: { orderBy: { sortOrder: "asc" as const } },
@@ -148,6 +150,7 @@ export function emptyPlaceAdminPayload(primaryCategorySlug = "jedzenie"): PlaceA
     email: "",
     website: "",
     socialMedia: "",
+    socialLinks: [],
     publicationStatus: "DRAFT",
     operationalStatus: "UNKNOWN",
     todayHoursLabel: "",
@@ -242,6 +245,9 @@ export function toPlaceAdminPayload(
     email: place.email ?? "",
     website: place.website ?? "",
     socialMedia: place.socialMedia ?? "",
+    socialLinks: place.socialLinks.length
+      ? place.socialLinks.map((link): AdminSocialLink => ({ platform: link.platform, url: link.url, label: link.label ?? "" }))
+      : place.socialMedia ? [{ platform: "OTHER", url: place.socialMedia, label: "" }] : [],
     publicationStatus: place.publicationStatus,
     operationalStatus: place.operationalStatus,
     todayHoursLabel: place.todayHoursLabel ?? "",

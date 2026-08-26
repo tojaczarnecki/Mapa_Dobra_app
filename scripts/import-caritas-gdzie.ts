@@ -13,6 +13,7 @@ import {
   type CandidateDraft,
   type SourceEntry,
 } from "../src/lib/imports/caritas-gdzie-parser";
+import { syncPlaceStructuredRelations } from "../src/lib/places/structured-relations";
 
 type Mode = "dry-run" | "apply";
 
@@ -466,6 +467,14 @@ async function applyImport(
         },
         select: { id: true },
       });
+      await syncPlaceStructuredRelations(
+        transaction,
+        place.id,
+        data.requirements.map((item) => ({ ...item, note: "" })),
+        data.accessibility.map((item) => ({ ...item, label: item.feature, note: "" })),
+        data.audience,
+        [],
+      );
       await transaction.importCandidate.update({ where: { id: candidateId }, data: { status: "IMPORTED", createdPlaceId: place.id } });
       await transaction.auditLog.create({
         data: {

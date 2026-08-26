@@ -19,6 +19,7 @@ import {
   validateOpeningSchedule,
 } from "@/lib/places/opening-hours";
 import { validatePlaceStatusCombination } from "@/lib/places/publication-status";
+import { syncPlaceStructuredRelations } from "@/lib/places/structured-relations";
 import type { AdminOpeningDay } from "@/types/place-admin";
 
 export type DraftActionState = { error?: string; success?: string; conflict?: boolean };
@@ -175,6 +176,9 @@ const publishPlaceInclude = {
   categories: { include: { category: true } },
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
   requirements: true,
+  accessibility: true,
+  socialLinks: true,
+  audienceDefinitions: { include: { definition: true } },
   accommodation: { include: { capacityGroups: true } },
 } satisfies Prisma.PlaceInclude;
 
@@ -269,6 +273,16 @@ async function publishPlaceUpdate(
     await transaction.placeRequirement.deleteMany({ where: { placeId: current.id } });
     if (requirementsText.length) await transaction.placeRequirement.createMany({ data: requirementsText.map((label, sortOrder) => ({ placeId: current.id, kind: "OTHER", state: "UNKNOWN", label, sortOrder })) });
   }
+  await syncPlaceStructuredRelations(
+    transaction,
+    current.id,
+    requirementsText
+      ? requirementsText.map((label) => ({ kind: "OTHER" as const, state: "UNKNOWN" as const, label, note: "" }))
+      : current.requirements.map((item) => ({ kind: item.kind, state: item.state, label: item.label, note: item.note ?? "" })),
+    current.accessibility.map((item) => ({ feature: item.feature, state: item.state, label: item.label, note: item.note ?? "" })),
+    current.audienceDefinitions.length ? current.audienceDefinitions.map((item) => item.definition.label) : current.audience,
+    current.socialLinks.map((item) => ({ platform: item.platform, url: item.url, label: item.label ?? "" })),
+  );
   if (accommodationAvailability !== null || accommodationNote !== null) {
     if (!current.accommodation) throw new Error("NO_ACCOMMODATION");
     await transaction.accommodationDetails.update({ where: { id: current.accommodation.id }, data: {
@@ -322,6 +336,14 @@ async function publishNewPlace(transaction: Prisma.TransactionClient, included: 
   if (requirements.length) await transaction.placeRequirement.createMany({ data: requirements.map((label, sortOrder) => ({ placeId: place.id, kind: "OTHER", state: "UNKNOWN", label, sortOrder })) });
   const accessibility = lines(textValue(values.get("accessibilityText")));
   if (accessibility.length) await transaction.placeAccessibility.createMany({ data: accessibility.map((label, sortOrder) => ({ placeId: place.id, feature: "OTHER", state: "UNKNOWN", label, sortOrder })) });
+  await syncPlaceStructuredRelations(
+    transaction,
+    place.id,
+    requirements.map((label) => ({ kind: "OTHER" as const, state: "UNKNOWN" as const, label, note: "" })),
+    accessibility.map((label) => ({ feature: "OTHER" as const, state: "UNKNOWN" as const, label, note: "" })),
+    Array.isArray(place.audience) ? place.audience : [],
+    [],
+  );
 
   if (requestedCategories.includes("nocleg") || values.has("accommodationType")) {
     const freeBedsText = textValue(values.get("availableBeds"));

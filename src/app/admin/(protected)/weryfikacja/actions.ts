@@ -11,6 +11,7 @@ import { deriveTodayHoursLabel, openingRows, validateOpeningSchedule } from "@/l
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
 import { resolveLocationSource } from "@/lib/verification/location";
+import { syncPlaceStructuredRelations } from "@/lib/places/structured-relations";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const verificationSources = ["PHONE_CALL", "ORGANIZATION_EMAIL", "VISIT", "OFFICIAL_WEBSITE", "SOCIAL_MEDIA", "OTHER"] as const;
@@ -689,9 +690,8 @@ export async function resolveCandidateDifferentPlace(
       ];
       if (hours.length) await transaction.openingHours.createMany({ data: hours.map((row) => ({ ...row, placeId: place.id })) });
       const requirements = candidateRequirements(proposed.requirements);
-      if (requirements.length) await transaction.placeRequirement.createMany({ data: requirements.map((row) => ({ ...row, placeId: place.id })) });
       const accessibility = candidateAccessibility(proposed.accessibility);
-      if (accessibility.length) await transaction.placeAccessibility.createMany({ data: accessibility.map((row) => ({ ...row, placeId: place.id })) });
+      await syncPlaceStructuredRelations(transaction, place.id, requirements.map((row) => ({ ...row, note: row.note ?? "" })), accessibility.map((row) => ({ ...row, note: row.note ?? "" })), Array.isArray(proposed.audience) ? proposed.audience.filter((item): item is string => typeof item === "string").slice(0, 30) : [], []);
       if (proposedAccommodation) {
         await transaction.accommodationDetails.create({
           data: {
