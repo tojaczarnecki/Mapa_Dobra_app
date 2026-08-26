@@ -1,4 +1,5 @@
 import { hasImpossibleFormTiming } from "../security/form-timing.ts";
+import { normalizeHttpUrl } from "../urls.ts";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -199,12 +200,7 @@ function optionalUrl(value: unknown) {
   if (url === undefined) return undefined;
   if (!url) return null;
 
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
+  return normalizeHttpUrl(url);
 }
 
 function optionalCoordinate(value: unknown, min: number, max: number) {

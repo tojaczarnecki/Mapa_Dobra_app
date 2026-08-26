@@ -16,6 +16,7 @@ import type {
 } from "@/types/place-admin";
 import { validateOpeningSchedule } from "./opening-hours.ts";
 import { validatePlaceStatusCombination } from "./publication-status.ts";
+import { normalizeHttpUrl } from "../urls.ts";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -357,17 +358,9 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const statusValidation = validatePlaceStatusCombination(publicationStatus, operationalStatus);
   if (!statusValidation.ok) return { ok: false, reason: statusValidation.error };
 
-  for (const candidate of [website, socialMedia]) {
-    if (!candidate) continue;
-    try {
-      const url = new URL(candidate);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return { ok: false, reason: "invalid-url" };
-      }
-    } catch {
-      return { ok: false, reason: "invalid-url" };
-    }
-  }
+  const normalizedWebsite = website ? normalizeHttpUrl(website) : null;
+  const normalizedSocialMedia = socialMedia ? normalizeHttpUrl(socialMedia) : null;
+  if ((website && !normalizedWebsite) || (socialMedia && !normalizedSocialMedia)) return { ok: false, reason: "invalid-url" };
 
   return {
     ok: true,
@@ -390,8 +383,8 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
       longitude,
       phone,
       email,
-      website,
-      socialMedia,
+      website: normalizedWebsite ?? "",
+      socialMedia: normalizedSocialMedia ?? "",
       publicationStatus,
       operationalStatus,
       todayHoursLabel,

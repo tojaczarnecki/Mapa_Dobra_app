@@ -1,4 +1,5 @@
 import type { CategoryFormValue, OrganizationFormValue } from "@/types/admin-directory";
+import { normalizeHttpUrl } from "../urls.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
@@ -8,16 +9,6 @@ function text(value: FormDataEntryValue | null, maxLength: number) {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length <= maxLength ? normalized : null;
-}
-
-function validWebUrl(value: string) {
-  if (!value) return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 export function normalizeOrganizationName(value: string) {
@@ -76,8 +67,9 @@ export function validateOrganizationForm(formData: FormData):
     return { ok: false, error: "Sprawdź wymagane pola i limity długości." };
   }
   if (email && !emailPattern.test(email)) return { ok: false, error: "Podaj poprawny adres e-mail." };
-  if (!validWebUrl(website)) return { ok: false, error: "Adres WWW musi zaczynać się od http:// lub https://." };
-  return { ok: true, data: { id: id || undefined, name, description, phone, email, website } };
+  const normalizedWebsite = website ? normalizeHttpUrl(website) : null;
+  if (website && !normalizedWebsite) return { ok: false, error: "Wpisz poprawny adres strony, np. mapadobra.pl" };
+  return { ok: true, data: { id: id || undefined, name, description, phone, email, website: normalizedWebsite ?? "" } };
 }
 
 export function validateCategoryForm(formData: FormData):

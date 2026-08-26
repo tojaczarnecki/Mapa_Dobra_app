@@ -6,6 +6,7 @@ import { Info, LockKeyhole, MapPinned } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormDraftResume, FormDraftSavedStatus } from "@/components/forms/form-draft-ui";
 import { LocationAutocomplete, formatLocationSuggestion } from "@/components/location/location-autocomplete";
+import { addressFieldsFromSuggestion } from "@/lib/places/address-form";
 import { PUBLIC_GEOGRAPHIC_CONTEXT } from "@/lib/geocoding/geographic-context";
 import type { GeocodingSuggestion } from "@/lib/geocoding/results";
 import { useFormDraft } from "@/components/forms/use-form-draft";
@@ -244,15 +245,16 @@ export function NewPlaceForm({ initialOrganization }: { initialOrganization?: { 
 
   function handleAddressSelect(suggestion: GeocodingSuggestion) {
     const formatted = formatLocationSuggestion(suggestion).value;
+    const fields = addressFieldsFromSuggestion(suggestion);
     setDraft((current) => ({
       ...current,
       addressText: formatted,
-      street: [suggestion.road, suggestion.houseNumber].filter(Boolean).join(" ") || formatted,
-      postalCode: suggestion.postalCode ?? current.postalCode,
-      city: suggestion.city ?? current.city,
-      district: suggestion.district ?? current.district,
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
+      street: fields.street,
+      postalCode: fields.postalCode || current.postalCode,
+      city: fields.city || current.city,
+      district: fields.district || current.district,
+      latitude: fields.latitude,
+      longitude: fields.longitude,
     }));
   }
 

@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, Power, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
+import { LocationAutocomplete } from "@/components/location/location-autocomplete";
+import { TokenInput } from "@/components/ui/token-input";
+import { addressFieldsFromSuggestion } from "@/lib/places/address-form";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
@@ -53,10 +56,6 @@ function slugify(value: string) {
     .toLocaleLowerCase("pl-PL")
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "");
-}
-
-function lines(value: string) {
-  return value.split("\n").map((item) => item.trim()).filter(Boolean);
 }
 
 function defaultAccommodation(): AdminAccommodation {
@@ -240,6 +239,7 @@ export function OpeningEditor({
   disabled?: boolean;
 }) {
   const validation = validateOpeningSchedule(days);
+  const [openNotes, setOpenNotes] = useState<Record<string, boolean>>(() => Object.fromEntries(days.filter((day) => day.note).map((day) => [day.weekday, true])));
   function updateDay(index: number, changes: Partial<AdminOpeningDay>) {
     onChange(days.map((day, dayIndex) => (dayIndex === index ? { ...day, ...changes } : day)));
   }
@@ -319,15 +319,10 @@ export function OpeningEditor({
                       </button>
                     ) : null}
                   </>
+                ) : openNotes[day.weekday] ? (
+                  <input className={fieldClass} disabled={disabled} value={day.note} aria-label={`${dayLabel}: notatka`} placeholder={day.status === "CLOSED" ? "Opcjonalna notatka" : "Co wiadomo o godzinach?"} onChange={(event) => updateDay(dayIndex, { note: event.target.value })} />
                 ) : (
-                  <input
-                    className={fieldClass}
-                    disabled={disabled}
-                    value={day.note}
-                    aria-label={`${dayLabel}: notatka`}
-                    placeholder={day.status === "CLOSED" ? "Opcjonalna notatka" : "Co wiadomo o godzinach?"}
-                    onChange={(event) => updateDay(dayIndex, { note: event.target.value })}
-                  />
+                  <button type="button" className="min-h-11 rounded-lg px-2 text-left text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => setOpenNotes((current) => ({ ...current, [day.weekday]: true }))}>+ Dodaj uwagę</button>
                 )}
               </div>
             </div>
@@ -368,7 +363,7 @@ export function PlaceForm({
   const [organizationQuery, setOrganizationQuery] = useState("");
   const isEditing = Boolean(initialData.id);
 
-  useUnsavedChanges(dirty);
+  useUnsavedChanges(dirty && !state.success);
 
   useEffect(() => {
     if (state.placeId && state.success) {
@@ -516,30 +511,29 @@ export function PlaceForm({
           <textarea className={fieldClass} rows={5} value={payload.description} onChange={(event) => update({ description: event.target.value })} />
         </label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Dla kogo, po jednej pozycji w wierszu</span>
-            <textarea className={fieldClass} rows={4} value={payload.audience.join("\n")} onChange={(event) => update({ audience: lines(event.target.value) })} />
-          </label>
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Usługi na miejscu, po jednej pozycji w wierszu</span>
-            <textarea className={fieldClass} rows={4} value={payload.services.join("\n")} onChange={(event) => update({ services: lines(event.target.value) })} />
-          </label>
+          <TokenInput label="Dla kogo" values={payload.audience} onChange={(audience) => update({ audience })} />
+          <TokenInput label="Usługi na miejscu" values={payload.services} onChange={(services) => update({ services })} />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Wybrane: {selectedCategoryNames.join(", ") || "brak"}</p>
       </FormSection>
 
       <FormSection id="adres" title="Adres">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Ulica" value={payload.street} onChange={(street) => update({ street })} />
-          <Field label="Numer" value={payload.buildingNumber} onChange={(buildingNumber) => update({ buildingNumber })} />
-          <div className="sm:col-span-2"><Field label="Pełny adres" value={payload.addressLine} required onChange={(addressLine) => update({ addressLine })} /></div>
-          <Field label="Kod pocztowy" value={payload.postalCode} onChange={(postalCode) => update({ postalCode })} />
-          <Field label="Miasto" value={payload.city} required onChange={(city) => update({ city })} />
-          <Field label="Dzielnica" value={payload.district} onChange={(district) => update({ district })} />
-          <div />
-          <Field label="Szerokość geograficzna" type="number" value={payload.latitude ?? ""} onChange={(value) => update({ latitude: value ? Number(value) : null })} />
-          <Field label="Długość geograficzna" type="number" value={payload.longitude ?? ""} onChange={(value) => update({ longitude: value ? Number(value) : null })} />
-        </div>
+        <label className="block text-sm font-bold">
+          <span className="mb-1.5 block">Adres miejsca *</span>
+          <LocationAutocomplete value={payload.addressLine} onChange={(addressLine) => update({ addressLine, latitude: null, longitude: null })} onSelect={(suggestion) => update(addressFieldsFromSuggestion(suggestion))} placeholder="Zacznij wpisywać ulicę lub adres" />
+        </label>
+        <details className="mt-4 rounded-lg border border-border bg-surface-muted/40 p-3">
+          <summary className="cursor-pointer text-sm font-bold">Dane adresowe zaawansowane</summary>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Ulica" value={payload.street} onChange={(street) => update({ street })} />
+            <Field label="Numer" value={payload.buildingNumber} onChange={(buildingNumber) => update({ buildingNumber })} />
+            <Field label="Kod pocztowy" value={payload.postalCode} onChange={(postalCode) => update({ postalCode })} />
+            <Field label="Miasto" value={payload.city} required onChange={(city) => update({ city })} />
+            <Field label="Dzielnica" value={payload.district} onChange={(district) => update({ district })} />
+            <Field label="Szerokość geograficzna" type="number" value={payload.latitude ?? ""} onChange={(value) => update({ latitude: value ? Number(value) : null })} />
+            <Field label="Długość geograficzna" type="number" value={payload.longitude ?? ""} onChange={(value) => update({ longitude: value ? Number(value) : null })} />
+          </div>
+        </details>
       </FormSection>
 
       <FormSection id="kontakt" title="Kontakt">
@@ -624,11 +618,11 @@ export function PlaceForm({
               <Field label="Dla kogo, skrót" value={accommodation.audienceLabel} onChange={(audienceLabel) => updateAccommodation({ audienceLabel })} />
               <label className="block text-sm font-bold">
                 <span className="mb-1.5 block">Grupy docelowe, po jednej w wierszu</span>
-                <textarea className={fieldClass} rows={4} value={accommodation.targetGroups.join("\n")} onChange={(event) => updateAccommodation({ targetGroups: lines(event.target.value) })} />
+                <TokenInput label="Grupy docelowe" values={accommodation.targetGroups} onChange={(targetGroups) => updateAccommodation({ targetGroups })} />
               </label>
               <label className="block text-sm font-bold">
                 <span className="mb-1.5 block">Profile kreatora, po jednym w wierszu</span>
-                <textarea className={fieldClass} rows={4} value={accommodation.acceptedProfiles.join("\n")} onChange={(event) => updateAccommodation({ acceptedProfiles: lines(event.target.value) })} />
+                <TokenInput label="Profile kreatora" values={accommodation.acceptedProfiles} onChange={(acceptedProfiles) => updateAccommodation({ acceptedProfiles })} />
               </label>
             </div>
             <div className="divide-y divide-border">
@@ -719,7 +713,7 @@ export function PlaceForm({
       {state.error ? <p role="alert" className="rounded-lg border border-urgent/40 bg-urgent-soft px-4 py-3 text-sm font-semibold">{state.error}</p> : null}
         </div>
       </div>
-      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-[#f7f5ef]/95 px-1 py-3 backdrop-blur">
+      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-white/95 px-1 py-3 backdrop-blur">
         <p className="text-xs text-muted-foreground">Zmiany zostaną zapisane dopiero po użyciu przycisku.</p>
         <SubmitButton isEditing={isEditing} />
       </div>
