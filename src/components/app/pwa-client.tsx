@@ -1,10 +1,11 @@
 "use client";
 
 import { Download, Share, WifiOff, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
+const RESUME_STALE_AFTER_MS = 90_000;
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -25,6 +26,7 @@ function isIosSafari() {
 
 export function PwaClient({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [offline, setOffline] = useState(false);
   const [reconnected, setReconnected] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -33,9 +35,21 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   const [standalone, setStandalone] = useState(false);
   const connectionInitialized = useRef(false);
   const reconnectTimer = useRef<number | undefined>(undefined);
+  const lastActiveAt = useRef(0);
+  const revalidating = useRef(false);
   const [dismissed, setDismissed] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(DISMISSED_KEY) === "1");
 
   useEffect(() => {
+    lastActiveAt.current = Date.now();
+    const revalidateIfStale = () => {
+      if (document.visibilityState !== "visible" || revalidating.current) return;
+      const inactiveFor = Date.now() - lastActiveAt.current;
+      lastActiveAt.current = Date.now();
+      if (inactiveFor < RESUME_STALE_AFTER_MS) return;
+      revalidating.current = true;
+      router.refresh();
+      window.setTimeout(() => { revalidating.current = false; }, 1500);
+    };
     const updateConnection = () => {
       const online = navigator.onLine;
       setOffline(!online);
@@ -43,11 +57,21 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
         setReconnected(true);
         if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
         reconnectTimer.current = window.setTimeout(() => setReconnected(false), 2600);
+        revalidateIfStale();
       }
       connectionInitialized.current = true;
     };
     const onNetworkFailure = () => setOffline(true);
     const updateStandalone = () => setStandalone(isStandalone());
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        lastActiveAt.current = Date.now();
+      } else {
+        revalidateIfStale();
+      }
+    };
+    const onPageShow = () => revalidateIfStale();
+    const onFocus = () => revalidateIfStale();
     const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -72,6 +96,9 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     window.addEventListener("online", updateConnection);
     window.addEventListener("offline", updateConnection);
     window.addEventListener("mapa-dobra:network-failure", onNetworkFailure);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("mapa-dobra:open-install", onOpenInstall);
@@ -84,6 +111,9 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
 
     return () => {
       if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
       window.removeEventListener("mapa-dobra:network-failure", onNetworkFailure);
@@ -91,7 +121,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("mapa-dobra:open-install", onOpenInstall);
     };
-  }, [enabled, installPrompt]);
+  }, [enabled, router]);
 
   const dismissInstall = () => {
     window.localStorage.setItem(DISMISSED_KEY, "1");

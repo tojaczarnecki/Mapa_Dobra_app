@@ -1,7 +1,7 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { useId, useMemo, useState, type KeyboardEvent } from "react";
+import { Search, X } from "lucide-react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { getHomeSuggestions, type HomeSearchCategory } from "@/lib/home/autosuggest";
 import type { PublicSearchPlace } from "@/lib/places/search";
 
@@ -15,6 +15,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
   const suggestions = useMemo(() => getHomeSuggestions(query, categories, places), [categories, places, query]);
   const activeSuggestion = activeIndex >= 0 ? suggestions[activeIndex] : undefined;
 
@@ -49,6 +50,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
         <div className="home-search-field">
           <Search aria-hidden="true" className="shrink-0" size={23} strokeWidth={2.1} />
           <input
+            ref={inputRef}
             id="home-search"
             name="q"
             type="search"
@@ -68,6 +70,19 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             onFocus={() => setIsOpen(query.trim().length >= 2)}
             onKeyDown={handleKeyDown}
           />
+          {query ? <button
+            type="button"
+            className="home-search-clear"
+            aria-label="Wyczyść wyszukiwanie"
+            onClick={() => {
+              setQuery("");
+              setActiveIndex(-1);
+              setIsOpen(false);
+              inputRef.current?.focus();
+            }}
+          >
+            <X aria-hidden="true" size={18} />
+          </button> : null}
         </div>
         {hasSuggestions ? (
           <ul id={listboxId} className="home-search-suggestions" role="listbox" aria-label="Podpowiedzi wyszukiwania">

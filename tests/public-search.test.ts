@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getHomeSuggestions } from "../src/lib/home/autosuggest.ts";
 import { getCategoryAccentMap } from "../src/lib/home/category-accent.ts";
-import { filterPublicSearchPlaces, type PublicSearchPlace } from "../src/lib/places/search.ts";
+import { filterPublicSearchPlaces, withNormalizedSearchText, type PublicSearchPlace } from "../src/lib/places/search.ts";
 
 const places: PublicSearchPlace[] = [
   { id: "food", name: "Łódzki Punkt Posiłków", categorySlug: "jedzenie", slug: "lodzki-punkt-posilkow", categorySlugs: ["jedzenie"], searchText: "Łódzki Punkt Posiłków Caritas jedzenie ciepły posiłek", status: "open", openNow: true, free: "YES", referralRequired: "NO", documentRequired: "NO", distanceKm: 2 },
@@ -14,6 +14,12 @@ test("search is case and diacritic insensitive across name and category", () => 
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "LODZKI" }).map((place) => place.id), ["food"]);
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "prysznic" }).map((place) => place.id), ["shower"]);
   assert.deepEqual(filterPublicSearchPlaces(places, { category: "food" }).map((place) => place.id), ["unknown", "food"]);
+});
+
+test("search can reuse normalized dataset text instead of normalizing each query", () => {
+  const indexed = places.map(withNormalizedSearchText);
+  assert.equal(indexed[0]?.normalizedSearchText, "lodzki punkt posilkow caritas jedzenie cieply posilek");
+  assert.deepEqual(filterPublicSearchPlaces(indexed, { query: "LODZKI" }).map((place) => place.id), ["food"]);
 });
 
 test("filters preserve UNKNOWN and only accept explicitly confirmed conditions", () => {

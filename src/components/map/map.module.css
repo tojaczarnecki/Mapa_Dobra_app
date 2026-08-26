@@ -24,6 +24,28 @@
   box-shadow: 0 0 0 3px rgb(24 54 77 / 14%) !important;
 }
 
+.mapSearchClear {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  transform: translateY(-50%);
+}
+
+.mapSearchClear:hover,
+.mapSearchClear:focus-visible {
+  background: var(--surface-muted);
+  color: var(--home-navy);
+}
+
 .mapLocateButton {
   border-color: var(--home-border, #e5e5e5) !important;
   color: var(--home-navy, #18364d) !important;
@@ -589,6 +611,24 @@
   padding: 1rem;
   text-align: center;
   box-shadow: 0 8px 22px rgb(23 33 43 / 8%);
+}
+
+:global(body[data-mobile-overlay-open="true"]) .mapStageCount,
+:global(body[data-mobile-overlay-open="true"]) .mapStageListLink,
+:global(body[data-mobile-overlay-open="true"]) .mapPurpose,
+:global(body[data-mobile-overlay-open="true"]) .mapEmptyState,
+:global(body[data-mobile-overlay-open="true"]) .tileFallback,
+:global(body[data-mobile-overlay-open="true"]) .leafletMap :global(.leaflet-control-container) {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+:global(body[data-mobile-overlay-open="true"]) .mapStageCount,
+:global(body[data-mobile-overlay-open="true"]) .mapStageListLink,
+:global(body[data-mobile-overlay-open="true"]) .mapPurpose,
+:global(body[data-mobile-overlay-open="true"]) .mapEmptyState,
+:global(body[data-mobile-overlay-open="true"]) .tileFallback {
+  opacity: 0;
 }
 
 .mapEmptyIcon {

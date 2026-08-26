@@ -39,8 +39,19 @@ export type MapPlace = {
   openNow: boolean | null;
   free: boolean | null;
   searchTerms: string[];
+  normalizedSearchText: string;
   status: StandardMapStatus | AccommodationMapStatus;
 };
+
+function normalizeMapSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pl-PL")
+    .replace(/ł/g, "l")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 const categoryBySlug: Record<string, MapCategory> = {
   jedzenie: "food",
@@ -95,6 +106,7 @@ const standardPlaces: MapPlace[] = demoPlaces
           : null,
     free: isConfirmedFree(place.id),
     searchTerms: [place.name, ...place.helpTypes, ...place.conditions],
+    normalizedSearchText: normalizeMapSearch([place.name, ...place.helpTypes, ...place.conditions].join(" ")),
     status: {
       kind: "standard",
       status: place.status,
@@ -135,6 +147,13 @@ const accommodationPlaces: MapPlace[] = demoAccommodations
       "nocleg",
       "schronisko",
     ],
+    normalizedSearchText: normalizeMapSearch([
+      place.name,
+      place.typeLabel,
+      place.audienceLabel,
+      "nocleg",
+      "schronisko",
+    ].join(" ")),
     status: {
       kind: "accommodation",
       availabilityState:

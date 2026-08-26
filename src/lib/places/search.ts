@@ -7,6 +7,7 @@ export type PublicSearchPlace = {
   slug: string;
   categorySlugs: string[];
   searchText: string;
+  normalizedSearchText?: string;
   status: string;
   openNow: boolean | null;
   free: InformationState;
@@ -43,6 +44,10 @@ export function normalizePublicSearch(value: string) {
     .trim();
 }
 
+export function withNormalizedSearchText<T extends Pick<PublicSearchPlace, "searchText">>(place: T) {
+  return { ...place, normalizedSearchText: normalizePublicSearch(place.searchText) };
+}
+
 function categoryMatches(place: PublicSearchPlace, category: string) {
   const requested = categoryAliases[category] ?? [category];
   return requested.some((slug) => place.categorySlugs.includes(slug));
@@ -64,7 +69,7 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
 ) {
   const query = normalizePublicSearch(filters.query ?? "");
   const filtered = places.filter((place) => {
-    if (query && !normalizePublicSearch(place.searchText).includes(query)) return false;
+    if (query && !(place.normalizedSearchText ?? normalizePublicSearch(place.searchText)).includes(query)) return false;
     if (filters.category && !categoryMatches(place, filters.category)) return false;
     if (filters.openNow && place.openNow !== true) return false;
     if (filters.free && place.free !== "YES") return false;

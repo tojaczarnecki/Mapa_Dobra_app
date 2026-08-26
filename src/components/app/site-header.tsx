@@ -19,6 +19,7 @@ export function SiteHeader() {
   const lastScrollRef = useRef(0);
   const frameRef = useRef<number | undefined>(undefined);
   const [hidden, setHidden] = useState(false);
+  const [keyboardActive, setKeyboardActive] = useState(false);
 
   useEffect(() => {
     lastScrollRef.current = Math.max(window.scrollY, 0);
@@ -47,12 +48,18 @@ export function SiteHeader() {
     };
     const showForFocus = (event: FocusEvent) => {
       if (event.target instanceof Node && headerRef.current?.contains(event.target)) setHidden(false);
+      if (window.matchMedia("(max-width: 767px)").matches && (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) setKeyboardActive(true);
+    };
+    const clearKeyboardMode = (event: FocusEvent) => {
+      if (!(event.relatedTarget instanceof HTMLInputElement || event.relatedTarget instanceof HTMLTextAreaElement)) setKeyboardActive(false);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("focusin", showForFocus);
+    document.addEventListener("focusout", clearKeyboardMode);
     return () => {
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("focusin", showForFocus);
+      document.removeEventListener("focusout", clearKeyboardMode);
       if (frameRef.current !== undefined) window.cancelAnimationFrame(frameRef.current);
     };
   }, []);
@@ -60,7 +67,7 @@ export function SiteHeader() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <header ref={headerRef} className={`site-header sticky top-0 ${pathname === "/" ? "site-header-home" : ""} ${hidden ? "site-header-hidden" : ""}`}>
+    <header ref={headerRef} className={`site-header sticky top-0 ${pathname === "/" ? "site-header-home" : ""} ${hidden ? "site-header-hidden" : ""} ${keyboardActive ? "site-header-keyboard-compact" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { AlertTriangle, List, LoaderCircle, MapPinned, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
 import type { MapFocusTarget } from "./help-map";
@@ -45,6 +45,7 @@ function normalizeSearch(value: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pl-PL")
+    .replace(/ł/g, "l")
     .trim();
 }
 
@@ -114,6 +115,7 @@ export function MapExperience({
   initialLocate,
 }: MapExperienceProps) {
   const [query, setQuery] = useState(initialQuery);
+  const deferredQuery = useDeferredValue(query);
   const [category, setCategory] = useState<MapCategoryFilter>(initialCategory);
   const [openNow, setOpenNow] = useState(initialOpenNow);
   const [free, setFree] = useState(initialFree);
@@ -129,17 +131,17 @@ export function MapExperience({
   const desktopCloseRef = useRef<HTMLButtonElement>(null);
 
   const filteredPlaces = useMemo(() => {
-    const normalizedQuery = normalizeSearch(query);
+    const normalizedQuery = normalizeSearch(deferredQuery);
 
     return places.filter((place) => {
       const matchesQuery =
         !normalizedQuery ||
-        normalizeSearch(place.searchTerms.join(" ")).includes(normalizedQuery);
+        place.normalizedSearchText.includes(normalizedQuery);
       const matchesCategory = category === "all" || place.categories.includes(category);
 
       return matchesQuery && matchesCategory && (!openNow || place.openNow) && (!free || place.free);
     });
-  }, [category, free, openNow, places, query]);
+  }, [category, deferredQuery, free, openNow, places]);
 
   const visiblePlaces = useMemo(
     () => filteredPlaces.filter((place) => visiblePlaceIds.includes(place.id)),

@@ -1,6 +1,7 @@
 "use client";
 
-import { LocateFixed, Search } from "lucide-react";
+import { LocateFixed, Search, X } from "lucide-react";
+import { useRef } from "react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
@@ -36,6 +37,8 @@ export function MapControls({
   onFiltersOpenChange,
   onLocate,
 }: MapControlsProps) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <section className={styles.mapControls} aria-label="Sterowanie mapą">
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
@@ -47,12 +50,24 @@ export function MapControls({
             size={20}
           />
           <input
+            ref={searchInputRef}
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Czego potrzebujesz?"
-            className={`${styles.mapSearchInput} h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-normal text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30`}
+            className={`${styles.mapSearchInput} h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-11 text-base font-normal text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30`}
           />
+          {query ? <button
+            type="button"
+            className={styles.mapSearchClear}
+            aria-label="Wyczyść wyszukiwanie"
+            onClick={() => {
+              onQueryChange("");
+              searchInputRef.current?.focus();
+            }}
+          >
+            <X aria-hidden="true" size={17} />
+          </button> : null}
         </label>
         <button
           type="button"

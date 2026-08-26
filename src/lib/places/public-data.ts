@@ -22,7 +22,7 @@ import {
 } from "@/lib/accommodations/types";
 import { resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
 import { evaluateCurrentOpening } from "@/lib/places/current-opening";
-import type { PublicSearchPlace } from "@/lib/places/search";
+import { withNormalizedSearchText, type PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
 import { publicRequirementLabel } from "@/lib/places/requirement-label";
 import { prisma } from "@/lib/prisma";
@@ -256,7 +256,7 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
   const document = place.requirements.find((item) => item.kind === "DOCUMENT")?.state ?? "UNKNOWN";
   const fee = place.requirements.find((item) => item.kind === "FEE");
   const free = !fee || fee.state === "UNKNOWN" ? "UNKNOWN" : fee.state === "NO" || /bezpłat/iu.test(fee.label) ? "YES" : "NO";
-  return {
+  return withNormalizedSearchText({
     id: place.legacyId ?? place.id,
     categorySlug: place.primaryCategory.slug,
     slug: place.slug,
@@ -280,7 +280,7 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
     referralRequired: referral,
     documentRequired: document,
     distanceKm: distanceNumber(place.distanceLabel),
-  };
+  });
 }
 
 function accommodationState(value: "AVAILABLE" | "FEW" | "FULL" | "UNKNOWN" | "STALE" | "SUSPENDED"): AccommodationAvailabilityState {
@@ -361,6 +361,7 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
     openNow,
     free,
     searchTerms: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)],
+    normalizedSearchText: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLocaleLowerCase("pl-PL").replace(/ł/gu, "l").replace(/\s+/gu, " ").trim(),
   };
   if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: opening.label } };
   const availability = accommodationAvailability(place);
