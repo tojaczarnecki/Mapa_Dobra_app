@@ -111,7 +111,8 @@ FROM (
   SELECT lower(regexp_replace(trim("label"), '\\s+', ' ', 'g')) AS normalized, min(trim("label")) AS label
   FROM "place_requirements" WHERE "kind" = 'OTHER' AND trim("label") <> '' GROUP BY 1
 ) values_to_add
-WHERE NOT EXISTS (SELECT 1 FROM "requirement_definitions" d WHERE d."slug" = 'custom-requirement-' || md5(normalized));
+WHERE NOT EXISTS (SELECT 1 FROM "requirement_definitions" d WHERE d."slug" = 'custom-requirement-' || md5(normalized))
+GROUP BY normalized;
 UPDATE "place_requirements" AS row
 SET "definitionId" = definition."id"
 FROM "requirement_definitions" AS definition
@@ -123,7 +124,8 @@ FROM (
   SELECT lower(regexp_replace(trim("label"), '\\s+', ' ', 'g')) AS normalized, min(trim("label")) AS label
   FROM "place_accessibility" WHERE "feature" = 'OTHER' AND trim("label") <> '' GROUP BY 1
 ) values_to_add
-WHERE NOT EXISTS (SELECT 1 FROM "accessibility_definitions" d WHERE d."slug" = 'custom-accessibility-' || md5(normalized));
+WHERE NOT EXISTS (SELECT 1 FROM "accessibility_definitions" d WHERE d."slug" = 'custom-accessibility-' || md5(normalized))
+GROUP BY normalized;
 UPDATE "place_accessibility" AS row
 SET "definitionId" = definition."id"
 FROM "accessibility_definitions" AS definition
@@ -136,7 +138,8 @@ FROM (
   SELECT lower(regexp_replace(trim(value), '\\s+', ' ', 'g')) AS normalized, min(trim(value)) AS label
   FROM "places", unnest("audience") AS value WHERE trim(value) <> '' GROUP BY 1
 ) values_to_add
-WHERE NOT EXISTS (SELECT 1 FROM "audience_definitions" d WHERE d."slug" = 'audience-' || md5(normalized));
+WHERE NOT EXISTS (SELECT 1 FROM "audience_definitions" d WHERE d."slug" = 'audience-' || md5(normalized))
+GROUP BY normalized;
 INSERT INTO "place_audience" ("placeId", "definitionId")
 SELECT place."id", definition."id"
 FROM "places" AS place
