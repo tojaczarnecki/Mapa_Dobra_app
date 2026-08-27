@@ -14,6 +14,13 @@ async function waitForHomepageIntro(page: Page) {
   await page.locator(".first-visit-intro").waitFor({ state: "detached", timeout: 3000 }).catch(() => undefined);
 }
 
+async function dismissPrivacyConsent(page: Page) {
+  const necessaryOnly = page.getByRole("button", { name: /Tylko niezbędne/i });
+  if (await necessaryOnly.isVisible().catch(() => false)) {
+    await necessaryOnly.click();
+  }
+}
+
 test.describe("public critical paths", () => {
   test("homepage exposes the two primary actions and is accessible @webkit-smoke", async ({ page }) => {
     await page.goto("/");
@@ -69,6 +76,7 @@ test.describe("public critical paths", () => {
 test.describe("admin critical paths", () => {
   test("admin login reaches dashboard and place edit", async ({ page }) => {
     await page.goto("/admin/login");
+    await dismissPrivacyConsent(page);
     await page.getByLabel(/e-mail/i).fill(adminEmail);
     await page.locator("#admin-password").fill(adminPassword);
     await page.getByRole("button", { name: /zaloguj/i }).click();
@@ -82,6 +90,7 @@ test.describe("admin critical paths", () => {
 
   test("admin dashboard is accessible", async ({ page }) => {
     await page.goto("/admin/login");
+    await dismissPrivacyConsent(page);
     await page.getByLabel(/e-mail/i).fill(adminEmail);
     await page.locator("#admin-password").fill(adminPassword);
     await page.getByRole("button", { name: /zaloguj/i }).click();
