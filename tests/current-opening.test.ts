@@ -47,7 +47,7 @@ test("opening status works before, during, after and across multiple periods", (
 
   const after = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T16:00:00Z"));
   assert.equal(after.isOpenNow, false);
-  assert.equal(after.label, "Dzisiaj zamknięte");
+  assert.equal(after.label, "W poniedziałek · od 09:00");
 });
 
 test("admission hours warn when today's intake is ending soon", () => {
