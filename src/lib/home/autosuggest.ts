@@ -1,3 +1,4 @@
+import { interpretSearchQuery, searchIntentHref } from "../places/search-intent.ts";
 import { normalizePublicSearch, type PublicSearchPlace } from "../places/search.ts";
 
 export type HomeSearchCategory = {
@@ -8,7 +9,7 @@ export type HomeSearchCategory = {
 export type HomeSuggestion = {
   id: string;
   label: string;
-  secondary: "Kategoria" | "Usługa" | "Miejsce";
+  secondary: "Najlepsze dopasowanie" | "Kategoria" | "Usługa" | "Miejsce";
   href: string;
 };
 
@@ -26,6 +27,18 @@ function suggestionMatches(value: string, query: string) {
   return normalizePublicSearch(value).includes(normalizePublicSearch(query));
 }
 
+export function getHomeIntentSuggestion(query: string): HomeSuggestion | undefined {
+  const intent = interpretSearchQuery(query);
+  if (!intent.recognized) return undefined;
+
+  return {
+    id: "intent-best-match",
+    label: `Rozumiem: ${intent.tokens.map((token) => token.label).join(" · ")}`,
+    secondary: "Najlepsze dopasowanie",
+    href: searchIntentHref(query),
+  };
+}
+
 export function getHomeSuggestions(
   query: string,
   categories: HomeSearchCategory[],
@@ -34,6 +47,7 @@ export function getHomeSuggestions(
   const normalizedQuery = normalizePublicSearch(query);
   if (normalizedQuery.length < 2) return [];
 
+  const intentSuggestion = getHomeIntentSuggestion(query);
   const categorySuggestions = categories
     .filter((category) => suggestionMatches(`${category.label} ${category.slug}`, normalizedQuery))
     .slice(0, 5)
@@ -64,5 +78,10 @@ export function getHomeSuggestions(
       href: `/lodz/${place.categorySlug || place.categorySlugs[0] || "inne"}/${place.slug}`,
     }));
 
-  return [...categorySuggestions, ...serviceSuggestions, ...placeSuggestions].slice(0, 8);
+  return [
+    ...(intentSuggestion ? [intentSuggestion] : []),
+    ...categorySuggestions,
+    ...serviceSuggestions,
+    ...placeSuggestions,
+  ].slice(0, 8);
 }
