@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, MapPin } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const links = [
@@ -21,19 +20,12 @@ export function SiteHeader() {
   return (
     <header className={`site-header sticky top-0 z-30 ${mobileVisibility}`}>
       <div className="site-header-inner">
-        <Link
-          href="/"
-          className="site-header-logo-link"
-          aria-label="Mapa Dobra - strona główna"
-        >
-          <Image
-            src="/brand/mapa-dobra-logo.svg"
-            alt="Mapa Dobra"
-            width={170}
-            height={40}
-            priority
-            className="site-header-logo"
-          />
+        <Link href="/" className="md-brand-lockup" aria-label="Mapa Dobra - strona główna">
+          <span className="md-brand-mark" aria-hidden="true">
+            <MapPin size={30} strokeWidth={2.4} fill="currentColor" />
+            <span className="md-brand-dot" />
+          </span>
+          <span className="md-brand-name">Mapa Dobra</span>
         </Link>
         <nav aria-label="Główne menu" className="site-header-nav hidden md:flex">
           {links.map((link) => (
