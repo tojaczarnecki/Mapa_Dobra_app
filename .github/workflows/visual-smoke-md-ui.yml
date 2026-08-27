@@ -75,12 +75,16 @@ jobs:
       - name: Capture reference viewports
         run: |
           mkdir -p screenshots
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
+          cat > screenshots/storage.json <<'JSON'
+          {"cookies":[],"origins":[{"origin":"http://127.0.0.1:3000","localStorage":[{"name":"mapa-dobra:privacy-consent","value":"necessary"}]}]}
+          JSON
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/storage.json --wait-for-timeout=700"
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
+          $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
+          $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/storage.json --wait-for-timeout=3500 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
+          $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
