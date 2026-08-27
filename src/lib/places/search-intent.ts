@@ -144,7 +144,17 @@ export function interpretSearchQuery(query: string): SearchIntent {
 }
 
 export function searchIntentHref(query: string) {
+  const intent = interpretSearchQuery(query);
   const params = new URLSearchParams();
-  params.set("q", query.trim());
+  params.set("zapytanie", query.trim());
+
+  if (intent.filters.category) params.set("kategoria", intent.filters.category);
+  if (intent.filters.openNow) params.set("otwarte", "1");
+  if (intent.filters.today) params.set("dzisiaj", "1");
+  if (intent.filters.free) params.set("bezplatne", "1");
+  if (intent.filters.noReferral) params.set("bez_skierowania", "1");
+  if (intent.filters.noDocuments) params.set("bez_dokumentow", "1");
+  if (intent.filters.sort && intent.filters.sort !== "best") params.set("sort", intent.filters.sort);
+
   return `/szukaj?${params.toString()}`;
 }
