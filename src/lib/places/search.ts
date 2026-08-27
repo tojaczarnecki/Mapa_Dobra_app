@@ -9,6 +9,7 @@ export type PublicSearchPlace = {
   searchText: string;
   status: string;
   openNow: boolean | null;
+  todayHours?: string;
   free: InformationState;
   referralRequired: InformationState;
   documentRequired: InformationState;
@@ -19,6 +20,7 @@ export type PublicSearchFilters = {
   query?: string;
   category?: string;
   openNow?: boolean;
+  today?: boolean;
   free?: boolean;
   noReferral?: boolean;
   noDocuments?: boolean;
@@ -31,7 +33,11 @@ const categoryAliases: Record<string, string[]> = {
   hygiene: ["higiena", "prysznic"],
   medical: ["pomoc-medyczna"],
   legal: ["pomoc-prawna"],
+  psychological: ["pomoc-psychologiczna"],
+  clothing: ["odziez"],
 };
+
+const mappedPublicCategorySlugs = new Set(Object.values(categoryAliases).flat());
 
 export function normalizePublicSearch(value: string) {
   return value
@@ -44,8 +50,18 @@ export function normalizePublicSearch(value: string) {
 }
 
 function categoryMatches(place: PublicSearchPlace, category: string) {
+  if (category === "other" || category === "inne") {
+    return place.categorySlugs.some((slug) => !mappedPublicCategorySlugs.has(slug));
+  }
   const requested = categoryAliases[category] ?? [category];
   return requested.some((slug) => place.categorySlugs.includes(slug));
+}
+
+function availableToday(place: PublicSearchPlace) {
+  const hours = normalizePublicSearch(place.todayHours ?? "");
+  if (!hours) return false;
+  if (hours.includes("zamkniete") || hours.includes("brak potwierdzonych")) return false;
+  return hours.includes("dzisiaj") || place.openNow === true;
 }
 
 function relevance(place: PublicSearchPlace, query: string) {
@@ -67,6 +83,7 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
     if (query && !normalizePublicSearch(place.searchText).includes(query)) return false;
     if (filters.category && !categoryMatches(place, filters.category)) return false;
     if (filters.openNow && place.openNow !== true) return false;
+    if (filters.today && !availableToday(place)) return false;
     if (filters.free && place.free !== "YES") return false;
     if (filters.noReferral && place.referralRequired !== "NO") return false;
     if (filters.noDocuments && place.documentRequired !== "NO") return false;
