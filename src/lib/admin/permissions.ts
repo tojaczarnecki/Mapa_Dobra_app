@@ -71,6 +71,7 @@ export const placeManagerDefaultPermissions: AdminPermission[] = [
 
 export const placeScopedPermissions: AdminPermission[] = [
   "VIEW_PLACES",
+  "VERIFY_PLACES",
   "UPDATE_BED_AVAILABILITY",
   "UPDATE_ADMISSION_STATUS",
   "UPDATE_ADMISSION_HOURS",
@@ -85,7 +86,7 @@ export const permissionLabels: Record<AdminPermission, string> = {
   VIEW_PLACES: "Podgląd miejsc",
   CREATE_PLACES: "Tworzenie miejsc",
   EDIT_PLACES: "Edycja miejsc",
-  VERIFY_PLACES: "Weryfikacja miejsc",
+  VERIFY_PLACES: "Potwierdzanie aktualności danych",
   PUBLISH_PLACES: "Publikowanie miejsc",
   CHANGE_PLACE_STATUS: "Zmiana statusu miejsca",
   UPDATE_BED_AVAILABILITY: "Wolne miejsca",
