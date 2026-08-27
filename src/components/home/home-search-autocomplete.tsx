@@ -42,17 +42,15 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const hasSuggestions = isOpen && suggestions.length > 0;
 
   return (
-    <form action="/mapa" method="get" className="home-search-form" aria-label="Wyszukiwarka pomocy">
-      <input type="hidden" name="lokalizacja" value="moja" />
+    <form action="/szukaj" method="get" className="home-search-form" aria-label="Wyszukiwarka pomocy">
       <label htmlFor="home-search" className="sr-only">Czego potrzebujesz?</label>
       <div className="home-search-autocomplete">
         <div className="home-search-field">
-          <Search aria-hidden="true" className="shrink-0" size={23} strokeWidth={2.1} />
           <input
             id="home-search"
             name="q"
             type="search"
-            placeholder="Czego potrzebujesz?"
+            placeholder="Wpisz czego szukasz…"
             autoComplete="off"
             role="combobox"
             aria-autocomplete="list"
@@ -68,6 +66,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             onFocus={() => setIsOpen(query.trim().length >= 2)}
             onKeyDown={handleKeyDown}
           />
+          <Search aria-hidden="true" className="shrink-0" size={20} strokeWidth={2.1} />
         </div>
         {hasSuggestions ? (
           <ul id={listboxId} className="home-search-suggestions" role="listbox" aria-label="Podpowiedzi wyszukiwania">
