@@ -15,6 +15,35 @@
  * rozpoznawalnego języka wizualnego Mapy Dobra.
  */
 
+.home-now-shortcuts {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.home-now-shortcuts a {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #d8e2df;
+  border-radius: 0.65rem;
+  background: rgb(255 255 255 / 78%);
+  color: var(--md-action-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.home-now-shortcuts a:hover,
+.home-now-shortcuts a:focus-visible {
+  border-color: #9ccac2;
+  background: #f3faf8;
+}
+
 .smart-intent-summary {
   display: grid;
   gap: 0.55rem;
@@ -75,6 +104,21 @@
   font-size: 0.72rem;
   font-weight: 800;
   text-decoration: none;
+}
+
+.smart-map-intent {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 999px;
+  background: #f3faf8;
+  color: var(--md-action-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 @media (max-width: 767px) {
@@ -148,6 +192,20 @@
   .home-search-field {
     min-height: 3.25rem;
     padding-inline: 0.9rem;
+  }
+
+  .home-now-shortcuts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .home-now-shortcuts a {
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.5rem;
+    text-align: center;
+    line-height: 1.15;
   }
 
   .home-category-section {
