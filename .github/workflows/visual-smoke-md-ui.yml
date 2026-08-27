@@ -11,7 +11,7 @@ permissions:
 jobs:
   screenshots:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -57,12 +57,15 @@ jobs:
           npx prisma migrate deploy
           npm run db:migrate-demo
 
+      - name: Build production application
+        run: npm run build
+
       - name: Install Chromium for screenshots
         run: npx --yes playwright@1.55.0 install --with-deps chromium
 
       - name: Start app
         run: |
-          npm run dev > /tmp/mapa-dobra-next.log 2>&1 &
+          npm start > /tmp/mapa-dobra-next.log 2>&1 &
           echo $! > /tmp/mapa-dobra-next.pid
           for attempt in {1..60}; do
             if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
@@ -132,15 +135,15 @@ jobs:
           $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
           $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
           $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/ulubione screenshots/07-favorites-390.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
           $PW --viewport-size="390,844" "$SMART_RESULTS" screenshots/09-smart-search-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=5000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/znajdz-nocleg screenshots/11-night-wizard-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/zglos-miejsce screenshots/13-new-place-390.png
           npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=900 --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/14-first-visit-privacy-390.png
 
