@@ -65,6 +65,8 @@ export function PrivacyConsent() {
     };
   }, [consent, settingsOpen]);
 
+  if (process.env.NEXT_PUBLIC_VISUAL_SMOKE === "1") return null;
+
   const saveConsent = (choice: ConsentChoice) => {
     window.localStorage.setItem(PRIVACY_CONSENT_KEY, choice);
     window.dispatchEvent(new Event("mapa-dobra:consent-changed"));

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
+  ArrowRight,
   BedDouble,
   Brain,
   CircleHelp,
   Droplets,
+  HeartHandshake,
   HeartPulse,
+  LocateFixed,
   Scale,
   Shirt,
   ShowerHead,
@@ -12,8 +16,6 @@ import {
 } from "lucide-react";
 import { CategoryTile } from "@/components/home/category-tile";
 import { HomeSearchAutocomplete } from "@/components/home/home-search-autocomplete";
-import { PrimaryActionCard } from "@/components/home/primary-action-card";
-import { getCategoryAccentMap } from "@/lib/home/category-accent";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
@@ -36,6 +38,22 @@ const categoryIconMap = {
   higiena: Droplets,
 } as const;
 
+const categoryOrder = [
+  "jedzenie",
+  "nocleg",
+  "higiena",
+  "prysznic",
+  "pomoc-medyczna",
+  "pomoc-prawna",
+  "odziez",
+  "pomoc-psychologiczna",
+] as const;
+
+function categoryRank(slug: string) {
+  const index = categoryOrder.indexOf(slug as (typeof categoryOrder)[number]);
+  return index === -1 ? 999 : index;
+}
+
 export default async function Home() {
   const publicPlaces = await getPublicSearchPlaces();
   const categories = Array.from(
@@ -50,8 +68,12 @@ export default async function Home() {
       slug,
       icon: categoryIconMap[slug as keyof typeof categoryIconMap] ?? CircleHelp,
     }))
-    .sort((left, right) => left.label.localeCompare(right.label, "pl"));
-  const categoryAccents = getCategoryAccentMap(categories.map(({ slug }) => slug));
+    .sort((left, right) => {
+      const rank = categoryRank(left.slug) - categoryRank(right.slug);
+      return rank !== 0 ? rank : left.label.localeCompare(right.label, "pl");
+    })
+    .slice(0, 9);
+
   const searchPlaces = publicPlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, free, referralRequired, documentRequired, distanceKm }) => ({
     id,
     name,
@@ -68,50 +90,42 @@ export default async function Home() {
   }));
 
   return (
-    <div className="home-page mx-auto w-full max-w-[1240px] px-5 pb-28 pt-8 sm:px-6 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-14">
-      <header className="home-intro">
-        <h1 className="home-motto">Wszędzie tam, gdzie dzieje się dobro!</h1>
-      </header>
+    <div className="md-home">
+      <h1 className="md-home-heading">Czego potrzebujesz?</h1>
 
-      <section className="home-primary-actions" aria-label="Główne ścieżki">
-        <PrimaryActionCard
-          href="/szukaj"
-          title="Potrzebuję pomocy"
-          description="Znajdź miejsce, usługę lub wsparcie."
-          variant="help"
-        />
-        <PrimaryActionCard
-          href="/uruchom-pomoc"
-          title="Uruchamiam pomoc"
-          description="Martwisz się o kogoś? Pomóż uruchomić wsparcie."
-          variant="activate"
-        />
-      </section>
-
-      <section className="home-search-section" aria-labelledby="home-search-title">
-        <h2 id="home-search-title" className="sr-only">Znajdź pomoc</h2>
+      <section className="md-home-search" aria-label="Wyszukaj pomoc">
         <HomeSearchAutocomplete
           categories={categories.map(({ label, slug }) => ({ label, slug }))}
           places={searchPlaces}
         />
       </section>
 
-      <section id="kategorie" className="home-category-section" aria-labelledby="home-category-title">
-        <div className="home-section-heading">
-          <h2 id="home-category-title">Kategorie pomocy</h2>
-        </div>
-        <div className="home-category-grid">
+      <section aria-label="Kategorie pomocy">
+        <div className="md-category-grid">
           {categories.map((category) => (
             <CategoryTile
               key={category.slug}
               href={`/szukaj?kategoria=${category.slug}`}
               label={category.label}
               icon={category.icon}
-              accent={categoryAccents.get(category.slug) ?? "#475569"}
             />
           ))}
         </div>
       </section>
+
+      <Link className="md-location-row" href="/mapa?lokalizacja=moja">
+        <span><LocateFixed aria-hidden="true" size={18} />Użyj mojej lokalizacji</span>
+        <ArrowRight aria-hidden="true" size={17} />
+      </Link>
+
+      <Link className="md-primary-cta" href="/szukaj">
+        Znajdź pomoc
+      </Link>
+
+      <Link className="md-help-cta" href="/uruchom-pomoc">
+        <HeartHandshake aria-hidden="true" size={18} />
+        Uruchom pomoc dla kogoś
+      </Link>
     </div>
   );
 }
