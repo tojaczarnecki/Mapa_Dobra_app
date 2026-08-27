@@ -22,6 +22,14 @@ const HelpMap = dynamic(
   },
 );
 
+const publicCategoryByMapCategory: Partial<Record<MapCategoryFilter, string>> = {
+  food: "jedzenie",
+  accommodation: "nocleg",
+  hygiene: "higiena",
+  medical: "pomoc-medyczna",
+  legal: "pomoc-prawna",
+};
+
 type LocationState =
   | { status: "idle" }
   | { status: "pending" }
@@ -166,7 +174,7 @@ export function MapExperience({
     const params = new URLSearchParams();
     if (intentText.trim()) params.set("zapytanie", intentText.trim());
     else if (query.trim()) params.set("q", query.trim());
-    if (category !== "all") params.set("kategoria", category);
+    if (category !== "all") params.set("kategoria", publicCategoryByMapCategory[category] ?? category);
     if (openNow) params.set("otwarte", "1");
     if (today) params.set("dzisiaj", "1");
     if (free) params.set("bezplatne", "1");
@@ -252,7 +260,7 @@ export function MapExperience({
     <div className={styles.mapPage}>
       <h1 className="sr-only">Mapa miejsc pomocy w Łodzi</h1>
       <MapControls
-        query={query}
+        query={intentText || query}
         intentText={intentText}
         category={category}
         openNow={openNow}
