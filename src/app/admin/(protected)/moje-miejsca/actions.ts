@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { facilityVerificationBlockMessage, facilityVerificationGate } from "@/lib/admin/facility-verification";
 import { requirePlacePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
 import { openingRows, validateOpeningSchedule } from "@/lib/places/opening-hours";
 
 export type FacilityActionState = { error?: string; success?: string };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const confirmablePublicationStatuses = ["PUBLISHED", "TEMPORARILY_CLOSED", "PERMANENTLY_CLOSED"] as const;
 
 function clean(value: FormDataEntryValue | null, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max + 1) : "";
@@ -50,12 +50,8 @@ export async function confirmFacilityDataCurrent(
         },
       });
 
-      if (!confirmablePublicationStatuses.includes(place.publicationStatus as (typeof confirmablePublicationStatuses)[number])) {
-        throw new Error("NOT_PUBLIC");
-      }
-      if (place.verificationQueueStatus && place.verificationQueueStatus !== "VERIFIED") {
-        throw new Error("ACTIVE_VERIFICATION");
-      }
+      const gate = facilityVerificationGate(place.publicationStatus, place.verificationQueueStatus);
+      if (!gate.allowed) throw new Error(gate.reason);
 
       const now = new Date();
       const representative = session.user.role === "PLACE_MANAGER";
@@ -111,8 +107,9 @@ export async function confirmFacilityDataCurrent(
     return { success: "Aktualność danych została potwierdzona." };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
-    if (reason === "NOT_PUBLIC") return { error: "Aktualność można potwierdzić tutaj tylko dla opublikowanego miejsca." };
-    if (reason === "ACTIVE_VERIFICATION") return { error: "To miejsce ma otwartą weryfikację administracyjną. Zakończ ją w kolejce weryfikacji." };
+    if (reason === "NOT_PUBLIC" || reason === "ACTIVE_VERIFICATION") {
+      return { error: facilityVerificationBlockMessage(reason) };
+    }
     return { error: "Nie udało się potwierdzić aktualności danych." };
   }
 }
