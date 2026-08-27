@@ -76,6 +76,11 @@ test("intent parser distinguishes today from open now and preserves original phr
   assert.match(href, /bez_dokumentow=1/);
 });
 
+test("intent parser recognizes psychological support and clothing needs", () => {
+  assert.equal(interpretSearchQuery("potrzebuję rozmowy z psychologiem").filters.category, "pomoc-psychologiczna");
+  assert.equal(interpretSearchQuery("potrzebuję ciepłej kurtki i ubrań").filters.category, "odziez");
+});
+
 test("homepage autosuggest builds safe category and place routes", () => {
   const suggestions = getHomeSuggestions("prysznic", [{ label: "Prysznic", slug: "prysznic" }], places);
   assert.equal(suggestions[0]?.href, "/szukaj?kategoria=prysznic");
