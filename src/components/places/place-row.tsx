@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Navigation } from "lucide-react";
+import { AlertTriangle, ChevronRight, Navigation } from "lucide-react";
 import type { DemoPlace, PlaceStatus } from "@/data/demo-places";
 
 const statusConfig: Record<PlaceStatus, { label: string; tone: string }> = {
@@ -37,6 +37,12 @@ export function PlaceRow({ place }: { place: DemoPlace }) {
           <Navigation aria-hidden="true" size={12} />
           <span>{place.distance}</span>
         </span>
+        {place.freshnessWarning ? (
+          <span className="mt-1 flex min-w-0 items-center gap-1 text-[0.68rem] font-extrabold leading-4 text-[#8a610a]">
+            <AlertTriangle aria-hidden="true" className="shrink-0" size={12} />
+            <span className="min-w-0">{place.freshness}</span>
+          </span>
+        ) : null}
         {tags.length > 0 ? (
           <span className="md-place-tags" aria-label="Najważniejsze informacje">
             {tags.map((tag) => <span className="md-place-tag" key={tag}>{tag}</span>)}
