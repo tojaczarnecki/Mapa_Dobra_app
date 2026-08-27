@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   BedDouble,
   Brain,
   CircleHelp,
+  Clock3,
   Droplets,
   HeartPulse,
+  LocateFixed,
   Scale,
   Shirt,
   ShowerHead,
@@ -95,6 +98,16 @@ export default async function Home() {
           categories={categories.map(({ label, slug }) => ({ label, slug }))}
           places={searchPlaces}
         />
+        <div className="home-now-shortcuts" aria-label="Szybkie wyszukiwanie">
+          <Link href="/mapa?otwarte=1&lokalizacja=moja">
+            <LocateFixed aria-hidden="true" size={17} />
+            Pomoc dostępna teraz
+          </Link>
+          <Link href="/znajdz-nocleg">
+            <Clock3 aria-hidden="true" size={17} />
+            Nocleg na dzisiaj
+          </Link>
+        </div>
       </section>
 
       <section id="kategorie" className="home-category-section" aria-labelledby="home-category-title">
