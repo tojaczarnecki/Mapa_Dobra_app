@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Download, Share, WifiOff, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -75,7 +76,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("mapa-dobra:open-install", onOpenInstall);
     };
-  }, [enabled, installPrompt]);
+  }, [enabled]);
 
   const dismissInstall = () => {
     window.localStorage.setItem(DISMISSED_KEY, "1");
@@ -96,23 +97,35 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
 
   return (
     <>
-      {offline ? <div className="offline-notice" role="status" aria-live="polite"><WifiOff aria-hidden="true" size={18} /><span>Brak połączenia z internetem. Niektóre informacje mogą być niedostępne lub nieaktualne.</span></div> : null}
-      {showPublicInstallUi && showInstall ? <aside className="pwa-install-notice" aria-label="Instalacja Mapy Dobra">
-        <div className="pwa-install-icon" aria-hidden="true"><Download size={20} /></div>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-[#18364D]">Zainstaluj Mapę Dobra — bezpłatnie</p>
-          <p className="mt-1 text-sm text-muted-foreground">Miej pomoc zawsze pod ręką. Bez opłat, bez App Store i Google Play.</p>
-          <ul className="mt-2 grid gap-0.5 text-xs text-muted-foreground" aria-label="Korzyści instalacji">
-            <li>Bezpłatna</li>
-            <li>Szybki dostęp z ekranu głównego</li>
-            <li>Działa jak aplikacja</li>
-            <li>Bez pobierania ze sklepu</li>
-          </ul>
-          {iosInstructions ? <p className="mt-2 text-sm text-muted-foreground">Wybierz <strong>Udostępnij</strong>, a następnie <strong>Dodaj do ekranu początkowego</strong>.</p> : !installPrompt ? <p className="mt-2 text-sm text-muted-foreground">W menu przeglądarki wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.</p> : null}
-          {iosInstructions ? <Share aria-hidden="true" className="mt-2 text-[#0F766E]" size={19} /> : installPrompt ? <button type="button" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#0F766E] px-4 text-sm font-bold text-white hover:bg-[#0B625C]" onClick={() => void install()}>Zainstaluj bezpłatnie</button> : null}
+      {offline ? (
+        <div className="offline-notice" role="status" aria-live="polite">
+          <WifiOff aria-hidden="true" size={18} />
+          <span>Jesteś offline. Zapisane miejsca nadal są dostępne.</span>
+          <Link href="/offline">Pokaż zapisane</Link>
         </div>
-        <button type="button" className="touch-target inline-flex shrink-0 items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground" onClick={dismissInstall} aria-label="Zamknij komunikat instalacji" title="Zamknij"><X aria-hidden="true" size={19} /></button>
-      </aside> : null}
+      ) : null}
+      {showPublicInstallUi && showInstall ? (
+        <aside className="pwa-install-notice md-pwa-install" aria-label="Instalacja Mapy Dobra">
+          <div className="pwa-install-icon" aria-hidden="true"><Download size={20} /></div>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-[#08255B]">Zapisz Mapę Dobra na telefonie</p>
+            <p className="mt-1 text-sm text-muted-foreground">Szybszy dostęp do pomocy bez szukania strony w przeglądarce.</p>
+            {iosInstructions ? (
+              <p className="mt-2 text-sm text-muted-foreground">Wybierz <strong>Udostępnij</strong>, a następnie <strong>Dodaj do ekranu początkowego</strong>.</p>
+            ) : !installPrompt ? (
+              <p className="mt-2 text-sm text-muted-foreground">W menu przeglądarki wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.</p>
+            ) : null}
+            {iosInstructions ? (
+              <Share aria-hidden="true" className="mt-2 text-[#08255B]" size={19} />
+            ) : installPrompt ? (
+              <button type="button" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#08255B] px-4 text-sm font-bold text-white hover:bg-[#061A42]" onClick={() => void install()}>
+                Zapisz aplikację
+              </button>
+            ) : null}
+          </div>
+          <button type="button" className="touch-target inline-flex shrink-0 items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground" onClick={dismissInstall} aria-label="Zamknij komunikat instalacji" title="Zamknij"><X aria-hidden="true" size={19} /></button>
+        </aside>
+      ) : null}
     </>
   );
 }
