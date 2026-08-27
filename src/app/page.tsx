@@ -52,7 +52,7 @@ export default async function Home() {
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "pl"));
   const categoryAccents = getCategoryAccentMap(categories.map(({ slug }) => slug));
-  const searchPlaces = publicPlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, free, referralRequired, documentRequired, distanceKm }) => ({
+  const searchPlaces = publicPlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }) => ({
     id,
     name,
     categorySlug,
@@ -61,6 +61,7 @@ export default async function Home() {
     searchText,
     status,
     openNow,
+    todayHours,
     free,
     referralRequired,
     documentRequired,
@@ -104,7 +105,7 @@ export default async function Home() {
           {categories.map((category) => (
             <CategoryTile
               key={category.slug}
-              href={`/szukaj?kategoria=${category.slug}`}
+              href={category.slug === "nocleg" ? "/znajdz-nocleg" : `/szukaj?kategoria=${category.slug}`}
               label={category.label}
               icon={category.icon}
               accent={categoryAccents.get(category.slug) ?? "#475569"}
