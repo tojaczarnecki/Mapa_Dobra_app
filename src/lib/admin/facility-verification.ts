@@ -1,6 +1,6 @@
-import type { PlacePublicationStatus, VerificationQueueStatus } from "@/generated/prisma/enums";
+import type { PlacePublicationStatus, PlaceRecordKind, VerificationQueueStatus } from "@/generated/prisma/enums";
 
-export type FacilityVerificationBlockReason = "NOT_PUBLIC" | "ACTIVE_VERIFICATION";
+export type FacilityVerificationBlockReason = "NOT_PRODUCTION" | "NOT_PUBLIC" | "ACTIVE_VERIFICATION";
 
 export type FacilityVerificationGate =
   | { allowed: true; reason: null }
@@ -13,9 +13,14 @@ const confirmablePublicationStatuses: readonly PlacePublicationStatus[] = [
 ];
 
 export function facilityVerificationGate(
+  recordKind: PlaceRecordKind,
   publicationStatus: PlacePublicationStatus,
   verificationQueueStatus: VerificationQueueStatus | null,
 ): FacilityVerificationGate {
+  if (recordKind !== "PRODUCTION") {
+    return { allowed: false, reason: "NOT_PRODUCTION" };
+  }
+
   if (!confirmablePublicationStatuses.includes(publicationStatus)) {
     return { allowed: false, reason: "NOT_PUBLIC" };
   }
@@ -28,6 +33,10 @@ export function facilityVerificationGate(
 }
 
 export function facilityVerificationBlockMessage(reason: FacilityVerificationBlockReason) {
+  if (reason === "NOT_PRODUCTION") {
+    return "Potwierdzanie aktualności jest dostępne wyłącznie dla rzeczywistych danych produkcyjnych placówki.";
+  }
+
   if (reason === "NOT_PUBLIC") {
     return "Aktualność można potwierdzić tutaj tylko dla opublikowanego miejsca.";
   }
