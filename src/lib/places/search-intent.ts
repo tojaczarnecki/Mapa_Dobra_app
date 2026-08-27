@@ -54,7 +54,9 @@ const categoryMatchers = [
   {
     slug: "odziez",
     label: "Odzież",
-    phrases: ["odziez", "ubranie", "ubrania", "buty", "kurtka", "cieple ubrania"],
+    phrases: [
+      "odziez", "ubranie", "ubrania", "ubran", "buty", "kurtka", "kurtk", "cieple ubrania", "cieplej kurtki",
+    ],
   },
 ] as const;
 
