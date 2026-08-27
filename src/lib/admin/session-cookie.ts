@@ -6,8 +6,10 @@ export function shouldUseSecureAdminCookie(env: NodeJS.ProcessEnv = process.env)
   if (env.E2E_ALLOW_INSECURE_ADMIN_COOKIE !== "1") return true;
 
   try {
-    const appUrl = new URL(env.APP_BASE_URL ?? "");
-    return !LOCAL_E2E_HOSTS.has(appUrl.hostname);
+    const testUrl = new URL(env.TEST_BASE_URL ?? "");
+    const isLocalHttpTestOrigin =
+      testUrl.protocol === "http:" && LOCAL_E2E_HOSTS.has(testUrl.hostname);
+    return !isLocalHttpTestOrigin;
   } catch {
     return true;
   }
