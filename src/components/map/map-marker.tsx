@@ -56,7 +56,7 @@ export function MapMarker({
       divIcon({
         className: styles.markerHost,
         html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" aria-hidden="true"><span>${categoryIconMarkup}</span></span>`,
-        iconAnchor: [22, 42],
+        iconAnchor: [22, 22],
         iconSize: [44, 44],
       }),
     [categoryIconMarkup, selected],

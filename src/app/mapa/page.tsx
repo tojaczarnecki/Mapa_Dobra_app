@@ -71,9 +71,7 @@ export default async function MapPage({ searchParams }: MapPageProps) {
 
   const requestedCategoryValue = firstValue(params.kategoria) || intentFilters.category || "";
   const requestedCategory = categoryAliases[requestedCategoryValue] ?? requestedCategoryValue as MapCategoryFilter;
-  const initialCategory = validCategories.has(requestedCategory)
-    ? requestedCategory
-    : "all";
+  const initialCategory = validCategories.has(requestedCategory) ? requestedCategory : "all";
 
   const todayEligibleIds = filterPublicSearchPlaces(searchPlaces, { today: true }).map((place) => place.id);
   const noReferralEligibleIds = filterPublicSearchPlaces(searchPlaces, { noReferral: true }).map((place) => place.id);

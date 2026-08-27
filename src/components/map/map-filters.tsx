@@ -7,7 +7,10 @@ import styles from "./map.module.css";
 
 export type MapCategoryFilter = "all" | MapCategory;
 
-const categoryFilters: Array<{ value: MapCategoryFilter; label: string }> = [
+const categoryFilters: Array<{
+  value: MapCategoryFilter;
+  label: string;
+}> = [
   { value: "all", label: "Wszystkie" },
   { value: "food", label: "Jedzenie" },
   { value: "accommodation", label: "Nocleg" },
@@ -59,77 +62,97 @@ export function MapFilters({
   const updateOverflowCue = useCallback(() => {
     const filters = filtersRef.current;
     if (!filters) return;
-    setShowOverflowCue(filters.scrollWidth - filters.clientWidth - filters.scrollLeft > 2);
+    const hiddenContentWidth = filters.scrollWidth - filters.clientWidth - filters.scrollLeft;
+    setShowOverflowCue(hiddenContentWidth > 2);
   }, []);
 
   useEffect(() => {
     const filters = filtersRef.current;
     if (!filters) return;
+
     updateOverflowCue();
     filters.addEventListener("scroll", updateOverflowCue, { passive: true });
     const resizeObserver = new ResizeObserver(updateOverflowCue);
     resizeObserver.observe(filters);
+
     return () => {
       filters.removeEventListener("scroll", updateOverflowCue);
       resizeObserver.disconnect();
     };
   }, [updateOverflowCue]);
 
+  const practicalFilters = [
+    { label: "Otwarte teraz", active: openNow, toggle: () => onOpenNowChange(!openNow) },
+    { label: "Dzisiaj", active: today, toggle: () => onTodayChange(!today) },
+    { label: "Bezpłatne", active: free, toggle: () => onFreeChange(!free) },
+    { label: "Bez skierowania", active: noReferral, toggle: () => onNoReferralChange(!noReferral) },
+    { label: "Bez dokumentów", active: noDocuments, toggle: () => onNoDocumentsChange(!noDocuments) },
+  ];
+
   return (
-    <div className={styles.filterArea}>
+    <div className="relative min-w-0">
       <div className={[styles.mapFilterViewport, showOverflowCue ? styles.mapFilterViewportFaded : ""].join(" ")}>
-        <div ref={filtersRef} className={styles.mapFilterScroll} aria-label="Kategorie miejsc na mapie">
+        <div
+          ref={filtersRef}
+          className={`${styles.mapFilterScroll} flex min-w-0 gap-2 overflow-x-auto pb-1 pr-7`}
+          aria-label="Kategorie miejsc na mapie"
+        >
           {categoryFilters.map((filter) => (
             <button
               key={filter.value}
               type="button"
-              className={styles.mapFilterChip}
-              data-active={category === filter.value || undefined}
+              className={["filter-chip", category === filter.value ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
               aria-pressed={category === filter.value}
               onClick={() => onCategoryChange(filter.value)}
             >
-              {category === filter.value ? <Check aria-hidden="true" size={14} /> : null}
+              {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
               {filter.label}
             </button>
           ))}
           <button
             type="button"
-            className={styles.mapFilterChip}
-            data-active={filtersOpen || activeAdditionalFilters > 0 || undefined}
+            className={["filter-chip", filtersOpen || activeAdditionalFilters > 0 ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
             aria-expanded={filtersOpen}
             aria-controls="map-additional-filters"
             onClick={() => onFiltersOpenChange(!filtersOpen)}
           >
-            <SlidersHorizontal aria-hidden="true" size={15} />
-            Filtry{activeAdditionalFilters > 0 ? ` (${activeAdditionalFilters})` : ""}
+            <SlidersHorizontal aria-hidden="true" size={17} />
+            Filtry
+            {activeAdditionalFilters > 0 ? <span aria-label={`${activeAdditionalFilters} aktywne`}>{activeAdditionalFilters}</span> : null}
           </button>
         </div>
       </div>
 
       {filtersOpen ? (
-        <section id="map-additional-filters" className={styles.additionalFilters} aria-label="Dodatkowe filtry mapy">
-          <div className={styles.additionalFiltersHeader}>
-            <h2>Filtry</h2>
-            <button type="button" aria-label="Zamknij filtry" onClick={() => onFiltersOpenChange(false)}>
-              <X aria-hidden="true" size={19} />
+        <section
+          id="map-additional-filters"
+          className="absolute right-0 top-[calc(100%+3.25rem)] z-[700] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]"
+          aria-label="Dodatkowe filtry mapy"
+        >
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-extrabold text-foreground">Co jest ważne?</h2>
+            <button
+              type="button"
+              className="touch-target inline-flex min-w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+              aria-label="Zamknij filtry"
+              onClick={() => onFiltersOpenChange(false)}
+            >
+              <X aria-hidden="true" size={20} />
             </button>
           </div>
-          <div className={styles.additionalFilterOptions}>
-            <button type="button" data-active={openNow || undefined} aria-pressed={openNow} onClick={() => onOpenNowChange(!openNow)}>
-              {openNow ? <Check aria-hidden="true" size={15} /> : null}Otwarte teraz
-            </button>
-            <button type="button" data-active={today || undefined} aria-pressed={today} onClick={() => onTodayChange(!today)}>
-              {today ? <Check aria-hidden="true" size={15} /> : null}Dzisiaj
-            </button>
-            <button type="button" data-active={free || undefined} aria-pressed={free} onClick={() => onFreeChange(!free)}>
-              {free ? <Check aria-hidden="true" size={15} /> : null}Bezpłatne
-            </button>
-            <button type="button" data-active={noReferral || undefined} aria-pressed={noReferral} onClick={() => onNoReferralChange(!noReferral)}>
-              {noReferral ? <Check aria-hidden="true" size={15} /> : null}Bez skierowania
-            </button>
-            <button type="button" data-active={noDocuments || undefined} aria-pressed={noDocuments} onClick={() => onNoDocumentsChange(!noDocuments)}>
-              {noDocuments ? <Check aria-hidden="true" size={15} /> : null}Bez dokumentów
-            </button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {practicalFilters.map((filter) => (
+              <button
+                key={filter.label}
+                type="button"
+                className={["filter-chip w-full", filter.active ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
+                aria-pressed={filter.active}
+                onClick={filter.toggle}
+              >
+                {filter.active ? <Check aria-hidden="true" size={16} /> : null}
+                {filter.label}
+              </button>
+            ))}
           </div>
         </section>
       ) : null}

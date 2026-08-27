@@ -1,0 +1,526 @@
+:root {
+  --md-structure: #18364d;
+  --md-action: #13ad87;
+  --md-action-strong: #0f766e;
+  --md-attention: #d79a2b;
+  --md-critical: #e9521a;
+  --md-positive: #2f855a;
+  --md-line: #e5e5e5;
+  --md-public-nav-height: 4.15rem;
+}
+
+/*
+ * Compact Institutional UI
+ * Zasada: mniej interfejsu, szybszy dostęp do informacji, bez zmiany
+ * rozpoznawalnego języka wizualnego Mapy Dobra.
+ */
+
+.home-now-shortcuts {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.home-now-shortcuts a {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #d8e2df;
+  border-radius: 0.65rem;
+  background: rgb(255 255 255 / 78%);
+  color: var(--md-action-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.home-now-shortcuts a:hover,
+.home-now-shortcuts a:focus-visible {
+  border-color: #9ccac2;
+  background: #f3faf8;
+}
+
+.smart-intent-summary {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 0.7rem;
+  background: #f3faf8;
+}
+
+.smart-intent-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: var(--md-action-strong);
+}
+
+.smart-intent-copy svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+}
+
+.smart-intent-copy div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.4rem;
+  align-items: baseline;
+}
+
+.smart-intent-copy strong {
+  color: var(--md-structure);
+  font-size: 0.8rem;
+}
+
+.smart-intent-copy span {
+  min-width: 0;
+  color: #4d625d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.smart-intent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.smart-intent-chips a {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--md-action-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.smart-map-intent {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 999px;
+  background: #f3faf8;
+  color: var(--md-action-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+/* Public forms: compact the choice itself, never the tap target. */
+.md-new-place-page label:has(input[id^="new-place-category-"]) {
+  grid-column: auto !important;
+  min-height: 3.1rem;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.65rem;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > span span {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Help flow: the first decision should arrive before the page starts to feel like a landing page. */
+.md-help-request-page .md-help-trust-note {
+  margin-bottom: 0.7rem;
+}
+
+.md-help-request-page section[aria-labelledby="help-wizard-title"] {
+  border-radius: 0.75rem;
+}
+
+.md-help-request-page #help-wizard-title {
+  font-size: 1.35rem !important;
+  line-height: 1.16 !important;
+  letter-spacing: -0.015em;
+}
+
+.md-help-request-page #help-wizard-title + p {
+  margin-top: 0.5rem !important;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.md-help-request-page [class*="min-h-[24rem]"] {
+  min-height: 18rem !important;
+  margin-top: 1rem !important;
+}
+
+/* Only essential technologies are used today, so first visit gets a short notice, not a wall. */
+.privacy-consent-layer-initial {
+  pointer-events: none;
+}
+
+.privacy-consent-layer-initial .privacy-consent-panel-initial {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  width: auto;
+  max-width: 32rem;
+  margin-left: auto;
+  padding: 0.75rem;
+  pointer-events: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 30px rgb(23 33 43 / 14%);
+}
+
+.privacy-consent-initial-copy h2 {
+  margin: 0;
+  color: var(--md-structure);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.privacy-consent-initial-copy p {
+  margin: 0.25rem 0 0;
+  color: #5b6570;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.privacy-consent-actions-initial {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.privacy-consent-actions-initial .privacy-consent-primary {
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  padding: 0.55rem 1rem;
+}
+
+.privacy-consent-actions-initial .privacy-consent-text-button {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.65rem;
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  #main-content {
+    min-height: calc(100dvh - 3.5rem - var(--md-public-nav-height));
+  }
+
+  .site-header-inner {
+    height: 3.5rem;
+    padding-inline: 0.9rem;
+  }
+
+  .site-header-logo-link {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .site-header-logo {
+    width: 8.45rem;
+  }
+
+  .home-page {
+    padding-top: 1.15rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom) + 1.25rem) !important;
+    padding-left: 1rem !important;
+  }
+
+  .home-motto {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  .home-primary-actions {
+    gap: 0.625rem;
+    margin-top: 1rem;
+  }
+
+  .home-primary-card {
+    min-height: 6.15rem;
+    gap: 0.8rem;
+    padding: 0.95rem;
+    border-radius: 0.75rem;
+  }
+
+  .home-primary-icon {
+    flex-basis: 2.9rem;
+    width: 2.9rem;
+    height: 2.9rem;
+    border-radius: 0.65rem;
+  }
+
+  .home-primary-title {
+    font-size: 1.2rem;
+    line-height: 1.15;
+  }
+
+  .home-primary-description {
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .home-search-section {
+    margin-top: 1.1rem;
+  }
+
+  .home-search-field {
+    min-height: 3.25rem;
+    padding-inline: 0.9rem;
+  }
+
+  .home-now-shortcuts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .home-now-shortcuts a {
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.5rem;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .home-category-section {
+    margin-top: 1.45rem;
+  }
+
+  .home-section-heading h2 {
+    font-size: 1.2rem;
+  }
+
+  .home-category-grid {
+    margin-top: 0.8rem;
+  }
+
+  .home-category-tile {
+    min-height: 3.35rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .home-category-label {
+    font-size: 0.95rem;
+  }
+
+  /* Public application typography: keep body readable, reduce hero-like H1 scale. */
+  #main-content h1:not(.home-motto) {
+    max-width: 32rem;
+    font-size: clamp(1.75rem, 7.5vw, 2rem);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+  }
+
+  #main-content h2 {
+    line-height: 1.18;
+  }
+
+  .md-help-request-page {
+    padding-top: 0.75rem !important;
+  }
+
+  .md-help-request-page > header > span {
+    width: 2.55rem;
+    height: 2.55rem;
+  }
+
+  .md-help-request-page > header > p:first-of-type {
+    margin-top: 0.45rem;
+    font-size: 0.72rem;
+  }
+
+  .md-help-request-page > header > h1 {
+    margin-top: 0.2rem;
+  }
+
+  .md-help-request-page > header > p:last-child {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .md-help-request-page > header + div {
+    margin-top: 0.8rem;
+  }
+
+  .md-help-request-page .md-help-trust-note {
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .md-help-request-page section[aria-labelledby="help-wizard-title"] {
+    padding: 0.8rem !important;
+  }
+
+  .md-help-request-page section[aria-labelledby="help-wizard-title"] > div:first-child p {
+    font-size: 0.75rem;
+  }
+
+  .md-help-request-page #help-wizard-title {
+    font-size: 1.18rem !important;
+  }
+
+  .md-help-request-page #help-wizard-title + p {
+    font-size: 0.82rem;
+    line-height: 1.42;
+  }
+
+  .md-help-request-page [class*="min-h-[24rem]"] {
+    min-height: 15.5rem !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .md-help-request-page [class*="mt-6"][class*="grid"],
+  .md-help-request-page [class*="mt-5"][class*="grid"] {
+    margin-top: 0.7rem !important;
+    gap: 0.45rem !important;
+  }
+
+  .md-help-request-page button[class*="min-h-14"] {
+    min-height: 3.05rem !important;
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
+  }
+
+  .md-new-place-page {
+    padding-top: 0.75rem !important;
+  }
+
+  .md-new-place-page > div > header {
+    gap: 0.2rem;
+  }
+
+  .md-new-place-page > div > header > div:first-child {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .md-new-place-page > div > header > p {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .md-new-place-page form {
+    padding: 0.8rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .md-new-place-page label:has(input[id^="new-place-category-"]) {
+    min-height: 3rem;
+  }
+
+  .privacy-consent-layer-initial .privacy-consent-panel-initial {
+    right: 0.55rem;
+    bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom) + 0.45rem);
+    left: 0.55rem;
+    padding: 0.7rem;
+  }
+
+  .privacy-consent-panel-initial {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .privacy-consent-actions-initial {
+    display: grid;
+    min-width: 6.8rem;
+    margin-top: 0;
+  }
+
+  .privacy-consent-actions-initial .privacy-consent-primary,
+  .privacy-consent-actions-initial .privacy-consent-text-button {
+    width: 100%;
+  }
+
+  .privacy-consent-actions-initial .privacy-consent-text-button {
+    min-height: 2rem;
+    padding-block: 0.15rem;
+    font-size: 0.72rem;
+  }
+
+  /* Bottom navigation owns its safe area; content always stays above it. */
+  .mobile-bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 800;
+    min-height: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--md-line);
+    background: rgb(255 255 255 / 97%);
+    box-shadow: 0 -6px 18px rgb(23 33 43 / 7%);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-bottom-nav-inner {
+    min-height: var(--md-public-nav-height);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .mobile-bottom-nav-item {
+    min-height: 3.75rem;
+    gap: 0.2rem;
+    padding: 0.35rem 0.2rem 0.25rem;
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .mobile-bottom-nav-item-active {
+    color: var(--md-action-strong);
+  }
+
+  .mobile-more-sheet {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  /* Generic public forms: a little less vertical air without shrinking tap targets. */
+  #main-content input,
+  #main-content select,
+  #main-content textarea,
+  #main-content button,
+  #main-content a {
+    scroll-margin-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom) + 1rem);
+  }
+}
+
+@media (min-width: 768px) {
+  .site-header-inner {
+    height: 3.8rem;
+  }
+
+  .site-header-logo {
+    width: 9rem;
+  }
+}

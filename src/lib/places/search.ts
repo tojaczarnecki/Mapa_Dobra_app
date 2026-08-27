@@ -37,9 +37,7 @@ const categoryAliases: Record<string, string[]> = {
   clothing: ["odziez"],
 };
 
-const mappedPublicCategorySlugs = new Set(
-  Object.values(categoryAliases).flat(),
-);
+const mappedPublicCategorySlugs = new Set(Object.values(categoryAliases).flat());
 
 export function normalizePublicSearch(value: string) {
   return value

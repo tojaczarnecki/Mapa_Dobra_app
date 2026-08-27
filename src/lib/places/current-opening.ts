@@ -95,6 +95,8 @@ export function evaluateCurrentOpening(
     .filter((row) => row.status === "OPEN" && row.opensAt && row.closesAt)
     .map((row) => ({
       label: `${row.opensAt}-${row.closesAt}`,
+      opensAtLabel: row.opensAt!,
+      closesAtLabel: row.closesAt!,
       opensAt: timeToMinutes(row.opensAt!),
       closesAt: timeToMinutes(row.closesAt!),
     }));
@@ -108,14 +110,22 @@ export function evaluateCurrentOpening(
     };
   }
 
-  const isOpenNow = periods.some(
+  const currentPeriod = periods.find(
     (period) => current.minutes >= period.opensAt && current.minutes < period.closesAt,
   );
+  const nextPeriod = periods.find((period) => current.minutes < period.opensAt);
+  const isOpenNow = Boolean(currentPeriod);
+  const label = currentPeriod
+    ? `Otwarte teraz · do ${currentPeriod.closesAtLabel}`
+    : nextPeriod
+      ? `Dzisiaj · od ${nextPeriod.opensAtLabel}`
+      : "Dzisiaj zamknięte";
+
   return {
     status: isOpenNow ? "OPEN" : "CLOSED",
     weekday: current.weekday,
     isOpenNow,
-    label: `Dzisiaj ${periods.map((period) => period.label).join(", ")}`,
+    label,
     periods: periods.map((period) => period.label),
   };
 }

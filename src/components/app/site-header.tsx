@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Download, MapPin } from "lucide-react";
+import { Download } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/szukaj", label: "Szukaj" },
   { href: "/mapa", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/ulubione", label: "Ulubione" },
 ];
 
 export function SiteHeader() {
@@ -15,17 +17,22 @@ export function SiteHeader() {
 
   if (pathname.startsWith("/admin")) return null;
 
-  const mobileVisibility = pathname === "/" ? "site-header-home" : "hidden md:block";
-
   return (
-    <header className={`site-header sticky top-0 z-30 ${mobileVisibility}`}>
+    <header className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""}`}>
       <div className="site-header-inner">
-        <Link href="/" className="md-brand-lockup" aria-label="Mapa Dobra - strona główna">
-          <span className="md-brand-mark" aria-hidden="true">
-            <MapPin size={30} strokeWidth={2.4} fill="currentColor" />
-            <span className="md-brand-dot" />
-          </span>
-          <span className="md-brand-name">Mapa Dobra</span>
+        <Link
+          href="/"
+          className="site-header-logo-link"
+          aria-label="Mapa Dobra - strona główna"
+        >
+          <Image
+            src="/brand/mapa-dobra-logo.svg"
+            alt="Mapa Dobra"
+            width={170}
+            height={40}
+            priority
+            className="site-header-logo"
+          />
         </Link>
         <nav aria-label="Główne menu" className="site-header-nav hidden md:flex">
           {links.map((link) => (

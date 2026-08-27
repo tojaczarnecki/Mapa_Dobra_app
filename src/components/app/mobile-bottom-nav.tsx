@@ -1,20 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { BedDouble, ChevronRight, Heart, HeartHandshake, Home, Map, Menu, Search, Smartphone, X } from "lucide-react";
+import { ChevronRight, HeartHandshake, Home, Map, Menu, Smartphone, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const primaryItems = [
   { href: "/", label: "Start", icon: Home },
+  { href: "/szukaj", label: "Pomoc", icon: HeartHandshake },
   { href: "/mapa", label: "Mapa", icon: Map },
-  { href: "/ulubione", label: "Ulubione", icon: Heart },
-  { href: "/uruchom-pomoc", label: "Pomoc", icon: HeartHandshake },
 ];
 
 const moreItems = [
-  { href: "/szukaj", label: "Szukaj pomocy", icon: Search },
-  { href: "/znajdz-nocleg", label: "Znajdź nocleg", icon: BedDouble },
+  { href: "/ulubione", label: "Ulubione" },
+  { href: "/#kategorie", label: "Kategorie" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dzisiaj" },
+  { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
   { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce" },
   { href: "/zglos-zmiane", label: "Zgłoś zmianę" },
 ];
@@ -29,9 +30,13 @@ function getInstallAvailability() {
 }
 
 function subscribeToInstallState(onChange: () => void) {
-  const onInstalled = () => onChange();
+  const onInstalled = () => {
+    onChange();
+  };
   window.addEventListener("appinstalled", onInstalled);
-  return () => window.removeEventListener("appinstalled", onInstalled);
+  return () => {
+    window.removeEventListener("appinstalled", onInstalled);
+  };
 }
 
 function itemIsActive(pathname: string, href: string) {
@@ -68,7 +73,6 @@ export function MobileBottomNav() {
         first.focus();
       }
     };
-
     const previousOverflow = document.body.style.overflow;
     const moreButton = moreButtonRef.current;
     document.addEventListener("keydown", closeOnEscape);
@@ -99,7 +103,7 @@ export function MobileBottomNav() {
                 className={`mobile-bottom-nav-item ${active ? "mobile-bottom-nav-item-active" : ""}`}
                 aria-current={active ? "page" : undefined}
               >
-                <item.icon aria-hidden="true" size={21} strokeWidth={1.9} />
+                <item.icon aria-hidden="true" size={22} strokeWidth={1.9} />
                 {item.label}
               </Link>
             );
@@ -112,7 +116,7 @@ export function MobileBottomNav() {
             aria-controls="mobile-more-sheet"
             onClick={() => setMoreOpen((current) => !current)}
           >
-            <Menu aria-hidden="true" size={21} strokeWidth={1.9} />
+            <Menu aria-hidden="true" size={22} strokeWidth={1.9} />
             Więcej
           </button>
         </div>

@@ -10,6 +10,7 @@ const findLinks = [
   { href: "/szukaj", label: "Szukaj pomocy" },
   { href: "/mapa", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/ulubione", label: "Ulubione" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
 ];
 

@@ -10,11 +10,11 @@ type PlaceHeroProps = {
   showStatus?: boolean;
 };
 
-const statusToneClass: Record<PlaceDetail["status"]["tone"], string> = {
-  open: "",
-  openToday: "",
-  closed: "is-closed",
-  unknown: "is-warning",
+const statusClass: Record<PlaceDetail["status"]["tone"], string> = {
+  open: "border-brand bg-brand-soft text-foreground",
+  openToday: "border-brand bg-brand-soft text-foreground",
+  closed: "border-border bg-surface-muted text-foreground",
+  unknown: "border-urgent-border bg-urgent-soft text-foreground",
 };
 
 export function PlaceHero({
@@ -24,55 +24,77 @@ export function PlaceHero({
 }: PlaceHeroProps) {
   const routeHref = directionsHref(place);
   const callHref = telephoneHref(place.contact.phone);
-
   return (
-    <section className="md-place-hero">
-      <div className="md-place-hero-heading">
-        <div className="min-w-0">
-          <h1>{place.name}</h1>
-          <p className="md-place-type">{place.helpTypes.join(" • ")}</p>
+    <section className="w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+      <div className="min-w-0 space-y-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">
+              {place.name}
+            </h1>
+            <p className="text-base font-extrabold leading-6 text-muted-foreground">
+              {place.helpTypes.join(" • ")}
+            </p>
+          </div>
+          <FavoritePlaceButton place={place} />
         </div>
-        <FavoritePlaceButton place={place} />
-      </div>
 
-      {showStatus ? (
-        <span className={`md-place-status-pill ${statusToneClass[place.status.tone]}`}>
-          {place.status.label}
-        </span>
-      ) : null}
+        {showStatus ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span
+              className={[
+                "inline-flex min-h-8 max-w-full items-center self-start rounded-full border px-3 text-xs font-extrabold tracking-wide",
+                statusClass[place.status.tone],
+              ].join(" ")}
+            >
+              {place.status.label}
+            </span>
+            <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+              <Clock3 aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
+              <span className="min-w-0">{place.status.todayHours}</span>
+            </p>
+          </div>
+        ) : null}
 
-      <div className="md-place-quick-meta">
-        <span><Navigation aria-hidden="true" size={15} />{place.distanceLabel}</span>
-        {showStatus ? <span><Clock3 aria-hidden="true" size={15} />{place.status.todayHours}</span> : null}
-      </div>
+        <div className="grid min-w-0 gap-2 text-sm font-semibold text-foreground">
+          <p className="flex min-w-0 items-center gap-2">
+            <Navigation aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
+            <span className="min-w-0">{place.distanceLabel}</span>
+          </p>
+          <p className="flex min-w-0 items-start gap-2 leading-6">
+            <MapPin
+              aria-hidden="true"
+              size={18}
+              className="mt-0.5 shrink-0 text-brand-strong"
+            />
+            <span className="min-w-0">{place.address}</span>
+          </p>
+        </div>
 
-      <p className="md-place-address">
-        <MapPin aria-hidden="true" size={17} className="shrink-0" />
-        <span>{place.address}</span>
-      </p>
-
-      <div className="md-place-actions">
-        {routeHref ? (
-          <a
-            className="md-place-action-primary"
+        <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
+          {callHref ? (
+            <a
+              className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
+              href={callHref}
+            >
+              <Phone aria-hidden="true" size={17} />
+              {primaryCallLabel}
+            </a>
+          ) : null}
+          {routeHref ? <a
+            className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
             href={routeHref}
             target="_blank"
             rel="noreferrer"
           >
             <Navigation aria-hidden="true" size={17} />
-            Jak dojechać
-          </a>
-        ) : null}
-        {callHref ? (
-          <a className="md-place-action-secondary" href={callHref}>
-            <Phone aria-hidden="true" size={17} />
-            {primaryCallLabel}
-          </a>
-        ) : null}
-      </div>
-
-      <div className="mt-2 flex justify-end">
-        <SharePlaceButton title={place.name} />
+            Wyznacz trasę
+          </a> : null}
+          <SharePlaceButton
+            className="col-span-2 justify-self-start sm:col-span-1 sm:justify-self-end"
+            title={place.name}
+          />
+        </div>
       </div>
     </section>
   );

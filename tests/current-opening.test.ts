@@ -29,12 +29,24 @@ test("midnight switches to the next Warsaw weekday", () => {
   assert.equal(afterMidnight.isOpenNow, true);
 });
 
-test("opening status handles before, during, after and multiple periods", () => {
+test("opening status works before, during, after and across multiple periods", () => {
   const schedule = rows("OPEN", [["09:00", "10:00"], ["14:00", "16:00"]]);
-  assert.equal(evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T07:30:00Z")).isOpenNow, false);
-  assert.equal(evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T08:30:00Z")).isOpenNow, true);
-  assert.equal(evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T16:00:00Z")).isOpenNow, false);
-  assert.equal(evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T13:30:00Z")).isOpenNow, true);
+
+  const before = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T07:30:00Z"));
+  assert.equal(before.isOpenNow, false);
+  assert.equal(before.label, "Dzisiaj · od 09:00");
+
+  const firstPeriod = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T08:30:00Z"));
+  assert.equal(firstPeriod.isOpenNow, true);
+  assert.equal(firstPeriod.label, "Otwarte teraz · do 10:00");
+
+  const secondPeriod = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T13:30:00Z"));
+  assert.equal(secondPeriod.isOpenNow, true);
+  assert.equal(secondPeriod.label, "Otwarte teraz · do 16:00");
+
+  const after = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T16:00:00Z"));
+  assert.equal(after.isOpenNow, false);
+  assert.equal(after.label, "Dzisiaj zamknięte");
 });
 
 test("CLOSED and UNKNOWN never become open", () => {

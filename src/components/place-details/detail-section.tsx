@@ -12,9 +12,16 @@ export function DetailSection({
   className = "",
 }: DetailSectionProps) {
   return (
-    <section className={["md-detail-section", className].join(" ")}>
-      <h2>{title}</h2>
-      <div className="md-detail-section-body min-w-0">{children}</div>
+    <section
+      className={[
+        "w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5",
+        className,
+      ].join(" ")}
+    >
+      <h2 className="text-xl font-extrabold leading-tight text-foreground">
+        {title}
+      </h2>
+      <div className="mt-4 min-w-0">{children}</div>
     </section>
   );
 }

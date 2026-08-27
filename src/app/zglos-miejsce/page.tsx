@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function ReportNewPlacePage() {
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
+    <div className="md-new-place-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
       <NewPlaceForm />
     </div>
   );

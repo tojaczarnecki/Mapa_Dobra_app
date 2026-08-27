@@ -25,11 +25,13 @@ export default async function FavoritesPage() {
   }));
 
   return (
-    <div className="md-empty-page md-favorites-page">
-      <div className="md-page-heading">
-        <h1>Ulubione</h1>
-        <p>Miejsca zapisane na tym urządzeniu. Bez logowania i bez zakładania konta.</p>
-      </div>
+    <div className="mx-auto w-full max-w-[760px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
+      <header className="mb-4 sm:mb-5">
+        <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-3xl">Ulubione</h1>
+        <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-muted-foreground">
+          Miejsca zapisane na tym urządzeniu. Bez logowania i bez zakładania konta.
+        </p>
+      </header>
       <FavoritesList livePlaces={livePlaces} />
     </div>
   );

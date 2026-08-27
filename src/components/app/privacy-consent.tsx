@@ -65,8 +65,6 @@ export function PrivacyConsent() {
     };
   }, [consent, settingsOpen]);
 
-  if (process.env.NEXT_PUBLIC_VISUAL_SMOKE === "1") return null;
-
   const saveConsent = (choice: ConsentChoice) => {
     window.localStorage.setItem(PRIVACY_CONSENT_KEY, choice);
     window.dispatchEvent(new Event("mapa-dobra:consent-changed"));
@@ -76,14 +74,36 @@ export function PrivacyConsent() {
   const showPanel = consent === null || settingsOpen;
   if (!showPanel) return null;
 
+  if (!settingsOpen) {
+    return (
+      <div className="privacy-consent-layer privacy-consent-layer-initial">
+        <div
+          ref={dialogRef}
+          className="privacy-consent-panel privacy-consent-panel-initial"
+          role="region"
+          aria-labelledby="privacy-consent-title"
+        >
+          <div className="privacy-consent-initial-copy">
+            <h2 id="privacy-consent-title">Prywatność</h2>
+            <p>Używamy tylko technologii niezbędnych do działania Mapy Dobra i zapamiętania tego wyboru.</p>
+          </div>
+          <div className="privacy-consent-actions privacy-consent-actions-initial">
+            <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>Rozumiem</button>
+            <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(true)}>Więcej</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="privacy-consent-layer">
-      {settingsOpen ? <button
-          type="button"
-          className="privacy-consent-backdrop"
-          aria-label="Zamknij ustawienia prywatności"
-          onClick={() => consent !== null && setSettingsOpen(false)}
-        /> : null}
+      <button
+        type="button"
+        className="privacy-consent-backdrop"
+        aria-label="Zamknij ustawienia prywatności"
+        onClick={() => consent !== null && setSettingsOpen(false)}
+      />
       <div
         ref={dialogRef}
         className="privacy-consent-panel"
@@ -92,28 +112,21 @@ export function PrivacyConsent() {
         aria-labelledby="privacy-consent-title"
         tabIndex={-1}
       >
-        <h2 id="privacy-consent-title">{settingsOpen ? "Ustawienia prywatności" : "Twoja prywatność"}</h2>
-        {!settingsOpen ? <>
-          <p>Mapa Dobra korzysta z niezbędnych technologii, aby serwis działał prawidłowo. Za Twoją zgodą możemy również używać dodatkowych technologii, np. do anonimowych statystyk. Wybór możesz zmienić w każdej chwili.</p>
-          <div className="privacy-consent-actions">
-            <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("all")}>Akceptuję wszystkie</button>
-            <button type="button" className="privacy-consent-secondary" onClick={() => saveConsent("necessary")}>Tylko niezbędne</button>
-            <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(true)}>Ustawienia</button>
+        <h2 id="privacy-consent-title">Ustawienia prywatności</h2>
+        <p>Publiczna część Mapy Dobra nie korzysta obecnie z dodatkowych skryptów analitycznych ani marketingowych.</p>
+        <div className="privacy-consent-category">
+          <div>
+            <h3>Niezbędne</h3>
+            <p>Aktywne zawsze. Obejmują zapamiętanie tego wyboru, działanie PWA oraz techniczne elementy wymagane przez serwis.</p>
           </div>
-        </> : <>
-          <p>Obecnie publiczna część Mapy Dobra nie korzysta z dodatkowych skryptów analitycznych ani marketingowych.</p>
-          <div className="privacy-consent-category">
-            <div>
-              <h3>Niezbędne</h3>
-              <p>Aktywne zawsze. Obejmują zapamiętanie tego wyboru, działanie PWA oraz techniczne elementy wymagane przez serwis.</p>
-            </div>
-            <input type="checkbox" checked readOnly aria-label="Technologie niezbędne są zawsze aktywne" />
-          </div>
-          <div className="privacy-consent-actions">
-            <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>Zapisz ustawienia</button>
+          <input type="checkbox" checked readOnly aria-label="Technologie niezbędne są zawsze aktywne" />
+        </div>
+        <div className="privacy-consent-actions">
+          <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>Zapisz ustawienia</button>
+          {consent !== null ? (
             <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>Wróć</button>
-          </div>
-        </>}
+          ) : null}
+        </div>
       </div>
     </div>
   );

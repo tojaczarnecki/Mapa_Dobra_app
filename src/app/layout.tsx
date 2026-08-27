@@ -7,11 +7,7 @@ import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
-import "./md-ui.css";
-import "./md-ui-overrides.css";
-import "./md-ui-polish.css";
-import "./md-ui-product.css";
-import "./md-ui-night-polish.css";
+import "./compact-institutional.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -32,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#08255b",
+  themeColor: "#13ad87",
   colorScheme: "light",
 };
 

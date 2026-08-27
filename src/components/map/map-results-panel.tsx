@@ -12,45 +12,70 @@ type MapResultsPanelProps = {
 };
 
 function visiblePlaceCountLabel(count: number) {
-  if (count === 1) return "widoczne miejsce";
+  if (count === 1) {
+    return "widoczne miejsce";
+  }
+
   const lastTwoDigits = count % 100;
   const lastDigit = count % 10;
-  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) return "widoczne miejsca";
+
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+    return "widoczne miejsca";
+  }
+
   return "widocznych miejsc";
 }
 
-export function MapResultsPanel({ places, selectedPlace, onSelect, onClearSelection }: MapResultsPanelProps) {
+export function MapResultsPanel({
+  places,
+  selectedPlace,
+  onSelect,
+  onClearSelection,
+}: MapResultsPanelProps) {
   return (
-    <aside className="hidden h-full min-h-0 w-[21rem] shrink-0 flex-col overflow-hidden border-l border-[var(--md-line)] bg-white lg:flex" aria-label="Miejsca widoczne na mapie">
-      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-[var(--md-line)] px-4">
+    <aside className="hidden h-full min-h-0 w-[22rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background lg:flex" aria-label="Miejsca widoczne na mapie">
+      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-4">
         <div>
-          <p className="text-sm font-extrabold text-[var(--md-text)]">Miejsca na mapie</p>
-          <p className="text-[0.68rem] font-semibold text-[var(--md-muted)]">{places.length} {visiblePlaceCountLabel(places.length)}</p>
+          <p className="text-sm font-extrabold text-foreground">Miejsca na mapie</p>
+          <p className="text-xs font-semibold text-muted-foreground">
+            {places.length} {visiblePlaceCountLabel(places.length)}
+          </p>
         </div>
         {selectedPlace ? (
-          <button type="button" className="min-h-10 rounded-md px-2 text-xs font-extrabold text-[var(--md-navy)] hover:bg-[var(--md-navy-soft)]" onClick={onClearSelection}>
+          <button
+            type="button"
+            className="touch-target rounded-md px-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft"
+            onClick={onClearSelection}
+          >
             Wróć do listy
           </button>
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {selectedPlace ? (
-          <div className="p-3"><MapPlaceCard place={selectedPlace} /></div>
+          <MapPlaceCard place={selectedPlace} />
         ) : (
-          <ul>
+          <ul className="grid gap-2">
             {places.map((place) => (
-              <li key={place.id} className="border-b border-[var(--md-line)] last:border-b-0">
-                <button type="button" className="grid min-h-[76px] w-full grid-cols-[38px_minmax(0,1fr)_18px] items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-[var(--md-surface-soft)]" onClick={() => onSelect(place)}>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--md-surface-soft)] text-[var(--md-navy)]">
-                    <MapPin aria-hidden="true" size={18} />
+              <li key={place.id}>
+                <button
+                  type="button"
+                  className="flex min-h-16 w-full min-w-0 items-center gap-3 rounded-lg border border-border bg-surface p-3 text-left transition hover:border-brand hover:bg-brand-soft"
+                  onClick={() => onSelect(place)}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
+                    <MapPin aria-hidden="true" size={20} />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[0.78rem] font-extrabold leading-5 text-[var(--md-text)]">{place.name}</span>
-                    <span className="block truncate text-[0.65rem] font-semibold text-[var(--md-muted)]">{place.helpTypes.slice(0, 2).join(" · ")}</span>
-                    <span className="mt-0.5 block text-[0.65rem] font-semibold text-[var(--md-muted)]">{place.distanceLabel}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-extrabold leading-5 text-foreground">
+                      {place.name}
+                    </span>
+                    <span className="block text-xs font-semibold text-muted-foreground">
+                      {place.helpTypes.join(" • ")} · {place.distanceLabel}
+                    </span>
                   </span>
-                  <ChevronRight aria-hidden="true" className="text-[var(--md-muted)]" size={17} />
+                  <ChevronRight aria-hidden="true" className="shrink-0 text-muted-foreground" size={19} />
                 </button>
               </li>
             ))}
