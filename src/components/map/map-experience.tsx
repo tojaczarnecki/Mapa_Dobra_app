@@ -5,6 +5,7 @@ import { AlertTriangle, LoaderCircle, MapPinned, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
+import { interpretSearchQuery } from "@/lib/places/search-intent";
 import type { MapFocusTarget } from "./help-map";
 import { MapControls } from "./map-controls";
 import { MapEmptyState } from "./map-empty-state";
@@ -28,6 +29,15 @@ const publicCategoryByMapCategory: Partial<Record<MapCategoryFilter, string>> = 
   hygiene: "higiena",
   medical: "pomoc-medyczna",
   legal: "pomoc-prawna",
+};
+
+const mapCategoryByPublicCategory: Record<string, MapCategoryFilter> = {
+  jedzenie: "food",
+  nocleg: "accommodation",
+  higiena: "hygiene",
+  prysznic: "hygiene",
+  "pomoc-medyczna": "medical",
+  "pomoc-prawna": "legal",
 };
 
 type LocationState =
@@ -239,6 +249,24 @@ export function MapExperience({
     setQuery(value);
   }, [intentText]);
 
+  const handleQuerySubmit = useCallback(() => {
+    const source = (intentText || query).trim();
+    if (!source) return;
+    const intent = interpretSearchQuery(source);
+    if (!intent.recognized) return;
+
+    setIntentText(source);
+    setQuery("");
+    setCategory(intent.filters.category ? mapCategoryByPublicCategory[intent.filters.category] ?? "all" : "all");
+    setOpenNow(intent.filters.openNow === true);
+    setToday(intent.filters.today === true);
+    setFree(intent.filters.free === true);
+    setNoReferral(intent.filters.noReferral === true);
+    setNoDocuments(intent.filters.noDocuments === true);
+    setSelectedPlaceId(undefined);
+    if (intent.filters.sort === "distance") handleLocate();
+  }, [handleLocate, intentText, query]);
+
   const clearFilters = useCallback(() => {
     setQuery("");
     setIntentText("");
@@ -274,6 +302,7 @@ export function MapExperience({
         locationPending={location.status === "pending"}
         locationMessage={locationMessage(location)}
         onQueryChange={handleQueryChange}
+        onQuerySubmit={handleQuerySubmit}
         onCategoryChange={setCategory}
         onOpenNowChange={setOpenNow}
         onTodayChange={setToday}
