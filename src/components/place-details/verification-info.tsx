@@ -19,7 +19,7 @@ export function VerificationInfo({
 
   if (isVerified) {
     return (
-      <div id="data-verification" className="flex min-w-0 items-start gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm">
+      <div id="data-verification" className="scroll-mt-20 flex min-w-0 items-start gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm">
         <BadgeCheck aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-brand-strong" />
         <div className="min-w-0 flex-1">
           <p className="min-w-0 font-semibold leading-5 text-muted-foreground">
@@ -41,7 +41,7 @@ export function VerificationInfo({
   }
 
   return (
-    <div id="data-verification" className="rounded-xl border border-urgent-border bg-urgent-soft p-4">
+    <div id="data-verification" className="scroll-mt-20 rounded-xl border border-urgent-border bg-urgent-soft p-4">
       <div className="flex min-w-0 items-start gap-3">
         <AlertTriangle aria-hidden="true" size={20} className="mt-0.5 shrink-0 text-urgent" />
         <div className="min-w-0 flex-1">
