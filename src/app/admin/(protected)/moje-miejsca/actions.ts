@@ -38,6 +38,7 @@ export async function confirmFacilityDataCurrent(
       const place = await transaction.place.findUniqueOrThrow({
         where: { id: placeId },
         select: {
+          recordKind: true,
           verificationStatus: true,
           verifiedAt: true,
           verificationSource: true,
@@ -50,7 +51,7 @@ export async function confirmFacilityDataCurrent(
         },
       });
 
-      const gate = facilityVerificationGate(place.publicationStatus, place.verificationQueueStatus);
+      const gate = facilityVerificationGate(place.recordKind, place.publicationStatus, place.verificationQueueStatus);
       if (!gate.allowed) throw new Error(gate.reason);
 
       const now = new Date();
@@ -107,7 +108,7 @@ export async function confirmFacilityDataCurrent(
     return { success: "Aktualność danych została potwierdzona." };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
-    if (reason === "NOT_PUBLIC" || reason === "ACTIVE_VERIFICATION") {
+    if (reason === "NOT_PRODUCTION" || reason === "NOT_PUBLIC" || reason === "ACTIVE_VERIFICATION") {
       return { error: facilityVerificationBlockMessage(reason) };
     }
     return { error: "Nie udało się potwierdzić aktualności danych." };
