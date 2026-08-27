@@ -5,7 +5,8 @@ body {
 .md-home,
 .md-results-page,
 .md-place-detail-page,
-.md-empty-page {
+.md-empty-page,
+.md-help-flow {
   --foreground: #091a3d;
   --muted-foreground: #647087;
   --surface: #ffffff;
@@ -40,6 +41,40 @@ body {
 .md-place-detail-page .shadow-sm,
 .md-place-detail-page [class*="shadow-["] {
   box-shadow: none;
+}
+
+.md-help-flow > section {
+  border-color: var(--md-line) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.md-help-flow h2 {
+  color: var(--md-text);
+  font-size: clamp(1.18rem, 5.5vw, 1.55rem) !important;
+  line-height: 1.22 !important;
+  letter-spacing: -0.02em;
+  font-weight: 800 !important;
+}
+
+.md-help-flow input,
+.md-help-flow textarea {
+  border-color: var(--md-line) !important;
+  border-radius: 8px !important;
+  color: var(--md-text);
+}
+
+.md-help-flow button,
+.md-help-flow a {
+  border-radius: 8px !important;
+}
+
+.md-help-flow .text-muted-foreground {
+  color: var(--md-muted);
+}
+
+.md-help-flow .border-border {
+  border-color: var(--md-line);
 }
 
 .md-results-page input[type="search"]::-webkit-search-cancel-button,
