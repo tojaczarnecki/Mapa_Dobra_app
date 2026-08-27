@@ -25,6 +25,15 @@ function RequirementIcon({ status }: { status: DetailTone }) {
 }
 
 export function RequirementList({ items }: RequirementListProps) {
+  if (items.length === 0) {
+    return (
+      <p className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-muted-foreground">
+        <CircleHelp aria-hidden="true" size={18} className="mt-0.5 shrink-0" />
+        <span>Brak potwierdzonych informacji o warunkach. Przed wizytą warto skontaktować się z miejscem.</span>
+      </p>
+    );
+  }
+
   return (
     <ul className="grid min-w-0 gap-2">
       {items.map((item) => (
