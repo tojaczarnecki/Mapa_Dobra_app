@@ -29,6 +29,9 @@ const publicCategoryByMapCategory: Partial<Record<MapCategoryFilter, string>> = 
   hygiene: "higiena",
   medical: "pomoc-medyczna",
   legal: "pomoc-prawna",
+  psychological: "pomoc-psychologiczna",
+  clothing: "odziez",
+  other: "inne",
 };
 
 const mapCategoryByPublicCategory: Record<string, MapCategoryFilter> = {
@@ -38,6 +41,9 @@ const mapCategoryByPublicCategory: Record<string, MapCategoryFilter> = {
   prysznic: "hygiene",
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
+  "pomoc-psychologiczna": "psychological",
+  odziez: "clothing",
+  inne: "other",
 };
 
 type LocationState =
@@ -159,9 +165,7 @@ export function MapExperience({
     const normalizedQuery = normalizeSearch(query);
 
     return places.filter((place) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        normalizeSearch(place.searchTerms.join(" ")).includes(normalizedQuery);
+      const matchesQuery = !normalizedQuery || normalizeSearch(place.searchTerms.join(" ")).includes(normalizedQuery);
       const matchesCategory = category === "all" || place.categories.includes(category);
       const matchesToday = !today || todayEligible.has(place.id);
       const matchesReferral = !noReferral || noReferralEligible.has(place.id);
@@ -177,9 +181,7 @@ export function MapExperience({
   );
 
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId);
-  const compactAccommodationSheet =
-    selectedPlace?.status.kind === "accommodation" &&
-    selectedPlace.status.availabilityState !== "available";
+  const compactAccommodationSheet = selectedPlace?.status.kind === "accommodation" && selectedPlace.status.availabilityState !== "available";
   const listHref = useMemo(() => {
     const params = new URLSearchParams();
     if (intentText.trim()) params.set("zapytanie", intentText.trim());
@@ -195,20 +197,13 @@ export function MapExperience({
   }, [category, free, intentText, noDocuments, noReferral, openNow, query, today]);
 
   const focusMap = useCallback((coordinates: readonly [number, number], zoom: number) => {
-    setFocusTarget((current) => ({
-      coordinates,
-      zoom,
-      requestId: (current?.requestId ?? 0) + 1,
-    }));
+    setFocusTarget((current) => ({ coordinates, zoom, requestId: (current?.requestId ?? 0) + 1 }));
   }, []);
 
-  const handlePlaceSelect = useCallback(
-    (place: MapPlace) => {
-      setSelectedPlaceId(place.id);
-      focusMap([place.latitude, place.longitude], 16);
-    },
-    [focusMap],
-  );
+  const handlePlaceSelect = useCallback((place: MapPlace) => {
+    setSelectedPlaceId(place.id);
+    focusMap([place.latitude, place.longitude], 16);
+  }, [focusMap]);
 
   const handleLocate = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -315,10 +310,7 @@ export function MapExperience({
 
       <div className={styles.mapLayout}>
         <div className={styles.mapStage}>
-          <MapErrorBoundary
-            resetKey={mapResetKey}
-            fallback={<MapUnavailable onRetry={retryMap} />}
-          >
+          <MapErrorBoundary resetKey={mapResetKey} fallback={<MapUnavailable onRetry={retryMap} />}>
             <HelpMap
               key={mapResetKey}
               places={filteredPlaces}
@@ -335,9 +327,7 @@ export function MapExperience({
             <div className={styles.tileError} role="alert">
               <AlertTriangle aria-hidden="true" size={18} />
               <span>Kafelki mapy nie wczytały się. Lista miejsc nadal działa.</span>
-              <button type="button" onClick={retryMap}>
-                Ponów
-              </button>
+              <button type="button" onClick={retryMap}>Ponów</button>
             </div>
           ) : null}
 
@@ -351,10 +341,7 @@ export function MapExperience({
 
           {selectedPlace ? (
             <div
-              className={[
-                styles.mobileSheet,
-                compactAccommodationSheet ? styles.mobileSheetAccommodation : "",
-              ].join(" ")}
+              className={[styles.mobileSheet, compactAccommodationSheet ? styles.mobileSheetAccommodation : ""].join(" ")}
               role="dialog"
               aria-label={`Wybrane miejsce: ${selectedPlace.name}`}
             >
@@ -366,10 +353,7 @@ export function MapExperience({
               >
                 <X aria-hidden="true" size={21} />
               </button>
-              <MapPlaceCard
-                place={selectedPlace}
-                compactAccommodation={compactAccommodationSheet}
-              />
+              <MapPlaceCard place={selectedPlace} compactAccommodation={compactAccommodationSheet} />
             </div>
           ) : null}
 
