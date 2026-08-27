@@ -32,6 +32,7 @@ jobs:
       PUBLIC_DATA_MODE: development
       RATE_LIMIT_MODE: memory
       APP_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_VISUAL_SMOKE: "1"
       GEOCODER_USER_AGENT: MapaDobraVisualSmoke/1.0
       GEOCODER_CONTACT_EMAIL: visual@example.invalid
 
@@ -72,17 +73,20 @@ jobs:
           cat /tmp/mapa-dobra-next.log
           exit 1
 
+      - name: Warm reference routes
+        run: |
+          curl --fail --silent "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=jedzenie" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
+
       - name: Capture reference viewports
         run: |
           mkdir -p screenshots
-          cat > screenshots/storage.json <<'JSON'
-          {"cookies":[],"origins":[{"origin":"http://127.0.0.1:3000","localStorage":[{"name":"mapa-dobra:privacy-consent","value":"necessary"}]}]}
-          JSON
-          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/storage.json --wait-for-timeout=700"
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=700"
           $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
           $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/storage.json --wait-for-timeout=3500 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
           $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
 
