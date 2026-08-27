@@ -19,25 +19,37 @@ const categoryFilters: Array<{ value: MapCategoryFilter; label: string }> = [
 type MapFiltersProps = {
   category: MapCategoryFilter;
   openNow: boolean;
+  today: boolean;
   free: boolean;
+  noReferral: boolean;
+  noDocuments: boolean;
   filtersOpen: boolean;
   onCategoryChange: (category: MapCategoryFilter) => void;
   onOpenNowChange: (value: boolean) => void;
+  onTodayChange: (value: boolean) => void;
   onFreeChange: (value: boolean) => void;
+  onNoReferralChange: (value: boolean) => void;
+  onNoDocumentsChange: (value: boolean) => void;
   onFiltersOpenChange: (value: boolean) => void;
 };
 
 export function MapFilters({
   category,
   openNow,
+  today,
   free,
+  noReferral,
+  noDocuments,
   filtersOpen,
   onCategoryChange,
   onOpenNowChange,
+  onTodayChange,
   onFreeChange,
+  onNoReferralChange,
+  onNoDocumentsChange,
   onFiltersOpenChange,
 }: MapFiltersProps) {
-  const activeAdditionalFilters = Number(openNow) + Number(free);
+  const activeAdditionalFilters = Number(openNow) + Number(today) + Number(free) + Number(noReferral) + Number(noDocuments);
   const filtersRef = useRef<HTMLDivElement>(null);
   const [showOverflowCue, setShowOverflowCue] = useState(false);
 
@@ -103,8 +115,17 @@ export function MapFilters({
             <button type="button" data-active={openNow || undefined} aria-pressed={openNow} onClick={() => onOpenNowChange(!openNow)}>
               {openNow ? <Check aria-hidden="true" size={15} /> : null}Otwarte teraz
             </button>
+            <button type="button" data-active={today || undefined} aria-pressed={today} onClick={() => onTodayChange(!today)}>
+              {today ? <Check aria-hidden="true" size={15} /> : null}Dzisiaj
+            </button>
             <button type="button" data-active={free || undefined} aria-pressed={free} onClick={() => onFreeChange(!free)}>
               {free ? <Check aria-hidden="true" size={15} /> : null}Bezpłatne
+            </button>
+            <button type="button" data-active={noReferral || undefined} aria-pressed={noReferral} onClick={() => onNoReferralChange(!noReferral)}>
+              {noReferral ? <Check aria-hidden="true" size={15} /> : null}Bez skierowania
+            </button>
+            <button type="button" data-active={noDocuments || undefined} aria-pressed={noDocuments} onClick={() => onNoDocumentsChange(!noDocuments)}>
+              {noDocuments ? <Check aria-hidden="true" size={15} /> : null}Bez dokumentów
             </button>
           </div>
         </section>
