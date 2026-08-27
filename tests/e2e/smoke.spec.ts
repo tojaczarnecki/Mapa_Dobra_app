@@ -43,7 +43,8 @@ test.describe("public critical paths", () => {
     await page.goto("/mapa");
     await expect(page.locator(".map-page")).toBeVisible();
     await page.goto("/znajdz-nocleg");
-    await expect(page.getByText(/nocleg|E2E Miejsce/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Znajdź miejsce, które może Cię przyjąć." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dla kogo szukasz miejsca?" })).toBeVisible();
   });
 
   test("public place detail renders the seeded place", async ({ page }) => {
@@ -83,6 +84,7 @@ test.describe("admin critical paths", () => {
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByText(/Do zrobienia/i)).toBeVisible();
     await page.goto("/admin/miejsca");
+    await expect(page).toHaveURL(/\/admin\/miejsca$/);
     await page.locator("li").filter({ hasText: "E2E Miejsce 1" }).getByRole("link", { name: "Edytuj" }).click();
     await expect(page.getByRole("heading").first()).toBeVisible();
     await expectSeriousA11y(page);
