@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   BedDouble,
+  Brain,
   Droplets,
   HeartPulse,
   Scale,
@@ -44,13 +45,15 @@ const publicPlaceInclude = {
 
 type PublicPlaceRecord = Prisma.PlaceGetPayload<{ include: typeof publicPlaceInclude }>;
 
-const categoryMap: Record<string, MapCategory | undefined> = {
+const categoryMap: Partial<Record<string, MapCategory>> = {
   jedzenie: "food",
   nocleg: "accommodation",
   higiena: "hygiene",
   prysznic: "hygiene",
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
+  "pomoc-psychologiczna": "psychological",
+  odziez: "clothing",
 };
 
 const iconMap: Record<string, LucideIcon> = {
@@ -61,6 +64,7 @@ const iconMap: Record<string, LucideIcon> = {
   odziez: Shirt,
   "pomoc-medyczna": HeartPulse,
   "pomoc-prawna": Scale,
+  "pomoc-psychologiczna": Brain,
 };
 
 const weekdayRows = [
@@ -331,8 +335,7 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
 
 function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   if (place.latitude === null || place.longitude === null) return null;
-  const categories = Array.from(new Set(place.categories.map((item) => categoryMap[item.category.slug]).filter((item): item is MapCategory => Boolean(item))));
-  if (!categories.length) return null;
+  const categories = Array.from(new Set(place.categories.map((item) => categoryMap[item.category.slug] ?? "other")));
   const opening = currentOpening(place);
   const effectiveAvailability = place.accommodation
     ? resolveAvailabilityState(place.accommodation.availabilityState, place.accommodation.availabilityConfirmedAt)
