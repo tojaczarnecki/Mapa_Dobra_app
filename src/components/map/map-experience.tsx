@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { AlertTriangle, LoaderCircle, MapPinned, X } from "lucide-react";
+import { AlertTriangle, List, LoaderCircle, MapPinned, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
+import { retainPlaceIds, samePlaceIdSet } from "@/lib/map/area";
 import { interpretSearchQuery } from "@/lib/places/search-intent";
 import type { MapFocusTarget } from "./help-map";
 import { MapControls } from "./map-controls";
@@ -13,6 +14,7 @@ import { MapErrorBoundary } from "./map-error-boundary";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapPlaceCard } from "./map-place-card";
 import { MapResultsPanel } from "./map-results-panel";
+import type { MapViewportSnapshot } from "./map-viewport-types";
 import styles from "./map.module.css";
 
 const HelpMap = dynamic(
@@ -150,7 +152,9 @@ export function MapExperience({
   const [noDocuments, setNoDocuments] = useState(initialNoDocuments);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
-  const [visiblePlaceIds, setVisiblePlaceIds] = useState(() => places.map((place) => place.id));
+  const [viewport, setViewport] = useState<MapViewportSnapshot>();
+  const [appliedAreaPlaceIds, setAppliedAreaPlaceIds] = useState<string[]>();
+  const [areaDirty, setAreaDirty] = useState(false);
   const [location, setLocation] = useState<LocationState>({ status: "idle" });
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget>();
   const [tileError, setTileError] = useState(false);
@@ -175,10 +179,24 @@ export function MapExperience({
     });
   }, [category, free, noDocuments, noDocumentsEligible, noReferral, noReferralEligible, openNow, places, query, today, todayEligible]);
 
+  const filteredPlaceIds = useMemo(() => filteredPlaces.map((place) => place.id), [filteredPlaces]);
+  const visiblePlaceIds = viewport?.visiblePlaceIds ?? filteredPlaceIds;
   const visiblePlaces = useMemo(
     () => filteredPlaces.filter((place) => visiblePlaceIds.includes(place.id)),
     [filteredPlaces, visiblePlaceIds],
   );
+  const areaPlaceIds = appliedAreaPlaceIds === undefined
+    ? undefined
+    : retainPlaceIds(appliedAreaPlaceIds, filteredPlaceIds);
+  const areaPlaces = useMemo(() => {
+    if (areaPlaceIds === undefined) return filteredPlaces;
+    const ids = new Set(areaPlaceIds);
+    return filteredPlaces.filter((place) => ids.has(place.id));
+  }, [areaPlaceIds, filteredPlaces]);
+  const candidateAreaIds = viewport
+    ? retainPlaceIds(viewport.visiblePlaceIds, filteredPlaceIds)
+    : [];
+  const areaFiltered = areaPlaceIds !== undefined;
 
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId);
   const compactAccommodationSheet =
@@ -199,6 +217,11 @@ export function MapExperience({
     return queryString ? `/szukaj?${queryString}` : "/szukaj";
   }, [category, free, intentText, noDocuments, noReferral, openNow, query, today]);
 
+  useEffect(() => {
+    setAppliedAreaPlaceIds(undefined);
+    setAreaDirty(false);
+  }, [category, free, noDocuments, noReferral, openNow, query, today]);
+
   const focusMap = useCallback((coordinates: readonly [number, number], zoom: number) => {
     setFocusTarget((current) => ({
       coordinates,
@@ -209,10 +232,14 @@ export function MapExperience({
 
   const handlePlaceSelect = useCallback(
     (place: MapPlace) => {
+      if (appliedAreaPlaceIds && !appliedAreaPlaceIds.includes(place.id)) {
+        setAppliedAreaPlaceIds(undefined);
+        setAreaDirty(false);
+      }
       setSelectedPlaceId(place.id);
       focusMap([place.latitude, place.longitude], 16);
     },
-    [focusMap],
+    [appliedAreaPlaceIds, focusMap],
   );
 
   const handleLocate = useCallback(() => {
@@ -240,6 +267,34 @@ export function MapExperience({
     initialLocateRequested.current = true;
     handleLocate();
   }, [handleLocate, initialLocate]);
+
+  const handleViewportChange = useCallback(
+    (snapshot: MapViewportSnapshot) => {
+      setViewport(snapshot);
+      if (snapshot.reason !== "user") return;
+
+      const nextIds = retainPlaceIds(snapshot.visiblePlaceIds, filteredPlaceIds);
+      setAreaDirty(
+        appliedAreaPlaceIds === undefined
+          ? true
+          : !samePlaceIdSet(nextIds, retainPlaceIds(appliedAreaPlaceIds, filteredPlaceIds)),
+      );
+    },
+    [appliedAreaPlaceIds, filteredPlaceIds],
+  );
+
+  const applyCurrentArea = useCallback(() => {
+    if (!viewport) return;
+    const nextIds = retainPlaceIds(viewport.visiblePlaceIds, filteredPlaceIds);
+    setAppliedAreaPlaceIds(nextIds);
+    setAreaDirty(false);
+    if (selectedPlaceId && !nextIds.includes(selectedPlaceId)) setSelectedPlaceId(undefined);
+  }, [filteredPlaceIds, selectedPlaceId, viewport]);
+
+  const clearArea = useCallback(() => {
+    setAppliedAreaPlaceIds(undefined);
+    setAreaDirty(false);
+  }, []);
 
   const handleQueryChange = useCallback((value: string) => {
     if (intentText) {
@@ -269,6 +324,8 @@ export function MapExperience({
     setNoReferral(intent.filters.noReferral === true);
     setNoDocuments(intent.filters.noDocuments === true);
     setSelectedPlaceId(undefined);
+    setAppliedAreaPlaceIds(undefined);
+    setAreaDirty(false);
     if (intent.filters.sort === "distance") handleLocate();
   }, [handleLocate, intentText, query]);
 
@@ -282,12 +339,25 @@ export function MapExperience({
     setNoReferral(false);
     setNoDocuments(false);
     setSelectedPlaceId(undefined);
+    setAppliedAreaPlaceIds(undefined);
+    setAreaDirty(false);
   }, []);
 
   const retryMap = useCallback(() => {
     setTileError(false);
     setMapResetKey((value) => value + 1);
   }, []);
+
+  const summaryCount = areaDirty
+    ? candidateAreaIds.length
+    : areaFiltered
+      ? areaPlaces.length
+      : visiblePlaces.length;
+  const summaryLabel = areaDirty
+    ? "w tym widoku"
+    : areaFiltered
+      ? "w wybranym obszarze"
+      : "widoczne teraz";
 
   return (
     <div className={styles.mapPage}>
@@ -302,7 +372,8 @@ export function MapExperience({
         noReferral={noReferral}
         noDocuments={noDocuments}
         filtersOpen={filtersOpen}
-        resultCount={filteredPlaces.length}
+        resultCount={areaFiltered ? areaPlaces.length : filteredPlaces.length}
+        areaFiltered={areaFiltered}
         listHref={listHref}
         locationPending={location.status === "pending"}
         locationMessage={locationMessage(location)}
@@ -331,7 +402,7 @@ export function MapExperience({
               userPosition={location.status === "success" ? location.position : undefined}
               focusTarget={focusTarget}
               onPlaceSelect={handlePlaceSelect}
-              onVisiblePlacesChange={setVisiblePlaceIds}
+              onViewportChange={handleViewportChange}
               onTileError={() => setTileError(true)}
             />
           </MapErrorBoundary>
@@ -340,16 +411,35 @@ export function MapExperience({
             <div className={styles.tileError} role="alert">
               <AlertTriangle aria-hidden="true" size={18} />
               <span>Kafelki mapy nie wczytały się. Lista miejsc nadal działa.</span>
-              <button type="button" onClick={retryMap}>
-                Ponów
-              </button>
+              <button type="button" onClick={retryMap}>Ponów</button>
             </div>
+          ) : null}
+
+          {areaDirty ? (
+            <button
+              type="button"
+              className={styles.searchAreaButton}
+              onClick={applyCurrentArea}
+              aria-label={`Szukaj w tym obszarze. ${candidateAreaIds.length} miejsc`}
+            >
+              <Search aria-hidden="true" size={17} />
+              <span>Szukaj w tym obszarze</span>
+              <strong>{candidateAreaIds.length}</strong>
+            </button>
+          ) : areaFiltered ? (
+            <button type="button" className={styles.clearAreaButton} onClick={clearArea}>
+              <X aria-hidden="true" size={16} />
+              Cała Łódź
+            </button>
           ) : null}
 
           {filteredPlaces.length === 0 || visiblePlaces.length === 0 ? (
             <MapEmptyState
               areaIsEmpty={filteredPlaces.length > 0}
-              onShowAllLodz={() => focusMap(lodzMapCenter, 13)}
+              onShowAllLodz={() => {
+                clearArea();
+                focusMap(lodzMapCenter, 13);
+              }}
               onClearFilters={clearFilters}
             />
           ) : null}
@@ -371,16 +461,24 @@ export function MapExperience({
               >
                 <X aria-hidden="true" size={21} />
               </button>
-              <MapPlaceCard
-                place={selectedPlace}
-                compactAccommodation={compactAccommodationSheet}
-              />
+              <MapPlaceCard place={selectedPlace} compactAccommodation={compactAccommodationSheet} />
             </div>
-          ) : null}
+          ) : (
+            <div className={styles.mobileResultSummary} aria-live="polite">
+              <div>
+                <strong>{summaryCount}</strong>
+                <span>{summaryLabel}</span>
+              </div>
+              <a href={listHref} className={styles.mobileListLink}>
+                <List aria-hidden="true" size={17} />
+                Lista
+              </a>
+            </div>
+          )}
 
           <div className={styles.mapPurpose}>
-            <MapPinned aria-hidden="true" size={16} />
-            Łódź
+            <MapPinned aria-hidden="true" size={15} />
+            Mapa Dobra · Łódź
           </div>
         </div>
 
