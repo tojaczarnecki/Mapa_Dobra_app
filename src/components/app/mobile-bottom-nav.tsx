@@ -96,21 +96,24 @@ export function MobileBottomNav() {
     <>
       <nav aria-label="Dolna nawigacja" className="mobile-bottom-nav md:hidden">
         <div className="mobile-bottom-nav-inner">
-          {primaryItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`mobile-bottom-nav-item ${pathname === item.href ? "mobile-bottom-nav-item-active" : ""}`}
-              aria-current={pathname === item.href ? "page" : undefined}
-            >
-              <item.icon aria-hidden="true" size={23} strokeWidth={1.9} />
-              {item.label}
-            </Link>
-          ))}
+          {primaryItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`mobile-bottom-nav-item ${active ? "mobile-bottom-nav-item-active !text-[#18364d]" : "!text-[#5f6973]"}`}
+                aria-current={active ? "page" : undefined}
+              >
+                <item.icon aria-hidden="true" size={23} strokeWidth={1.9} />
+                {item.label}
+              </Link>
+            );
+          })}
           <button
             ref={moreButtonRef}
             type="button"
-            className={`mobile-bottom-nav-item ${moreOpen ? "mobile-bottom-nav-item-active" : ""}`}
+            className={`mobile-bottom-nav-item ${moreOpen ? "mobile-bottom-nav-item-active !text-[#18364d]" : "!text-[#5f6973]"}`}
             aria-expanded={moreOpen}
             aria-controls="mobile-more-sheet"
             onClick={() => setMoreOpen((current) => !current)}
