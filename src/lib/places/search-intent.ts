@@ -1,4 +1,4 @@
-import { normalizePublicSearch, type PublicSearchFilters } from "./search";
+import { normalizePublicSearch, type PublicSearchFilters } from "./search.ts";
 
 export type SearchIntentToken = {
   id: string;
