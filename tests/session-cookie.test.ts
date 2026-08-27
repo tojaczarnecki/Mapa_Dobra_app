@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shouldUseSecureAdminCookie } from "@/lib/admin/session-cookie";
+import { shouldUseSecureAdminCookie } from "../src/lib/admin/session-cookie.ts";
 
 test("admin session cookie stays secure in production by default", () => {
   assert.equal(shouldUseSecureAdminCookie({ NODE_ENV: "production" }), true);
