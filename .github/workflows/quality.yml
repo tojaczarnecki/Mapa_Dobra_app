@@ -75,7 +75,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run prisma:generate
       - run: npm run prisma:validate
       - run: npx prisma migrate deploy
@@ -142,7 +142,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run prisma:generate
       - run: npx prisma migrate deploy
       - run: npm run seed:e2e
