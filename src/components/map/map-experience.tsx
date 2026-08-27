@@ -197,6 +197,7 @@ export function MapExperience({
     ? retainPlaceIds(viewport.visiblePlaceIds, filteredPlaceIds)
     : [];
   const areaFiltered = areaPlaceIds !== undefined;
+  const panelPlaces = areaFiltered ? areaPlaces : visiblePlaces;
 
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId);
   const compactAccommodationSheet =
@@ -217,10 +218,10 @@ export function MapExperience({
     return queryString ? `/szukaj?${queryString}` : "/szukaj";
   }, [category, free, intentText, noDocuments, noReferral, openNow, query, today]);
 
-  useEffect(() => {
+  const resetArea = useCallback(() => {
     setAppliedAreaPlaceIds(undefined);
     setAreaDirty(false);
-  }, [category, free, noDocuments, noReferral, openNow, query, today]);
+  }, []);
 
   const focusMap = useCallback((coordinates: readonly [number, number], zoom: number) => {
     setFocusTarget((current) => ({
@@ -232,14 +233,11 @@ export function MapExperience({
 
   const handlePlaceSelect = useCallback(
     (place: MapPlace) => {
-      if (appliedAreaPlaceIds && !appliedAreaPlaceIds.includes(place.id)) {
-        setAppliedAreaPlaceIds(undefined);
-        setAreaDirty(false);
-      }
+      if (appliedAreaPlaceIds && !appliedAreaPlaceIds.includes(place.id)) resetArea();
       setSelectedPlaceId(place.id);
       focusMap([place.latitude, place.longitude], 16);
     },
-    [appliedAreaPlaceIds, focusMap],
+    [appliedAreaPlaceIds, focusMap, resetArea],
   );
 
   const handleLocate = useCallback(() => {
@@ -292,11 +290,11 @@ export function MapExperience({
   }, [filteredPlaceIds, selectedPlaceId, viewport]);
 
   const clearArea = useCallback(() => {
-    setAppliedAreaPlaceIds(undefined);
-    setAreaDirty(false);
-  }, []);
+    resetArea();
+  }, [resetArea]);
 
   const handleQueryChange = useCallback((value: string) => {
+    resetArea();
     if (intentText) {
       setIntentText("");
       setCategory("all");
@@ -307,7 +305,37 @@ export function MapExperience({
       setNoDocuments(false);
     }
     setQuery(value);
-  }, [intentText]);
+  }, [intentText, resetArea]);
+
+  const handleCategoryChange = useCallback((value: MapCategoryFilter) => {
+    resetArea();
+    setCategory(value);
+  }, [resetArea]);
+
+  const handleOpenNowChange = useCallback((value: boolean) => {
+    resetArea();
+    setOpenNow(value);
+  }, [resetArea]);
+
+  const handleTodayChange = useCallback((value: boolean) => {
+    resetArea();
+    setToday(value);
+  }, [resetArea]);
+
+  const handleFreeChange = useCallback((value: boolean) => {
+    resetArea();
+    setFree(value);
+  }, [resetArea]);
+
+  const handleNoReferralChange = useCallback((value: boolean) => {
+    resetArea();
+    setNoReferral(value);
+  }, [resetArea]);
+
+  const handleNoDocumentsChange = useCallback((value: boolean) => {
+    resetArea();
+    setNoDocuments(value);
+  }, [resetArea]);
 
   const handleQuerySubmit = useCallback(() => {
     const source = (intentText || query).trim();
@@ -315,6 +343,7 @@ export function MapExperience({
     const intent = interpretSearchQuery(source);
     if (!intent.recognized) return;
 
+    resetArea();
     setIntentText(source);
     setQuery("");
     setCategory(intent.filters.category ? mapCategoryByPublicCategory[intent.filters.category] ?? "all" : "all");
@@ -324,12 +353,11 @@ export function MapExperience({
     setNoReferral(intent.filters.noReferral === true);
     setNoDocuments(intent.filters.noDocuments === true);
     setSelectedPlaceId(undefined);
-    setAppliedAreaPlaceIds(undefined);
-    setAreaDirty(false);
     if (intent.filters.sort === "distance") handleLocate();
-  }, [handleLocate, intentText, query]);
+  }, [handleLocate, intentText, query, resetArea]);
 
   const clearFilters = useCallback(() => {
+    resetArea();
     setQuery("");
     setIntentText("");
     setCategory("all");
@@ -339,9 +367,7 @@ export function MapExperience({
     setNoReferral(false);
     setNoDocuments(false);
     setSelectedPlaceId(undefined);
-    setAppliedAreaPlaceIds(undefined);
-    setAreaDirty(false);
-  }, []);
+  }, [resetArea]);
 
   const retryMap = useCallback(() => {
     setTileError(false);
@@ -358,6 +384,7 @@ export function MapExperience({
     : areaFiltered
       ? "w wybranym obszarze"
       : "widoczne teraz";
+  const activeResultsEmpty = areaFiltered ? areaPlaces.length === 0 : visiblePlaces.length === 0;
 
   return (
     <div className={styles.mapPage}>
@@ -379,12 +406,12 @@ export function MapExperience({
         locationMessage={locationMessage(location)}
         onQueryChange={handleQueryChange}
         onQuerySubmit={handleQuerySubmit}
-        onCategoryChange={setCategory}
-        onOpenNowChange={setOpenNow}
-        onTodayChange={setToday}
-        onFreeChange={setFree}
-        onNoReferralChange={setNoReferral}
-        onNoDocumentsChange={setNoDocuments}
+        onCategoryChange={handleCategoryChange}
+        onOpenNowChange={handleOpenNowChange}
+        onTodayChange={handleTodayChange}
+        onFreeChange={handleFreeChange}
+        onNoReferralChange={handleNoReferralChange}
+        onNoDocumentsChange={handleNoDocumentsChange}
         onFiltersOpenChange={setFiltersOpen}
         onLocate={handleLocate}
       />
@@ -433,7 +460,7 @@ export function MapExperience({
             </button>
           ) : null}
 
-          {filteredPlaces.length === 0 || visiblePlaces.length === 0 ? (
+          {filteredPlaces.length === 0 || activeResultsEmpty ? (
             <MapEmptyState
               areaIsEmpty={filteredPlaces.length > 0}
               onShowAllLodz={() => {
@@ -483,7 +510,7 @@ export function MapExperience({
         </div>
 
         <MapResultsPanel
-          places={visiblePlaces}
+          places={panelPlaces}
           selectedPlace={selectedPlace}
           onSelect={handlePlaceSelect}
           onClearSelection={() => setSelectedPlaceId(undefined)}
