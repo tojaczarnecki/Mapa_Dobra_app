@@ -1,0 +1,9 @@
+/*
+ * Keep dual-palette action buttons WCAG-safe for the entire interaction.
+ * These buttons switch from dark text on light teal to white text on dark teal.
+ * Animating both colors creates a brief intermediate state below 4.5:1 contrast,
+ * so the palette switch must be immediate rather than interpolated.
+ */
+button[class~="bg-brand"][class~="hover:bg-brand-strong"][class~="hover:text-white"] {
+  transition-property: none !important;
+}
