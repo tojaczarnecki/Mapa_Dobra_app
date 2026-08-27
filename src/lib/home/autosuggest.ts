@@ -8,7 +8,7 @@ export type HomeSearchCategory = {
 export type HomeSuggestion = {
   id: string;
   label: string;
-  secondary: "Kategoria" | "Usługa" | "Miejsce";
+  secondary: "Najlepsze dopasowanie" | "Kategoria" | "Usługa" | "Miejsce";
   href: string;
 };
 
@@ -22,8 +22,61 @@ const popularSuggestions = [
   { label: "Porada prawna", query: "porada prawna", aliases: ["prawnik", "prawo"], href: "/mapa?lokalizacja=moja&q=porada%20prawna" },
 ] as const;
 
+const intentCategories = [
+  { slug: "jedzenie", words: ["jedzenie", "jesc", "zjesc", "posilek", "obiad", "zupa", "glodny", "glodna"] },
+  { slug: "nocleg", words: ["nocleg", "spac", "przenocowac", "noclegownia", "schronisko", "lozko"] },
+  { slug: "higiena", words: ["higiena", "prysznic", "kapiel", "umyc", "umycie"] },
+  { slug: "pomoc-medyczna", words: ["lekarz", "medyczna", "medyczny", "zdrowie", "rana", "opatrunek"] },
+  { slug: "pomoc-prawna", words: ["prawnik", "prawna", "prawny", "prawo", "porada prawna"] },
+  { slug: "pomoc-psychologiczna", words: ["psycholog", "psychologiczna", "kryzys psychiczny"] },
+  { slug: "odziez", words: ["odziez", "ubranie", "ubrania", "buty", "kurtka"] },
+] as const;
+
 function suggestionMatches(value: string, query: string) {
   return normalizePublicSearch(value).includes(normalizePublicSearch(query));
+}
+
+function containsAny(query: string, phrases: readonly string[]) {
+  return phrases.some((phrase) => query.includes(normalizePublicSearch(phrase)));
+}
+
+export function getHomeIntentSuggestion(query: string): HomeSuggestion | undefined {
+  const normalizedQuery = normalizePublicSearch(query);
+  const isSentenceLike = normalizedQuery.split(" ").filter(Boolean).length >= 2;
+  if (!isSentenceLike) return undefined;
+
+  const category = intentCategories.find((candidate) => containsAny(normalizedQuery, candidate.words));
+  const openNow = containsAny(normalizedQuery, ["teraz", "otwarte", "dzisiaj", "dzis"]);
+  const free = containsAny(normalizedQuery, ["bezplatnie", "za darmo", "darmowe", "darmo"]);
+  const noReferral = containsAny(normalizedQuery, ["bez skierowania"]);
+  const noDocuments = containsAny(normalizedQuery, ["bez dokumentow", "bez dokumentu", "bez dowodu"]);
+  const nearest = containsAny(normalizedQuery, ["najblizej", "najblizsze", "blisko mnie", "w poblizu"]);
+
+  if (!category && !openNow && !free && !noReferral && !noDocuments && !nearest) return undefined;
+
+  const params = new URLSearchParams();
+  if (category) params.set("kategoria", category.slug);
+  if (openNow) params.set("otwarte", "1");
+  if (free) params.set("bezplatne", "1");
+  if (noReferral) params.set("bez_skierowania", "1");
+  if (noDocuments) params.set("bez_dokumentow", "1");
+  if (nearest) params.set("sort", "distance");
+
+  const understood = [
+    category ? category.slug.replace("pomoc-", "") : undefined,
+    openNow ? "otwarte teraz" : undefined,
+    free ? "bezpłatne" : undefined,
+    noReferral ? "bez skierowania" : undefined,
+    noDocuments ? "bez dokumentów" : undefined,
+    nearest ? "najbliżej" : undefined,
+  ].filter(Boolean);
+
+  return {
+    id: "intent-best-match",
+    label: `Pokaż: ${understood.join(" · ")}`,
+    secondary: "Najlepsze dopasowanie",
+    href: `/szukaj?${params.toString()}`,
+  };
 }
 
 export function getHomeSuggestions(
@@ -34,6 +87,7 @@ export function getHomeSuggestions(
   const normalizedQuery = normalizePublicSearch(query);
   if (normalizedQuery.length < 2) return [];
 
+  const intentSuggestion = getHomeIntentSuggestion(query);
   const categorySuggestions = categories
     .filter((category) => suggestionMatches(`${category.label} ${category.slug}`, normalizedQuery))
     .slice(0, 5)
@@ -64,5 +118,10 @@ export function getHomeSuggestions(
       href: `/lodz/${place.categorySlug || place.categorySlugs[0] || "inne"}/${place.slug}`,
     }));
 
-  return [...categorySuggestions, ...serviceSuggestions, ...placeSuggestions].slice(0, 8);
+  return [
+    ...(intentSuggestion ? [intentSuggestion] : []),
+    ...categorySuggestions,
+    ...serviceSuggestions,
+    ...placeSuggestions,
+  ].slice(0, 8);
 }
