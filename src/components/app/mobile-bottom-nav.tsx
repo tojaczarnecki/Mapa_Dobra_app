@@ -15,8 +15,6 @@ const moreItems = [
   { href: "/#kategorie", label: "Kategorie" },
   { href: "/znajdz-nocleg", label: "Nocleg na dzisiaj" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
-  { href: "/encyklopedia", label: "Encyklopedia Dobra" },
-  { href: "/dla-organizacji", label: "Dla organizacji" },
   { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce" },
   { href: "/zglos-zmiane", label: "Zgłoś zmianę" },
 ];
