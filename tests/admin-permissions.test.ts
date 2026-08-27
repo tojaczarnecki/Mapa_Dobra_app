@@ -32,6 +32,14 @@ test("place access never grants access to another place", () => {
   assert.equal(hasPlaceScopedPermission([], assignment, "PUBLISH_PLACES"), false);
 });
 
+test("place-scoped verification can be explicitly delegated without publication rights", () => {
+  const assignment = { active: true, permissions: ["VIEW_PLACES", "VERIFY_PLACES"] as const };
+  assert.equal(placeScopedPermissions.includes("VERIFY_PLACES"), true);
+  assert.equal(hasPlaceScopedPermission([], assignment, "VERIFY_PLACES"), true);
+  assert.equal(hasPlaceScopedPermission([], assignment, "PUBLISH_PLACES"), false);
+  assert.equal(roleDefaultPermissions.PLACE_MANAGER.includes("VERIFY_PLACES"), false);
+});
+
 test("place-scoped permissions exclude global administration rights", () => {
   assert.equal(placeScopedPermissions.includes("UPDATE_BED_AVAILABILITY"), true);
   assert.equal(placeScopedPermissions.includes("MANAGE_USERS"), false);
