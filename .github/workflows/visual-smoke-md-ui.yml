@@ -88,6 +88,7 @@ jobs:
           curl --fail --silent "http://127.0.0.1:3000/zglos-miejsce" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/lodz/jedzenie/jadlodajnia-stara" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1" > /dev/null
 
       - name: Capture reference viewports
@@ -147,6 +148,7 @@ jobs:
           npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/zglos-miejsce screenshots/13-new-place-390.png
           npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=900 --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/14-first-visit-privacy-390.png
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/lodz/jedzenie/jadlodajnia-stara screenshots/15-verification-warning-390.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
