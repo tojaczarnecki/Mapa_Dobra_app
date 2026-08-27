@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight, Clock3, Heart, MapPin, Phone, Search, Trash2, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FAVORITES_CHANGED_EVENT,
   readFavorites,
@@ -10,13 +10,46 @@ import {
   type FavoritePlace,
 } from "@/lib/favorites/storage";
 
+export type FavoriteLivePlace = {
+  id: string;
+  href: string;
+  name: string;
+  categoryLabel: string;
+  status: "open" | "closed" | "openToday" | "unknownHours" | "needsConfirmation";
+  todayHours: string;
+  distanceLabel: string;
+  address: string;
+  phone?: string;
+};
+
+function statusLabel(status: FavoriteLivePlace["status"]) {
+  if (status === "open") return "OTWARTE TERAZ";
+  if (status === "openToday") return "OTWARTE DZISIAJ";
+  if (status === "closed") return "ZAMKNIĘTE TERAZ";
+  if (status === "needsConfirmation") return "DANE WYMAGAJĄ POTWIERDZENIA";
+  return "BRAK POTWIERDZONYCH GODZIN";
+}
+
+function statusTone(status: FavoriteLivePlace["status"]): FavoritePlace["statusTone"] {
+  if (status === "open") return "open";
+  if (status === "openToday") return "openToday";
+  if (status === "closed") return "closed";
+  return "unknown";
+}
+
 function statusClass(place: FavoritePlace) {
   if (place.statusTone === "open" || place.statusTone === "openToday") return "is-open";
   if (place.statusTone === "closed") return "is-closed";
   return "is-warning";
 }
 
-export function FavoritesList({ offlineMode = false }: { offlineMode?: boolean }) {
+export function FavoritesList({
+  offlineMode = false,
+  livePlaces = [],
+}: {
+  offlineMode?: boolean;
+  livePlaces?: FavoriteLivePlace[];
+}) {
   const [favorites, setFavorites] = useState<FavoritePlace[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -34,11 +67,32 @@ export function FavoritesList({ offlineMode = false }: { offlineMode?: boolean }
     };
   }, []);
 
+  const displayedFavorites = useMemo(() => {
+    if (offlineMode || livePlaces.length === 0) return favorites;
+    const byId = new Map(livePlaces.map((place) => [place.id, place]));
+    return favorites.map((saved) => {
+      const live = byId.get(saved.id);
+      if (!live) return saved;
+      return {
+        ...saved,
+        href: live.href,
+        name: live.name,
+        categoryLabel: live.categoryLabel,
+        statusLabel: statusLabel(live.status),
+        statusTone: statusTone(live.status),
+        todayHours: live.todayHours,
+        distanceLabel: live.distanceLabel,
+        address: live.address,
+        phone: live.phone,
+      };
+    });
+  }, [favorites, livePlaces, offlineMode]);
+
   if (!ready) {
     return <div className="md-favorites-loading" role="status">Wczytywanie zapisanych miejsc…</div>;
   }
 
-  if (favorites.length === 0) {
+  if (displayedFavorites.length === 0) {
     return (
       <div className="md-empty-card">
         <Heart aria-hidden="true" size={28} />
@@ -61,8 +115,12 @@ export function FavoritesList({ offlineMode = false }: { offlineMode?: boolean }
           <WifiOff aria-hidden="true" size={18} />
           <span>Pokazujemy ostatnio zapisane informacje. Przed wyjazdem warto potwierdzić je po odzyskaniu internetu.</span>
         </div>
-      ) : null}
-      {favorites.map((place) => (
+      ) : (
+        <div className="md-live-saved-note" role="note">
+          Godziny i statusy zostały odświeżone z aktualnych danych Mapy Dobra.
+        </div>
+      )}
+      {displayedFavorites.map((place) => (
         <article key={place.id} className="md-favorite-row">
           <Link href={place.href} className="md-favorite-row-main">
             <div className="md-favorite-row-heading">
