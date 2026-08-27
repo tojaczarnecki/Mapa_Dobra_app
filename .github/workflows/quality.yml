@@ -62,7 +62,7 @@ jobs:
       TEST_BASE_URL: http://127.0.0.1:3000
       NODE_ENV: production
       DEPLOYMENT_ENV: staging
-      APP_BASE_URL: https://ci.example.test
+      APP_BASE_URL: https://127.0.0.1:3000
       TURNSTILE_MODE: disabled
       NEXT_PUBLIC_TURNSTILE_MODE: disabled
       RATE_LIMIT_MODE: memory
@@ -132,7 +132,7 @@ jobs:
       RATE_LIMIT_MODE: memory
       TURNSTILE_MODE: disabled
       NEXT_PUBLIC_TURNSTILE_MODE: disabled
-      APP_BASE_URL: https://e2e.example.test
+      APP_BASE_URL: https://127.0.0.1:3100
       GEOCODER_USER_AGENT: MapaDobraE2E/1.0
       GEOCODER_CONTACT_EMAIL: e2e@example.test
       E2E_PUBLIC_RECORDS: true

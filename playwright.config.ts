@@ -33,7 +33,7 @@ export default defineConfig({
       RATE_LIMIT_MODE: "memory",
       TURNSTILE_MODE: "disabled",
       NEXT_PUBLIC_TURNSTILE_MODE: "disabled",
-      APP_BASE_URL: "https://e2e.example.test",
+      APP_BASE_URL: "https://127.0.0.1:3100",
       GEOCODER_USER_AGENT: "MapaDobraE2E/1.0",
       GEOCODER_CONTACT_EMAIL: "e2e@example.test",
       DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://ci-placeholder.invalid/ci",
