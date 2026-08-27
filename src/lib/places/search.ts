@@ -9,6 +9,7 @@ export type PublicSearchPlace = {
   searchText: string;
   status: string;
   openNow: boolean | null;
+  availableToday: boolean | null;
   free: InformationState;
   referralRequired: InformationState;
   documentRequired: InformationState;
@@ -19,6 +20,7 @@ export type PublicSearchFilters = {
   query?: string;
   category?: string;
   openNow?: boolean;
+  today?: boolean;
   free?: boolean;
   noReferral?: boolean;
   noDocuments?: boolean;
@@ -67,6 +69,7 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
     if (query && !normalizePublicSearch(place.searchText).includes(query)) return false;
     if (filters.category && !categoryMatches(place, filters.category)) return false;
     if (filters.openNow && place.openNow !== true) return false;
+    if (filters.today && place.availableToday !== true) return false;
     if (filters.free && place.free !== "YES") return false;
     if (filters.noReferral && place.referralRequired !== "NO") return false;
     if (filters.noDocuments && place.documentRequired !== "NO") return false;
