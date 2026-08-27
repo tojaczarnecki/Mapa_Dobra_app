@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
+import "./compact-institutional.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
