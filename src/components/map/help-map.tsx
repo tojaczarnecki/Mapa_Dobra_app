@@ -1,7 +1,7 @@
 "use client";
 
 import { divIcon, type LatLngBounds, type MarkerCluster } from "leaflet";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -13,6 +13,7 @@ import MarkerClusterGroup from "react-leaflet-cluster";
 import type { MapPlace } from "@/data/demo-map-places";
 import { lodzMapCenter } from "@/data/demo-map-places";
 import { MapMarker } from "./map-marker";
+import type { MapViewportSnapshot } from "./map-viewport-types";
 import { UserLocationMarker } from "./user-location-marker";
 import styles from "./map.module.css";
 
@@ -28,7 +29,7 @@ type HelpMapProps = {
   userPosition?: readonly [number, number];
   focusTarget?: MapFocusTarget;
   onPlaceSelect: (place: MapPlace) => void;
-  onVisiblePlacesChange: (placeIds: string[]) => void;
+  onViewportChange: (snapshot: MapViewportSnapshot) => void;
   onTileError: () => void;
 };
 
@@ -50,35 +51,67 @@ function placeIdsWithinBounds(places: MapPlace[], bounds: LatLngBounds) {
 function MapViewportBridge({
   places,
   focusTarget,
-  onVisiblePlacesChange,
-}: Pick<HelpMapProps, "places" | "focusTarget" | "onVisiblePlacesChange">) {
-  const reportVisiblePlaces = useCallback(
-    (map: ReturnType<typeof useMap>) => {
-      onVisiblePlacesChange(placeIdsWithinBounds(places, map.getBounds()));
+  onViewportChange,
+}: Pick<HelpMapProps, "places" | "focusTarget" | "onViewportChange">) {
+  const programmaticMoveRef = useRef(false);
+  const userMoveRef = useRef(false);
+
+  const reportViewport = useCallback(
+    (map: ReturnType<typeof useMap>, reason: MapViewportSnapshot["reason"]) => {
+      const bounds = map.getBounds();
+      const southWest = bounds.getSouthWest();
+      const northEast = bounds.getNorthEast();
+      onViewportChange({
+        bounds: [
+          [southWest.lat, southWest.lng],
+          [northEast.lat, northEast.lng],
+        ],
+        visiblePlaceIds: placeIdsWithinBounds(places, bounds),
+        reason,
+      });
     },
-    [onVisiblePlacesChange, places],
+    [onViewportChange, places],
   );
 
   const map = useMapEvents({
-    moveend: () => reportVisiblePlaces(map),
-    zoomend: () => reportVisiblePlaces(map),
+    movestart: () => {
+      if (!programmaticMoveRef.current) userMoveRef.current = true;
+    },
+    moveend: () => {
+      const reason = programmaticMoveRef.current
+        ? "focus"
+        : userMoveRef.current
+          ? "user"
+          : "initial";
+      reportViewport(map, reason);
+      programmaticMoveRef.current = false;
+      userMoveRef.current = false;
+    },
   });
 
   useEffect(() => {
-    reportVisiblePlaces(map);
-  }, [map, reportVisiblePlaces]);
+    reportViewport(map, "initial");
+  }, [map, reportViewport]);
 
   useEffect(() => {
-    if (!focusTarget) {
+    if (!focusTarget) return;
+
+    const coordinates: [number, number] = [
+      focusTarget.coordinates[0],
+      focusTarget.coordinates[1],
+    ];
+    const alreadyFocused =
+      map.getZoom() === focusTarget.zoom && map.getCenter().distanceTo(coordinates) < 1;
+
+    if (alreadyFocused) {
+      reportViewport(map, "focus");
       return;
     }
 
-    map.flyTo(
-      [focusTarget.coordinates[0], focusTarget.coordinates[1]],
-      focusTarget.zoom,
-      { duration: 0.6 },
-    );
-  }, [focusTarget, map]);
+    programmaticMoveRef.current = true;
+    userMoveRef.current = false;
+    map.flyTo(coordinates, focusTarget.zoom, { duration: 0.6 });
+  }, [focusTarget, map, reportViewport]);
 
   return null;
 }
@@ -89,7 +122,7 @@ export function HelpMap({
   userPosition,
   focusTarget,
   onPlaceSelect,
-  onVisiblePlacesChange,
+  onViewportChange,
   onTileError,
 }: HelpMapProps) {
   return (
@@ -127,7 +160,7 @@ export function HelpMap({
       <MapViewportBridge
         places={places}
         focusTarget={focusTarget}
-        onVisiblePlacesChange={onVisiblePlacesChange}
+        onViewportChange={onViewportChange}
       />
     </MapContainer>
   );
