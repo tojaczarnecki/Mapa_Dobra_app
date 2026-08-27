@@ -86,6 +86,7 @@ jobs:
           curl --fail --silent "http://127.0.0.1:3000/znajdz-nocleg" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/zglos-miejsce" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/zglos-zmiane?place=jadlodajnia-stara" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/lodz/jedzenie/jadlodajnia-stara" > /dev/null
@@ -149,6 +150,8 @@ jobs:
           $PW --viewport-size="390,844" http://127.0.0.1:3000/zglos-miejsce screenshots/13-new-place-390.png
           npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=900 --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/14-first-visit-privacy-390.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/lodz/jedzenie/jadlodajnia-stara#data-verification" screenshots/15-verification-warning-390.png
+          $PW --viewport-size="390,844" "http://127.0.0.1:3000/zglos-zmiane?place=jadlodajnia-stara" screenshots/16-correction-flow-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=5000 --viewport-size="1440,1000" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/17-map-desktop.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
