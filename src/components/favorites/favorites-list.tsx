@@ -37,10 +37,23 @@ function statusTone(status: FavoriteLivePlace["status"]): FavoritePlace["statusT
   return "unknown";
 }
 
-function statusClass(place: FavoritePlace) {
-  if (place.statusTone === "open" || place.statusTone === "openToday") return "is-open";
-  if (place.statusTone === "closed") return "is-closed";
-  return "is-warning";
+function statusClasses(place: FavoritePlace) {
+  if (place.statusTone === "open" || place.statusTone === "openToday") {
+    return {
+      pill: "border-brand bg-brand-soft text-foreground",
+      dot: "bg-brand-strong",
+    };
+  }
+  if (place.statusTone === "closed") {
+    return {
+      pill: "border-border bg-surface-muted text-foreground",
+      dot: "bg-muted-foreground",
+    };
+  }
+  return {
+    pill: "border-urgent-border bg-urgent-soft text-foreground",
+    dot: "bg-urgent",
+  };
 }
 
 export function FavoritesList({
@@ -89,17 +102,25 @@ export function FavoritesList({
   }, [favorites, livePlaces, offlineMode]);
 
   if (!ready) {
-    return <div className="md-favorites-loading" role="status">Wczytywanie zapisanych miejsc…</div>;
+    return (
+      <div className="rounded-xl border border-border bg-surface p-4 text-sm font-semibold text-muted-foreground" role="status">
+        Wczytywanie zapisanych miejsc…
+      </div>
+    );
   }
 
   if (displayedFavorites.length === 0) {
     return (
-      <div className="md-empty-card">
-        <Heart aria-hidden="true" size={28} />
-        <strong>Nie masz jeszcze zapisanych miejsc</strong>
-        <p>Zapisane miejsca są przechowywane na tym urządzeniu i nie wymagają konta.</p>
+      <div className="rounded-xl border border-border bg-surface p-6 text-center shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-strong">
+          <Heart aria-hidden="true" size={24} />
+        </span>
+        <strong className="mt-3 block text-lg font-extrabold text-foreground">Nie masz jeszcze zapisanych miejsc</strong>
+        <p className="mx-auto mt-1 max-w-md text-sm font-semibold leading-6 text-muted-foreground">
+          Zapisane miejsca są przechowywane tylko na tym urządzeniu i nie wymagają konta.
+        </p>
         {!offlineMode ? (
-          <Link className="md-help-cta" href="/szukaj" style={{ marginTop: 16 }}>
+          <Link className="touch-target mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-strong hover:text-white" href="/szukaj">
             <Search aria-hidden="true" size={17} />
             Znajdź pomoc
           </Link>
@@ -109,53 +130,67 @@ export function FavoritesList({
   }
 
   return (
-    <div className="md-favorites-list">
+    <div className="grid min-w-0 gap-3">
       {offlineMode ? (
-        <div className="md-offline-saved-note" role="note">
-          <WifiOff aria-hidden="true" size={18} />
-          <span>Pokazujemy ostatnio zapisane informacje. Przed wyjazdem warto potwierdzić je po odzyskaniu internetu.</span>
+        <div className="flex items-start gap-2 rounded-lg border border-urgent-border bg-urgent-soft px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground" role="note">
+          <WifiOff aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-urgent" />
+          <span>Pokazujemy ostatnio zapisane informacje. Po odzyskaniu internetu sprawdź godziny i dostępność przed wyjazdem.</span>
         </div>
       ) : (
-        <div className="md-live-saved-note" role="note">
+        <div className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground" role="note">
           Godziny i statusy zostały odświeżone z aktualnych danych Mapy Dobra.
         </div>
       )}
-      {displayedFavorites.map((place) => (
-        <article key={place.id} className="md-favorite-row">
-          <Link href={place.href} className="md-favorite-row-main">
-            <div className="md-favorite-row-heading">
-              <div>
-                <h2>{place.name}</h2>
-                <p>{place.categoryLabel}</p>
+
+      {displayedFavorites.map((place) => {
+        const tone = statusClasses(place);
+        return (
+          <article key={place.id} className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+            <Link href={place.href} className="block min-w-0 p-4 transition hover:bg-surface-muted/70">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-extrabold leading-tight text-foreground">{place.name}</h2>
+                  <p className="mt-1 text-sm font-bold text-muted-foreground">{place.categoryLabel}</p>
+                </div>
+                <ChevronRight aria-hidden="true" size={20} className="mt-1 shrink-0 text-muted-foreground" />
               </div>
-              <ChevronRight aria-hidden="true" size={20} />
+
+              <div className={["mt-3 inline-flex min-h-8 max-w-full items-center gap-2 rounded-full border px-3 text-xs font-extrabold", tone.pill].join(" ")}>
+                <span className={["h-2 w-2 shrink-0 rounded-full", tone.dot].join(" ")} aria-hidden="true" />
+                <span>{place.statusLabel}</span>
+              </div>
+
+              <div className="mt-3 grid min-w-0 gap-1.5 text-sm font-semibold text-muted-foreground">
+                <p className="flex min-w-0 items-start gap-2"><Clock3 aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-brand-strong" /><span>{place.todayHours}</span></p>
+                <p className="flex min-w-0 items-start gap-2"><MapPin aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-brand-strong" /><span>{place.address}</span></p>
+              </div>
+            </Link>
+
+            <div className="grid grid-cols-2 border-t border-border">
+              {place.phone ? (
+                <a href={`tel:${place.phone.replace(/[^+\d]/gu, "")}`} className="touch-target inline-flex items-center justify-center gap-2 border-r border-border px-3 py-2 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft">
+                  <Phone aria-hidden="true" size={16} />
+                  Zadzwoń
+                </a>
+              ) : (
+                <span className="touch-target inline-flex items-center justify-center gap-2 border-r border-border px-3 py-2 text-sm font-extrabold text-muted-foreground opacity-60" aria-disabled="true">
+                  <Phone aria-hidden="true" size={16} />
+                  Brak telefonu
+                </span>
+              )}
+              <button
+                type="button"
+                className="touch-target inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-extrabold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+                onClick={() => removeFavorite(place.id)}
+                aria-label={`Usuń ${place.name} z ulubionych`}
+              >
+                <Trash2 aria-hidden="true" size={16} />
+                Usuń
+              </button>
             </div>
-            <div className={`md-favorite-status ${statusClass(place)}`}>
-              <span className="md-status-dot" aria-hidden="true" />
-              <span>{place.statusLabel}</span>
-            </div>
-            <p className="md-favorite-meta"><Clock3 aria-hidden="true" size={15} />{place.todayHours}</p>
-            <p className="md-favorite-meta"><MapPin aria-hidden="true" size={15} />{place.address}</p>
-          </Link>
-          <div className="md-favorite-row-actions">
-            {place.phone ? (
-              <a href={`tel:${place.phone.replace(/[^+\d]/gu, "")}`} className="md-favorite-mini-action">
-                <Phone aria-hidden="true" size={16} />
-                Zadzwoń
-              </a>
-            ) : null}
-            <button
-              type="button"
-              className="md-favorite-mini-action"
-              onClick={() => removeFavorite(place.id)}
-              aria-label={`Usuń ${place.name} z ulubionych`}
-            >
-              <Trash2 aria-hidden="true" size={16} />
-              Usuń
-            </button>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }
