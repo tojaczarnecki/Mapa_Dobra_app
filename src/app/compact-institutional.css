@@ -121,6 +121,56 @@
   font-weight: 800;
 }
 
+/* Public forms: compact the choice itself, never the tap target. */
+.md-new-place-page label:has(input[id^="new-place-category-"]) {
+  grid-column: auto !important;
+  min-height: 3.1rem;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.65rem;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > span span {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.md-new-place-page label:has(input[id^="new-place-category-"]) > svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Help flow: the first decision should arrive before the page starts to feel like a landing page. */
+.md-help-request-page .md-help-trust-note {
+  margin-bottom: 0.7rem;
+}
+
+.md-help-request-page section[aria-labelledby="help-wizard-title"] {
+  border-radius: 0.75rem;
+}
+
+.md-help-request-page #help-wizard-title {
+  font-size: 1.35rem !important;
+  line-height: 1.16 !important;
+  letter-spacing: -0.015em;
+}
+
+.md-help-request-page #help-wizard-title + p {
+  margin-top: 0.5rem !important;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.md-help-request-page [class*="min-h-[24rem]"] {
+  min-height: 18rem !important;
+  margin-top: 1rem !important;
+}
+
 @media (max-width: 767px) {
   body {
     padding-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom));
@@ -239,6 +289,102 @@
 
   #main-content h2 {
     line-height: 1.18;
+  }
+
+  .md-help-request-page {
+    padding-top: 0.75rem !important;
+  }
+
+  .md-help-request-page > header > span {
+    width: 2.55rem;
+    height: 2.55rem;
+  }
+
+  .md-help-request-page > header > p:first-of-type {
+    margin-top: 0.45rem;
+    font-size: 0.72rem;
+  }
+
+  .md-help-request-page > header > h1 {
+    margin-top: 0.2rem;
+  }
+
+  .md-help-request-page > header > p:last-child {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .md-help-request-page > header + div {
+    margin-top: 0.8rem;
+  }
+
+  .md-help-request-page .md-help-trust-note {
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .md-help-request-page section[aria-labelledby="help-wizard-title"] {
+    padding: 0.8rem !important;
+  }
+
+  .md-help-request-page section[aria-labelledby="help-wizard-title"] > div:first-child p {
+    font-size: 0.75rem;
+  }
+
+  .md-help-request-page #help-wizard-title {
+    font-size: 1.18rem !important;
+  }
+
+  .md-help-request-page #help-wizard-title + p {
+    font-size: 0.82rem;
+    line-height: 1.42;
+  }
+
+  .md-help-request-page [class*="min-h-[24rem]"] {
+    min-height: 15.5rem !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .md-help-request-page [class*="mt-6"][class*="grid"],
+  .md-help-request-page [class*="mt-5"][class*="grid"] {
+    margin-top: 0.7rem !important;
+    gap: 0.45rem !important;
+  }
+
+  .md-help-request-page button[class*="min-h-14"] {
+    min-height: 3.05rem !important;
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
+  }
+
+  .md-new-place-page {
+    padding-top: 0.75rem !important;
+  }
+
+  .md-new-place-page > div > header {
+    gap: 0.2rem;
+  }
+
+  .md-new-place-page > div > header > div:first-child {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .md-new-place-page > div > header > p {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .md-new-place-page form {
+    padding: 0.8rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .md-new-place-page label:has(input[id^="new-place-category-"]) {
+    min-height: 3rem;
   }
 
   /* Bottom navigation owns its safe area; content always stays above it. */
