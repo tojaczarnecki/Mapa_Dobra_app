@@ -9,6 +9,7 @@ const links = [
   { href: "/szukaj", label: "Szukaj" },
   { href: "/mapa", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/ulubione", label: "Ulubione" },
 ];
 
 export function SiteHeader() {
@@ -43,7 +44,7 @@ export function SiteHeader() {
             >
               {link.label}
             </Link>
-            ))}
+          ))}
           <button
             type="button"
             className="site-header-install"
@@ -52,7 +53,7 @@ export function SiteHeader() {
             <Download aria-hidden="true" size={17} />
             Zainstaluj
           </button>
-          </nav>
+        </nav>
       </div>
     </header>
   );
