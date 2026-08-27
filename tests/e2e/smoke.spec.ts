@@ -10,11 +10,16 @@ async function expectSeriousA11y(page: Page) {
   expect(blocking, blocking.map((item) => `${item.id}: ${item.help}`).join("\n")).toEqual([]);
 }
 
+async function waitForHomepageIntro(page: Page) {
+  await page.locator(".first-visit-intro").waitFor({ state: "detached", timeout: 3000 }).catch(() => undefined);
+}
+
 test.describe("public critical paths", () => {
   test("homepage exposes the two primary actions and is accessible @webkit-smoke", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: /Potrzebuję pomocy/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Uruchamiam pomoc/i })).toBeVisible();
+    await waitForHomepageIntro(page);
     await expectSeriousA11y(page);
   });
 
@@ -29,7 +34,7 @@ test.describe("public critical paths", () => {
 
   test("map and accommodation routes render their shells", async ({ page }) => {
     await page.goto("/mapa");
-    await expect(page.getByText(/mapie|Mapa/i).first()).toBeVisible();
+    await expect(page.locator(".map-page")).toBeVisible();
     await page.goto("/znajdz-nocleg");
     await expect(page.getByText(/nocleg|E2E Miejsce/i).first()).toBeVisible();
   });
@@ -65,7 +70,7 @@ test.describe("admin critical paths", () => {
   test("admin login reaches dashboard and place edit", async ({ page }) => {
     await page.goto("/admin/login");
     await page.getByLabel(/e-mail/i).fill(adminEmail);
-    await page.getByLabel(/hasło/i).fill(adminPassword);
+    await page.locator("#admin-password").fill(adminPassword);
     await page.getByRole("button", { name: /zaloguj/i }).click();
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByText(/Do zrobienia/i)).toBeVisible();
@@ -78,7 +83,7 @@ test.describe("admin critical paths", () => {
   test("admin dashboard is accessible", async ({ page }) => {
     await page.goto("/admin/login");
     await page.getByLabel(/e-mail/i).fill(adminEmail);
-    await page.getByLabel(/hasło/i).fill(adminPassword);
+    await page.locator("#admin-password").fill(adminPassword);
     await page.getByRole("button", { name: /zaloguj/i }).click();
     await expect(page).toHaveURL(/\/admin$/);
     await expectSeriousA11y(page);
