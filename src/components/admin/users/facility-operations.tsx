@@ -2,12 +2,44 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { updateAdmissionHours, updateAdmissionStatus, updateFacilityContact, type FacilityActionState } from "@/app/admin/(protected)/moje-miejsca/actions";
+import {
+  confirmFacilityDataCurrent,
+  updateAdmissionHours,
+  updateAdmissionStatus,
+  updateFacilityContact,
+  type FacilityActionState,
+} from "@/app/admin/(protected)/moje-miejsca/actions";
 import { VerificationOpeningHoursEditor } from "@/components/admin/verification/opening-hours-editor";
 import type { AdminOpeningDay } from "@/types/place-admin";
 
-function SaveButton({ label }: { label: string }) { const { pending } = useFormStatus(); return <button disabled={pending} className="min-h-11 rounded-lg bg-brand px-4 py-2 text-sm font-bold">{pending ? "Zapisywanie..." : label}</button>; }
-function Message({ state }: { state: FacilityActionState }) { return state.error ? <p role="alert" className="text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : state.success ? <p role="status" className="text-sm font-semibold text-brand-strong">{state.success}</p> : null; }
+function SaveButton({ label, pendingLabel = "Zapisywanie..." }: { label: string; pendingLabel?: string }) {
+  const { pending } = useFormStatus();
+  return <button disabled={pending} className="min-h-11 rounded-lg bg-brand px-4 py-2 text-sm font-bold disabled:cursor-wait disabled:opacity-60">{pending ? pendingLabel : label}</button>;
+}
+
+function Message({ state }: { state: FacilityActionState }) {
+  return state.error ? <p role="alert" className="text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : state.success ? <p role="status" className="text-sm font-semibold text-brand-strong">{state.success}</p> : null;
+}
+
+export function FacilityVerificationForm({ placeId, lastVerifiedLabel }: { placeId: string; lastVerifiedLabel: string }) {
+  const [state, action] = useActionState(confirmFacilityDataCurrent.bind(null, placeId), {});
+  return (
+    <form action={action} className="space-y-3">
+      <div className="rounded-lg bg-surface-muted p-3 text-sm leading-6 text-muted-foreground">
+        <p><strong className="text-foreground">Ostatnie potwierdzenie:</strong> {lastVerifiedLabel}</p>
+        <p className="mt-1">Przed potwierdzeniem sprawdź publiczne dane placówki, szczególnie kontakt, godziny, zakres pomocy i warunki skorzystania.</p>
+      </div>
+      <label className="flex min-h-11 items-start gap-3 rounded-lg border border-border bg-white p-3 text-sm font-semibold leading-5">
+        <input className="mt-0.5 h-5 w-5 shrink-0 accent-brand" type="checkbox" name="confirmCurrent" value="yes" required />
+        <span>Sprawdziłem dane widoczne w Mapie Dobra i potwierdzam, że są aktualne.</span>
+      </label>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Message state={state} />
+        <SaveButton label="Potwierdź aktualność" pendingLabel="Potwierdzanie..." />
+      </div>
+    </form>
+  );
+}
 
 export function AdmissionStatusForm({ placeId, value }: { placeId: string; value: "YES" | "NO" | "UNKNOWN" }) {
   const [state, action] = useActionState(updateAdmissionStatus.bind(null, placeId), {});
