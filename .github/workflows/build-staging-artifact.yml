@@ -47,8 +47,56 @@ jobs:
           GEOCODER_CONTACT_EMAIL: ci@example.invalid
         run: npm run build
 
-      - name: Remove development dependencies
-        run: npm prune --omit=dev
+      - name: Remove development and Prisma CLI-only dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm prune --omit=dev
+
+          # @prisma/client declares the Prisma CLI as an optional peer. npm keeps
+          # that CLI after --omit=dev, even though the running application uses
+          # the already-generated client and never needs prisma/@prisma/config.
+          # Strip the CLI-only chain from the deployable runtime artifact so the
+          # deepmerge-ts configuration vulnerability is not shipped to staging.
+          rm -rf \
+            node_modules/prisma \
+            node_modules/@prisma/config \
+            node_modules/deepmerge-ts
+
+      - name: Smoke pruned runtime
+        shell: bash
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_ENV: staging
+          PUBLIC_DATA_MODE: production
+          RATE_LIMIT_MODE: memory
+          TURNSTILE_MODE: disabled
+          NEXT_PUBLIC_TURNSTILE_MODE: disabled
+          APP_BASE_URL: https://staging.host11515.iqhs.pl
+          GEOCODER_USER_AGENT: MapaDobraCI/1.0
+          GEOCODER_CONTACT_EMAIL: ci@example.invalid
+          PORT: 3110
+        run: |
+          set -euo pipefail
+          npm run start -- --hostname 127.0.0.1 --port 3110 > /tmp/mapa-dobra-release-smoke.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true' EXIT
+
+          READY=0
+          for _ in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3110/offline > /dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/mapa-dobra-release-smoke.log
+            exit 1
+          fi
+
+          curl --fail --silent --show-error http://127.0.0.1:3110/manifest.webmanifest > /dev/null
 
       - name: Validate runtime files and BUILD_ID
         id: release
@@ -69,6 +117,9 @@ jobs:
           test -d node_modules/@prisma/client
           test -d node_modules/@prisma/adapter-neon
           test -d node_modules/@upstash/redis
+          test ! -d node_modules/prisma
+          test ! -d node_modules/@prisma/config
+          test ! -d node_modules/deepmerge-ts
           test -d public
           test -f package.json
           test -f package-lock.json
@@ -107,6 +158,7 @@ jobs:
 
           ! grep -E '(^|/)(\.env|\.env\.|\.git)(/|$)' "$LISTING"
           ! grep -E '(^|/)prisma/migrations(/|$)' "$LISTING"
+          ! grep -E '^node_modules/(prisma|@prisma/config|deepmerge-ts)(/|$)' "$LISTING"
           ! grep -qx 'server.cjs' "$LISTING"
           grep -qx '.next/BUILD_ID' "$LISTING"
 
