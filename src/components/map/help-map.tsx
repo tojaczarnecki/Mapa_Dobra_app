@@ -96,7 +96,10 @@ function MapViewportBridge({
   useEffect(() => {
     if (!focusTarget) return;
 
-    const coordinates = [focusTarget.coordinates[0], focusTarget.coordinates[1]] as const;
+    const coordinates: [number, number] = [
+      focusTarget.coordinates[0],
+      focusTarget.coordinates[1],
+    ];
     const alreadyFocused =
       map.getZoom() === focusTarget.zoom && map.getCenter().distanceTo(coordinates) < 1;
 
