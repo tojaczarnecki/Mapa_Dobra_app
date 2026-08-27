@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { AdminPermission } from "@/generated/prisma/enums";
 import { hasPlaceScopedPermission, resolveEffectivePermissions } from "@/lib/admin/permissions";
+import { shouldUseSecureAdminCookie } from "@/lib/admin/session-cookie";
 import { prisma } from "@/lib/prisma";
 
 export const ADMIN_SESSION_COOKIE = "mapa_dobra_admin_session";
@@ -25,7 +26,7 @@ export async function setAdminSessionCookie(token: string, expiresAt: Date) {
   cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureAdminCookie(),
     // The public submission endpoint must be able to verify an authenticated
     // organization representative's organizationId without exposing session data.
     path: "/",
