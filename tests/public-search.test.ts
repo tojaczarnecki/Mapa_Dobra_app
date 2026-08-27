@@ -29,12 +29,31 @@ test("search supports no results, combined filters and distance sorting", () => 
   assert.deepEqual(filterPublicSearchPlaces(places, { sort: "distance" }).map((place) => place.id), ["unknown", "shower", "food"]);
 });
 
-test("homepage autosuggest requires two characters and prioritizes categories", () => {
+test("homepage autosuggest requires two characters and prioritizes categories for short queries", () => {
   const suggestions = getHomeSuggestions("noc", [{ label: "Nocleg", slug: "nocleg" }], places);
   assert.equal(getHomeSuggestions("n", [{ label: "Nocleg", slug: "nocleg" }], places).length, 0);
   assert.equal(suggestions[0]?.label, "Nocleg");
   assert.equal(suggestions[0]?.secondary, "Kategoria");
   assert.ok(suggestions.some((suggestion) => suggestion.label === "Schronisko"));
+});
+
+test("homepage autosuggest interprets natural language into actionable filters", () => {
+  const suggestions = getHomeSuggestions("gdzie zjem ciepły posiłek teraz za darmo", [], places);
+  const bestMatch = suggestions[0];
+  assert.equal(bestMatch?.secondary, "Najlepsze dopasowanie");
+  assert.match(bestMatch?.href ?? "", /kategoria=jedzenie/);
+  assert.match(bestMatch?.href ?? "", /otwarte=1/);
+  assert.match(bestMatch?.href ?? "", /bezplatne=1/);
+});
+
+test("homepage autosuggest understands practical access constraints", () => {
+  const suggestions = getHomeSuggestions("nocleg bez dokumentów bez skierowania najbliżej", [], places);
+  const bestMatch = suggestions[0];
+  assert.equal(bestMatch?.secondary, "Najlepsze dopasowanie");
+  assert.match(bestMatch?.href ?? "", /kategoria=nocleg/);
+  assert.match(bestMatch?.href ?? "", /bez_dokumentow=1/);
+  assert.match(bestMatch?.href ?? "", /bez_skierowania=1/);
+  assert.match(bestMatch?.href ?? "", /sort=distance/);
 });
 
 test("homepage autosuggest builds safe category and place routes", () => {
