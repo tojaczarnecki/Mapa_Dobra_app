@@ -10,6 +10,7 @@ import { FirstVisitIntro } from "@/components/app/first-visit-intro";
 import { NotificationPrePrompt } from "@/components/notifications/notification-preprompt";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
+import "./accessibility-overrides.css";
 
 const sourceSans = localFont({
   src: [
