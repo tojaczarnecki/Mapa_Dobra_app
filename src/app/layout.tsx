@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
+import "./md-ui.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#13ad87",
+  themeColor: "#08255b",
   colorScheme: "light",
 };
 
