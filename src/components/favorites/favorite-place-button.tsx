@@ -46,7 +46,12 @@ export function FavoritePlaceButton({ place }: FavoritePlaceButtonProps) {
   return (
     <button
       type="button"
-      className={`md-favorite-button ${saved ? "is-saved" : ""}`}
+      className={[
+        "touch-target inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition",
+        saved
+          ? "border-brand bg-brand-soft text-brand-strong"
+          : "border-border bg-surface text-muted-foreground hover:border-brand hover:bg-brand-soft hover:text-brand-strong",
+      ].join(" ")}
       aria-pressed={saved}
       aria-label={saved ? "Usuń z ulubionych" : "Zapisz w ulubionych"}
       title={saved ? "Usuń z ulubionych" : "Zapisz w ulubionych"}
