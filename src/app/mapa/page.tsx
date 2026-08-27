@@ -35,6 +35,9 @@ const validCategories = new Set<MapCategoryFilter>([
   "hygiene",
   "medical",
   "legal",
+  "psychological",
+  "clothing",
+  "other",
 ]);
 
 const categoryAliases: Record<string, MapCategoryFilter> = {
@@ -44,6 +47,9 @@ const categoryAliases: Record<string, MapCategoryFilter> = {
   prysznic: "hygiene",
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
+  "pomoc-psychologiczna": "psychological",
+  odziez: "clothing",
+  inne: "other",
 };
 
 function firstValue(value?: string | string[]) {
