@@ -38,7 +38,8 @@ test("opening status works before, during, after and across multiple periods", (
 
   const firstPeriod = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T08:30:00Z"));
   assert.equal(firstPeriod.isOpenNow, true);
-  assert.equal(firstPeriod.label, "Otwarte teraz · do 10:00");
+  assert.equal(firstPeriod.label, "Otwarte jeszcze 30 min · do 10:00");
+  assert.equal(firstPeriod.closesInMinutes, 30);
 
   const secondPeriod = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T13:30:00Z"));
   assert.equal(secondPeriod.isOpenNow, true);
@@ -47,6 +48,35 @@ test("opening status works before, during, after and across multiple periods", (
   const after = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T16:00:00Z"));
   assert.equal(after.isOpenNow, false);
   assert.equal(after.label, "Dzisiaj zamknięte");
+});
+
+test("admission hours warn when today's intake is ending soon", () => {
+  const schedule: PublicOpeningRow[] = [
+    { kind: "ADMISSION", weekday: "MONDAY", status: "OPEN", opensAt: "18:00", closesAt: "21:00" },
+  ];
+  const state = evaluateCurrentOpening(schedule, "ADMISSION", new Date("2026-01-12T19:20:00Z"));
+  assert.equal(state.label, "Przyjęcia kończą się za 40 min · do 21:00");
+  assert.equal(state.closesInMinutes, 40);
+});
+
+test("after today's hours the next known opening is shown", () => {
+  const schedule: PublicOpeningRow[] = [
+    { kind: "OPERATION", weekday: "MONDAY", status: "OPEN", opensAt: "09:00", closesAt: "10:00" },
+    { kind: "OPERATION", weekday: "TUESDAY", status: "OPEN", opensAt: "08:00", closesAt: "12:00" },
+  ];
+  const state = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T10:30:00Z"));
+  assert.equal(state.isOpenNow, false);
+  assert.equal(state.label, "Jutro · od 08:00");
+  assert.equal(state.nextOpeningLabel, "Jutro · od 08:00");
+});
+
+test("explicitly closed today can still show the next known opening", () => {
+  const schedule: PublicOpeningRow[] = [
+    { kind: "OPERATION", weekday: "MONDAY", status: "CLOSED", opensAt: null, closesAt: null },
+    { kind: "OPERATION", weekday: "WEDNESDAY", status: "OPEN", opensAt: "09:00", closesAt: "12:00" },
+  ];
+  const state = evaluateCurrentOpening(schedule, "OPERATION", new Date("2026-01-12T09:00:00Z"));
+  assert.equal(state.label, "Dzisiaj zamknięte · w środę · od 09:00");
 });
 
 test("CLOSED and UNKNOWN never become open", () => {
