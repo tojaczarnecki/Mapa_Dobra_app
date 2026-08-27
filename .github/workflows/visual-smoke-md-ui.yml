@@ -78,17 +78,46 @@ jobs:
           curl --fail --silent "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=jedzenie" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
 
       - name: Capture reference viewports
         run: |
           mkdir -p screenshots
+          node <<'NODE'
+          const fs = require('node:fs');
+          const favorite = [{
+            id: 'visual-favorite',
+            href: '/szukaj?kategoria=jedzenie',
+            name: 'Jadłodajnia Caritas',
+            categoryLabel: 'Jedzenie',
+            statusLabel: 'OTWARTE TERAZ',
+            statusTone: 'open',
+            todayHours: 'Dzisiaj 12:00-15:00',
+            distanceLabel: '350 m od Ciebie',
+            address: 'ul. Chmielna 13, Łódź',
+            phone: '+48123456789',
+            savedAt: new Date().toISOString(),
+          }];
+          const state = {
+            cookies: [],
+            origins: [{
+              origin: 'http://127.0.0.1:3000',
+              localStorage: [{ name: 'mapa-dobra:favorites:v1', value: JSON.stringify(favorite) }],
+            }],
+          };
+          fs.writeFileSync('screenshots/favorites-state.json', JSON.stringify(state));
+          NODE
           PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=700"
+          PW_SAVED="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/favorites-state.json --wait-for-timeout=900"
           $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
           $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
           npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
           $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
+          $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/ulubione screenshots/07-favorites-390.png
+          $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
