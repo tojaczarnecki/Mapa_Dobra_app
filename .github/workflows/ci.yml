@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: true
+      DATABASE_URL: postgresql://ci-placeholder.invalid/ci
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production application
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_ENV: staging
+          PUBLIC_DATA_MODE: production
+          RATE_LIMIT_MODE: memory
+          APP_BASE_URL: https://example.invalid
+          GEOCODER_USER_AGENT: MapaDobraCI/1.0
+          GEOCODER_CONTACT_EMAIL: ci@example.invalid
+        run: npm run build

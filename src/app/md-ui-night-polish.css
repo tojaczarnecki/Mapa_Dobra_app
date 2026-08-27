@@ -1,0 +1,15 @@
+body:has(.md-night-shell) {
+  background: #fff;
+}
+
+body:has(.md-night-shell) > div {
+  background: #fff;
+}
+
+.md-night-topbar:has(.md-night-back:disabled) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.md-night-topbar:has(.md-night-back:disabled) .md-night-back {
+  display: none;
+}

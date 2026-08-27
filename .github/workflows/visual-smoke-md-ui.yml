@@ -1,0 +1,142 @@
+name: MD UI visual smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mapa_dobra_visual
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mapa_dobra_visual
+      PRISMA_ADAPTER: pg
+      PUBLIC_DATA_MODE: development
+      RATE_LIMIT_MODE: memory
+      APP_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_VISUAL_SMOKE: "1"
+      GEOCODER_USER_AGENT: MapaDobraVisualSmoke/1.0
+      GEOCODER_CONTACT_EMAIL: visual@example.invalid
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Prepare visual smoke database
+        run: |
+          npx prisma migrate deploy
+          npm run db:migrate-demo
+
+      - name: Install Chromium for screenshots
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run dev > /tmp/mapa-dobra-next.log 2>&1 &
+          echo $! > /tmp/mapa-dobra-next.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/mapa-dobra-next.log
+          exit 1
+
+      - name: Warm reference routes
+        run: |
+          curl --fail --silent "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=jedzenie" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=odziez" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/znajdz-nocleg" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1" > /dev/null
+
+      - name: Capture reference viewports
+        run: |
+          mkdir -p screenshots
+          node <<'NODE'
+          const fs = require('node:fs');
+          const favorite = [{
+            id: 'visual-favorite',
+            href: '/szukaj?kategoria=jedzenie',
+            name: 'Jadłodajnia Caritas',
+            categoryLabel: 'Jedzenie',
+            statusLabel: 'OTWARTE TERAZ',
+            statusTone: 'open',
+            todayHours: 'Dzisiaj 12:00-15:00',
+            distanceLabel: '350 m od Ciebie',
+            address: 'ul. Chmielna 13, Łódź',
+            phone: '+48123456789',
+            savedAt: new Date().toISOString(),
+          }];
+          const state = {
+            cookies: [],
+            origins: [{
+              origin: 'http://127.0.0.1:3000',
+              localStorage: [{ name: 'mapa-dobra:favorites:v1', value: JSON.stringify(favorite) }],
+            }],
+          };
+          fs.writeFileSync('screenshots/favorites-state.json', JSON.stringify(state));
+          NODE
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=700"
+          PW_SAVED="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/favorites-state.json --wait-for-timeout=10000"
+          SMART_RESULTS="http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
+          SMART_MAP="http://127.0.0.1:3000/mapa?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
+          $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
+          $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
+          $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
+          $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/ulubione screenshots/07-favorites-390.png
+          $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
+          $PW --viewport-size="390,844" "$SMART_RESULTS" screenshots/09-smart-search-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/znajdz-nocleg screenshots/11-night-wizard-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-ui-visual-smoke
+          path: screenshots/*.png
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/mapa-dobra-next.log || true
