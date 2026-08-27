@@ -1,25 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { List, LocateFixed, Map as MapIcon, Search } from "lucide-react";
+import { List, LocateFixed, Map as MapIcon, Search, Sparkles } from "lucide-react";
+import type { FormEvent } from "react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
 
 type MapControlsProps = {
   query: string;
+  intentText: string;
   category: MapCategoryFilter;
   openNow: boolean;
+  today: boolean;
   free: boolean;
+  noReferral: boolean;
+  noDocuments: boolean;
   filtersOpen: boolean;
   resultCount: number;
   listHref: string;
   locationPending: boolean;
   locationMessage?: string;
   onQueryChange: (query: string) => void;
+  onQuerySubmit: () => void;
   onCategoryChange: (category: MapCategoryFilter) => void;
   onOpenNowChange: (value: boolean) => void;
+  onTodayChange: (value: boolean) => void;
   onFreeChange: (value: boolean) => void;
+  onNoReferralChange: (value: boolean) => void;
+  onNoDocumentsChange: (value: boolean) => void;
   onFiltersOpenChange: (value: boolean) => void;
   onLocate: () => void;
 };
@@ -34,24 +43,37 @@ function placeCountLabel(count: number) {
 
 export function MapControls({
   query,
+  intentText,
   category,
   openNow,
+  today,
   free,
+  noReferral,
+  noDocuments,
   filtersOpen,
   resultCount,
   listHref,
   locationPending,
   locationMessage,
   onQueryChange,
+  onQuerySubmit,
   onCategoryChange,
   onOpenNowChange,
+  onTodayChange,
   onFreeChange,
+  onNoReferralChange,
+  onNoDocumentsChange,
   onFiltersOpenChange,
   onLocate,
 }: MapControlsProps) {
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onQuerySubmit();
+  }
+
   return (
     <section className={styles.mapControls} aria-label="Sterowanie mapą">
-      <div className={styles.mapSearchRow}>
+      <form className={styles.mapSearchRow} onSubmit={submitSearch} role="search">
         <label className={styles.mapSearchField}>
           <span className="sr-only">Czego potrzebujesz?</span>
           <Search aria-hidden="true" size={18} />
@@ -73,7 +95,14 @@ export function MapControls({
           <span className="hidden min-[390px]:inline">{locationPending ? "Ustalam…" : "Lokalizacja"}</span>
           <span className="sr-only min-[390px]:hidden">{locationPending ? "Ustalam lokalizację" : "Użyj mojej lokalizacji"}</span>
         </button>
-      </div>
+      </form>
+
+      {intentText ? (
+        <div className="md-map-intent" role="status">
+          <Sparkles aria-hidden="true" size={14} />
+          <span>Dopasowanie do: „{intentText}”</span>
+        </div>
+      ) : null}
 
       {locationMessage ? (
         <p id="map-location-status" className={styles.locationStatus} role="status">
@@ -89,11 +118,17 @@ export function MapControls({
       <MapFilters
         category={category}
         openNow={openNow}
+        today={today}
         free={free}
+        noReferral={noReferral}
+        noDocuments={noDocuments}
         filtersOpen={filtersOpen}
         onCategoryChange={onCategoryChange}
         onOpenNowChange={onOpenNowChange}
+        onTodayChange={onTodayChange}
         onFreeChange={onFreeChange}
+        onNoReferralChange={onNoReferralChange}
+        onNoDocumentsChange={onNoDocumentsChange}
         onFiltersOpenChange={onFiltersOpenChange}
       />
 

@@ -9,6 +9,7 @@ export type PublicSearchPlace = {
   searchText: string;
   status: string;
   openNow: boolean | null;
+  todayHours?: string;
   free: InformationState;
   referralRequired: InformationState;
   documentRequired: InformationState;
@@ -19,6 +20,7 @@ export type PublicSearchFilters = {
   query?: string;
   category?: string;
   openNow?: boolean;
+  today?: boolean;
   free?: boolean;
   noReferral?: boolean;
   noDocuments?: boolean;
@@ -48,6 +50,13 @@ function categoryMatches(place: PublicSearchPlace, category: string) {
   return requested.some((slug) => place.categorySlugs.includes(slug));
 }
 
+function availableToday(place: PublicSearchPlace) {
+  const hours = normalizePublicSearch(place.todayHours ?? "");
+  if (!hours) return false;
+  if (hours.includes("zamkniete") || hours.includes("brak potwierdzonych")) return false;
+  return hours.includes("dzisiaj") || place.openNow === true;
+}
+
 function relevance(place: PublicSearchPlace, query: string) {
   if (!query) return 0;
   const name = normalizePublicSearch(place.name);
@@ -67,6 +76,7 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
     if (query && !normalizePublicSearch(place.searchText).includes(query)) return false;
     if (filters.category && !categoryMatches(place, filters.category)) return false;
     if (filters.openNow && place.openNow !== true) return false;
+    if (filters.today && !availableToday(place)) return false;
     if (filters.free && place.free !== "YES") return false;
     if (filters.noReferral && place.referralRequired !== "NO") return false;
     if (filters.noDocuments && place.documentRequired !== "NO") return false;
