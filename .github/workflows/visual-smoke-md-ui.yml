@@ -1,0 +1,94 @@
+name: MD UI visual smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mapa_dobra_visual
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mapa_dobra_visual
+      PUBLIC_DATA_MODE: development
+      RATE_LIMIT_MODE: memory
+      APP_BASE_URL: http://127.0.0.1:3000
+      GEOCODER_USER_AGENT: MapaDobraVisualSmoke/1.0
+      GEOCODER_CONTACT_EMAIL: visual@example.invalid
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Prepare visual smoke database
+        run: |
+          npx prisma migrate deploy
+          npm run db:migrate-demo
+
+      - name: Install Chromium for screenshots
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Start app
+        run: |
+          npm run dev > /tmp/mapa-dobra-next.log 2>&1 &
+          echo $! > /tmp/mapa-dobra-next.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/mapa-dobra-next.log
+          exit 1
+
+      - name: Capture reference viewports
+        run: |
+          mkdir -p screenshots
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --full-page --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-ui-visual-smoke
+          path: screenshots/*.png
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/mapa-dobra-next.log || true
