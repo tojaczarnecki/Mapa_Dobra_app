@@ -159,11 +159,20 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
 }
 
 function SideColumn({ place }: { place: PlaceDetail }) {
+  const hasContact = Boolean(
+    place.contact.phone ||
+      place.contact.email ||
+      place.contact.website ||
+      place.contact.social,
+  );
+
   return (
     <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
-      <DetailSection title="Kontakt">
-        <PlaceContact contact={place.contact} />
-      </DetailSection>
+      {hasContact ? (
+        <DetailSection title="Kontakt">
+          <PlaceContact contact={place.contact} />
+        </DetailSection>
+      ) : null}
 
       <MapPreview place={place} />
 
