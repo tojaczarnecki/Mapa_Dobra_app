@@ -80,6 +80,7 @@ jobs:
           curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1" > /dev/null
 
       - name: Capture reference viewports
         run: |
@@ -110,6 +111,8 @@ jobs:
           NODE
           PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=700"
           PW_SAVED="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/favorites-state.json --wait-for-timeout=10000"
+          SMART_RESULTS="http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
+          SMART_MAP="http://127.0.0.1:3000/mapa?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
           $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
           $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
@@ -118,6 +121,8 @@ jobs:
           $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/ulubione screenshots/07-favorites-390.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
+          $PW --viewport-size="390,844" "$SMART_RESULTS" screenshots/09-smart-search-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
