@@ -18,6 +18,7 @@ type MapControlsProps = {
   noDocuments: boolean;
   filtersOpen: boolean;
   resultCount: number;
+  areaFiltered: boolean;
   listHref: string;
   locationPending: boolean;
   locationMessage?: string;
@@ -52,6 +53,7 @@ export function MapControls({
   noDocuments,
   filtersOpen,
   resultCount,
+  areaFiltered,
   listHref,
   locationPending,
   locationMessage,
@@ -138,14 +140,15 @@ export function MapControls({
 
       <div className="flex min-h-11 min-w-0 items-center justify-between gap-3">
         <p className="min-w-0 text-sm font-bold text-muted-foreground" aria-live="polite">
-          {resultCount} {placeCountLabel(resultCount)} na mapie
+          {resultCount} {placeCountLabel(resultCount)} {areaFiltered ? "w wybranym obszarze" : "na mapie"}
         </p>
         <Link
           href={listHref}
           className="touch-target inline-flex shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
+          title={areaFiltered ? "Lista zachowa filtry, ale pokaże całą Łódź" : undefined}
         >
           <List aria-hidden="true" size={18} />
-          Pokaż listę
+          {areaFiltered ? "Lista wszystkich" : "Pokaż listę"}
         </Link>
       </div>
     </section>
