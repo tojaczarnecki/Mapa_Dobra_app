@@ -19,7 +19,7 @@ const categoryMatchers = [
     slug: "jedzenie",
     label: "Jedzenie",
     phrases: [
-      "jedzenie", "jesc", "zjesc", "posilek", "cieply posilek", "obiad", "zupa",
+      "jedzenie", "jesc", "zjesc", "zjem", "jem", "posilek", "cieply posilek", "obiad", "zupa",
       "jadlodajnia", "stolowka", "glodny", "glodna", "kanapki", "zywnosc",
     ],
   },
