@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Heart, Search } from "lucide-react";
+import { FavoritesList } from "@/components/favorites/favorites-list";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
@@ -11,17 +10,12 @@ export const metadata: Metadata = {
 
 export default function FavoritesPage() {
   return (
-    <div className="md-empty-page">
-      <h1>Ulubione</h1>
-      <div className="md-empty-card">
-        <Heart aria-hidden="true" size={28} />
-        <strong>Nie masz jeszcze zapisanych miejsc</strong>
-        <p>Z czasem zapiszesz tutaj miejsca, do których chcesz szybko wracać.</p>
-        <Link className="md-help-cta" href="/szukaj" style={{ marginTop: 16 }}>
-          <Search aria-hidden="true" size={17} />
-          Znajdź pomoc
-        </Link>
+    <div className="md-empty-page md-favorites-page">
+      <div className="md-page-heading">
+        <h1>Ulubione</h1>
+        <p>Miejsca zapisane na tym urządzeniu. Bez logowania i bez zakładania konta.</p>
       </div>
+      <FavoritesList />
     </div>
   );
 }
