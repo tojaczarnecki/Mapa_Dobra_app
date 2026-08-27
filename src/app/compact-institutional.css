@@ -171,6 +171,57 @@
   margin-top: 1rem !important;
 }
 
+/* Only essential technologies are used today, so first visit gets a short notice, not a wall. */
+.privacy-consent-layer-initial {
+  pointer-events: none;
+}
+
+.privacy-consent-layer-initial .privacy-consent-panel-initial {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  width: auto;
+  max-width: 32rem;
+  margin-left: auto;
+  padding: 0.75rem;
+  pointer-events: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 30px rgb(23 33 43 / 14%);
+}
+
+.privacy-consent-initial-copy h2 {
+  margin: 0;
+  color: var(--md-structure);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.privacy-consent-initial-copy p {
+  margin: 0.25rem 0 0;
+  color: #5b6570;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.privacy-consent-actions-initial {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.privacy-consent-actions-initial .privacy-consent-primary {
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  padding: 0.55rem 1rem;
+}
+
+.privacy-consent-actions-initial .privacy-consent-text-button {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.65rem;
+}
+
 @media (max-width: 767px) {
   body {
     padding-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom));
@@ -385,6 +436,37 @@
 
   .md-new-place-page label:has(input[id^="new-place-category-"]) {
     min-height: 3rem;
+  }
+
+  .privacy-consent-layer-initial .privacy-consent-panel-initial {
+    right: 0.55rem;
+    bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom) + 0.45rem);
+    left: 0.55rem;
+    padding: 0.7rem;
+  }
+
+  .privacy-consent-panel-initial {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .privacy-consent-actions-initial {
+    display: grid;
+    min-width: 6.8rem;
+    margin-top: 0;
+  }
+
+  .privacy-consent-actions-initial .privacy-consent-primary,
+  .privacy-consent-actions-initial .privacy-consent-text-button {
+    width: 100%;
+  }
+
+  .privacy-consent-actions-initial .privacy-consent-text-button {
+    min-height: 2rem;
+    padding-block: 0.15rem;
+    font-size: 0.72rem;
   }
 
   /* Bottom navigation owns its safe area; content always stays above it. */
