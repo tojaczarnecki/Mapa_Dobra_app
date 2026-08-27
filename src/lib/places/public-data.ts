@@ -28,7 +28,7 @@ import { publicRequirementLabel } from "@/lib/places/requirement-label";
 import { prisma } from "@/lib/prisma";
 
 const publicPlaceInclude = {
-  organization: true,
+  organization: { select: { name: true } },
   primaryCategory: true,
   categories: { where: { category: { active: true } }, include: { category: true }, orderBy: { sortOrder: "asc" as const } },
   openingHours: { orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
@@ -43,6 +43,37 @@ const publicPlaceInclude = {
     },
   },
 } satisfies Prisma.PlaceInclude;
+
+const publicSearchSelect = {
+  id: true, legacyId: true, slug: true, name: true, typeLabel: true, description: true, addressLine: true,
+  phone: true, latitude: true, longitude: true, distanceLabel: true, services: true,
+  publicationStatus: true, operationalStatus: true, verificationStatus: true, verifiedAt: true,
+  organization: { select: { name: true } },
+  primaryCategory: { select: { slug: true, name: true } },
+  categories: { where: { category: { active: true } }, select: { sortOrder: true, category: { select: { slug: true, name: true } } }, orderBy: { sortOrder: "asc" as const } },
+  openingHours: { select: { kind: true, weekday: true, status: true, opensAt: true, closesAt: true, note: true }, orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
+  requirements: { select: { kind: true, state: true, label: true, note: true, sortOrder: true, definition: { select: { label: true } } }, orderBy: { sortOrder: "asc" as const } },
+  accommodation: { select: { id: true } },
+} satisfies Prisma.PlaceSelect;
+
+const publicMapSelect = {
+  id: true, legacyId: true, slug: true, name: true, typeLabel: true, addressLine: true,
+  phone: true, latitude: true, longitude: true, distanceLabel: true,
+  publicationStatus: true, operationalStatus: true, verificationStatus: true, verifiedAt: true,
+  primaryCategory: { select: { slug: true } },
+  categories: { where: { category: { active: true } }, select: { category: { select: { slug: true, name: true } } }, orderBy: { sortOrder: "asc" as const } },
+  openingHours: { select: { kind: true, weekday: true, status: true, opensAt: true, closesAt: true, note: true }, orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
+  requirements: { select: { kind: true, state: true, label: true }, orderBy: { sortOrder: "asc" as const } },
+  accommodation: { select: { acceptsToday: true, availabilityState: true, availabilityConfirmedAt: true, availabilityLabel: true, availabilityNote: true, admissionHoursDescription: true, capacityGroups: { where: { active: true }, select: { availableBeds: true }, orderBy: { sortOrder: "asc" as const } } } },
+} satisfies Prisma.PlaceSelect;
+
+const publicAccommodationSelect = {
+  id: true, legacyId: true, slug: true, name: true, typeLabel: true, addressLine: true,
+  phone: true, latitude: true, longitude: true, distanceLabel: true,
+  primaryCategory: { select: { slug: true } },
+  openingHours: { select: { kind: true, weekday: true, status: true, opensAt: true, closesAt: true, note: true }, orderBy: [{ kind: "asc" as const }, { weekday: "asc" as const }, { sortOrder: "asc" as const }] },
+  accommodation: { select: { audienceLabel: true, acceptedProfiles: true, acceptsToday: true, admissionHoursDescription: true, lodzRegistrationRequired: true, referralRequired: true, documentRequired: true, sobrietyPolicy: true, petPolicy: true, petNote: true, wheelchairAccessibility: true, careServices: true, partialDependencySupport: true, availabilityState: true, availabilityConfirmedAt: true, availabilityLabel: true, availabilityNote: true, capacityGroups: { where: { active: true }, select: { availableBeds: true, totalBeds: true, label: true }, orderBy: { sortOrder: "asc" as const } } } },
+} satisfies Prisma.PlaceSelect;
 
 type PublicPlaceRecord = Prisma.PlaceGetPayload<{ include: typeof publicPlaceInclude }>;
 
@@ -83,12 +114,16 @@ function visibleWhere(): Prisma.PlaceWhereInput {
   };
 }
 
-async function publicPlaces() {
-  return prisma.place.findMany({
-    where: visibleWhere(),
-    include: publicPlaceInclude,
-    orderBy: [{ recordKind: "asc" }, { name: "asc" }],
-  });
+async function publicSearchRows() {
+  return prisma.place.findMany({ where: visibleWhere(), select: publicSearchSelect, orderBy: [{ recordKind: "asc" }, { name: "asc" }] });
+}
+
+async function publicMapRows() {
+  return prisma.place.findMany({ where: visibleWhere(), select: publicMapSelect, orderBy: [{ recordKind: "asc" }, { name: "asc" }] });
+}
+
+async function publicAccommodationRows() {
+  return prisma.place.findMany({ where: { ...visibleWhere(), accommodation: { isNot: null } }, select: publicAccommodationSelect, orderBy: [{ recordKind: "asc" }, { name: "asc" }] });
 }
 
 function relativeAge(value: Date | null, verified = false) {
@@ -371,15 +406,15 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
 }
 
 export async function getPublicSearchPlaces() {
-  return (await publicPlaces()).map(toDemoPlace);
+  return (await publicSearchRows()).map((place) => toDemoPlace(place as unknown as PublicPlaceRecord));
 }
 
 export async function getPublicAccommodations() {
-  return (await publicPlaces()).map(toAccommodation).filter((item): item is Accommodation => Boolean(item));
+  return (await publicAccommodationRows()).map((place) => toAccommodation(place as unknown as PublicPlaceRecord)).filter((item): item is Accommodation => Boolean(item));
 }
 
 export async function getPublicMapPlaces() {
-  return (await publicPlaces()).map(toMapPlace).filter((item): item is MapPlace => Boolean(item));
+  return (await publicMapRows()).map((place) => toMapPlace(place as unknown as PublicPlaceRecord)).filter((item): item is MapPlace => Boolean(item));
 }
 
 export async function getPublicPlaceDetail(categorySlug: string, slug: string) {
