@@ -8,6 +8,7 @@ import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
 import "./md-ui.css";
+import "./md-ui-overrides.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
