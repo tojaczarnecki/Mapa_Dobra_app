@@ -26,6 +26,11 @@ import { evaluateCurrentOpening } from "@/lib/places/current-opening";
 import type { PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
 import { publicRequirementLabel } from "@/lib/places/requirement-label";
+import {
+  classifyPlaceVerificationFreshness,
+  placeVerificationNeedsAttention,
+  placeVerificationNote,
+} from "@/lib/places/verification-freshness";
 import { prisma } from "@/lib/prisma";
 
 const publicPlaceInclude = {
@@ -101,6 +106,31 @@ function relativeAge(value: Date | null, verified = false) {
   if (hours < 24) return `${verified ? "Zweryfikowano" : "Dane sprzed"} ${hours} godz. temu`;
   const days = Math.round(hours / 24);
   return `${verified ? "Zweryfikowano" : "Dane sprzed"} ${days} ${days === 1 ? "dzień" : "dni"} temu`;
+}
+
+function verificationPresentation(place: PublicPlaceRecord) {
+  const freshness = classifyPlaceVerificationFreshness(
+    place.verificationStatus,
+    place.verifiedAt,
+  );
+  const freshnessNote = placeVerificationNote(freshness);
+  const label =
+    place.verificationStatus === "VERIFIED" && place.verifiedAt
+      ? relativeAge(place.verifiedAt, true)
+      : "Dane wymagają potwierdzenia";
+  const note = place.verificationNote
+    ? freshness === "fresh"
+      ? place.verificationNote
+      : `${freshnessNote} ${place.verificationNote}`
+    : freshnessNote;
+
+  return {
+    label,
+    tone: placeVerificationNeedsAttention(freshness)
+      ? ("needsConfirmation" as const)
+      : ("verified" as const),
+    note,
+  };
 }
 
 function placeStatus(place: PublicPlaceRecord): PlaceStatus {
@@ -245,17 +275,14 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     description: place.description?.split(/\n\s*\n/u).filter(Boolean) ?? [],
     contact: { phone: place.phone ?? undefined, email: place.email ?? undefined, website: place.website ?? undefined, social: place.socialMedia ?? undefined },
     openingHours: openingDays(place),
-    verification: {
-      label: place.verificationStatus === "VERIFIED" ? relativeAge(place.verifiedAt, true) : "Dane wymagają potwierdzenia",
-      tone: place.verificationStatus === "VERIFIED" ? "verified" : "needsConfirmation",
-      note: place.verificationNote ?? "Informacje w Mapie Dobra są regularnie aktualizowane.",
-    },
+    verification: verificationPresentation(place),
     accommodation: detailAccommodation,
   };
 }
 
 function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
   const opening = currentOpening(place);
+  const verification = verificationPresentation(place);
   const referral = place.requirements.find((item) => item.kind === "REFERRAL")?.state ?? "UNKNOWN";
   const document = place.requirements.find((item) => item.kind === "DOCUMENT")?.state ?? "UNKNOWN";
   const fee = place.requirements.find((item) => item.kind === "FEE");
@@ -271,8 +298,8 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
     distance: place.distanceLabel ?? "Odległość nieznana",
     address: place.addressLine,
     conditions: place.requirements.map(conditionLabel),
-    freshness: place.verificationStatus === "VERIFIED" ? relativeAge(place.verifiedAt, true) : "Dane wymagają potwierdzenia",
-    freshnessWarning: place.verificationStatus !== "VERIFIED",
+    freshness: verification.label,
+    freshnessWarning: verification.tone !== "verified",
     phone: place.phone ?? undefined,
     primaryIcon: iconMap[place.primaryCategory.slug] ?? Droplets,
     latitude: place.latitude === null ? undefined : Number(place.latitude),
