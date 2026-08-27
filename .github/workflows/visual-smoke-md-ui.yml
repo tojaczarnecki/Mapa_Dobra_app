@@ -33,6 +33,7 @@ jobs:
       RATE_LIMIT_MODE: memory
       APP_BASE_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_VISUAL_SMOKE: "1"
+      VISUAL_SMOKE_MODE: "1"
       GEOCODER_USER_AGENT: MapaDobraVisualSmoke/1.0
       GEOCODER_CONTACT_EMAIL: visual@example.invalid
 
