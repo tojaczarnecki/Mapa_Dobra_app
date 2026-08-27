@@ -9,10 +9,9 @@ import styles from "./map.module.css";
 function standardStatus(place: MapPlace) {
   if (place.status.kind !== "standard") return undefined;
   const status = place.status.status;
-  if (status === "open") return { label: place.status.todayHours || "Otwarte teraz", tone: "open" };
-  if (status === "openToday") return { label: place.status.todayHours || "Otwarte dzisiaj", tone: "open" };
-  if (status === "closed") return { label: place.status.todayHours || "Zamknięte teraz", tone: "closed" };
-  return { label: place.status.todayHours || "Godziny do potwierdzenia", tone: "warning" };
+  if (status === "open" || status === "openToday") return { label: place.status.todayHours || "Otwarte teraz", tone: "bg-[var(--md-green)]" };
+  if (status === "closed") return { label: place.status.todayHours || "Zamknięte teraz", tone: "bg-[var(--md-red)]" };
+  return { label: place.status.todayHours || "Godziny do potwierdzenia", tone: "bg-[var(--md-yellow-strong)]" };
 }
 
 export function MapPlaceCard({
@@ -24,53 +23,56 @@ export function MapPlaceCard({
 }) {
   const callHref = telephoneHref(place.phone);
   const routeHref = directionsHref(place);
-  const isAccommodation = place.status.kind === "accommodation";
   const standard = standardStatus(place);
   const accommodationLabel = place.status.kind === "accommodation" ? place.status.availabilityLabel : undefined;
   const accommodationTone = place.status.kind === "accommodation"
-    ? place.status.availabilityState === "available" ? "open" : place.status.availabilityState === "full" ? "closed" : "warning"
-    : undefined;
+    ? place.status.availabilityState === "available"
+      ? "bg-[var(--md-green)]"
+      : place.status.availabilityState === "full"
+        ? "bg-[var(--md-red)]"
+        : "bg-[var(--md-yellow-strong)]"
+    : "";
 
   return (
-    <article className={[styles.selectedPlaceCard, compactAccommodation ? styles.compactAccommodationCard : ""].join(" ")}>
-      <div className={compactAccommodation ? styles.compactAccommodationBody : styles.selectedPlaceBody}>
-        <div className={styles.selectedPlaceHeading}>
-          <h2>{place.name}</h2>
-          <p>{place.helpTypes.slice(0, 3).join(" · ")}</p>
+    <article className={["min-w-0 overflow-hidden rounded-[10px] border border-[var(--md-line)] bg-white shadow-[0_12px_30px_rgb(8_37_91_/_14%)]", compactAccommodation ? styles.compactAccommodationCard : ""].join(" ")}>
+      <div className={compactAccommodation ? styles.compactAccommodationBody : "grid gap-2.5 p-3.5 pr-11"}>
+        <div className="min-w-0">
+          <h2 className="truncate text-[0.96rem] font-extrabold leading-5 text-[var(--md-text)]">{place.name}</h2>
+          <p className="mt-0.5 truncate text-[0.7rem] font-semibold text-[var(--md-muted)]">{place.helpTypes.slice(0, 3).join(" · ")}</p>
         </div>
 
-        <div className={styles.selectedPlaceStatus}>
-          <span className={styles.statusDot} data-tone={standard?.tone ?? accommodationTone} />
-          <strong>{standard?.label ?? accommodationLabel}</strong>
-          <span>·</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[0.7rem] font-semibold text-[var(--md-muted)]">
+          <span className={["h-2 w-2 shrink-0 rounded-full", standard?.tone ?? accommodationTone].join(" ")} />
+          <strong className="font-bold text-[var(--md-text)]">{standard?.label ?? accommodationLabel}</strong>
+          <span aria-hidden="true">·</span>
           <span>{place.distanceLabel}</span>
         </div>
 
-        <p className={styles.selectedPlaceAddress}>
-          <MapPin aria-hidden="true" size={16} />
-          <span>{place.address}</span>
+        <p className="flex min-w-0 items-start gap-1.5 text-[0.7rem] font-semibold leading-5 text-[var(--md-muted)]">
+          <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--md-navy)]" size={15} />
+          <span className="min-w-0">{place.address}</span>
         </p>
 
-        {isAccommodation && place.status.kind === "accommodation" ? (
-          <p className={styles.selectedPlaceNote}>
+        {place.status.kind === "accommodation" ? (
+          <p className="text-[0.66rem] font-semibold leading-4 text-[var(--md-muted)]">
             {place.status.confirmed}{place.status.admissionsToday ? ` · ${place.status.admissionsToday}` : ""}
           </p>
         ) : null}
       </div>
 
-      <div className={[styles.selectedPlaceActions, compactAccommodation ? styles.compactAccommodationActions : ""].join(" ")}>
+      <div className={["grid grid-cols-3 border-t border-[var(--md-line)]", compactAccommodation ? styles.compactAccommodationActions : ""].join(" ")}>
         {routeHref ? (
-          <a href={routeHref} target="_blank" rel="noreferrer" className={styles.selectedPrimaryAction}>
-            <Navigation aria-hidden="true" size={17} />Jak dojechać
+          <a href={routeHref} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-1.5 bg-[var(--md-navy)] px-2 text-[0.7rem] font-extrabold text-white">
+            <Navigation aria-hidden="true" size={15} />Trasa
           </a>
-        ) : null}
+        ) : <span />}
         {callHref ? (
-          <a href={callHref} className={styles.selectedSecondaryAction}>
-            <Phone aria-hidden="true" size={17} />Zadzwoń
+          <a href={callHref} className="inline-flex min-h-11 items-center justify-center gap-1.5 border-r border-[var(--md-line)] px-2 text-[0.7rem] font-extrabold text-[var(--md-navy)]">
+            <Phone aria-hidden="true" size={15} />Zadzwoń
           </a>
-        ) : null}
-        <Link href={place.detailsHref} className={styles.selectedDetailsAction}>
-          Szczegóły<ChevronRight aria-hidden="true" size={17} />
+        ) : <span />}
+        <Link href={place.detailsHref} className="inline-flex min-h-11 items-center justify-center gap-1 px-2 text-[0.7rem] font-extrabold text-[var(--md-navy)]">
+          Szczegóły<ChevronRight aria-hidden="true" size={15} />
         </Link>
       </div>
     </article>
