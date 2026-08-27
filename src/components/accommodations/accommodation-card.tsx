@@ -1,26 +1,16 @@
 import Link from "next/link";
 import {
-  Accessibility,
   AlertTriangle,
-  BadgeCheck,
-  Ban,
+  BedDouble,
   Check,
   ChevronRight,
   CircleHelp,
-  CircleX,
   Clock3,
-  Dog,
-  FileText,
   MapPin,
   Navigation,
   Phone,
-  ShieldAlert,
 } from "lucide-react";
-import type {
-  Accommodation,
-  AccommodationAvailabilityState,
-  InformationState,
-} from "@/data/demo-accommodations";
+import type { Accommodation, InformationState } from "@/data/demo-accommodations";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
 
 type AccommodationCardProps = {
@@ -30,69 +20,17 @@ type AccommodationCardProps = {
   confirmationConditions?: string[];
 };
 
-type RuleIconProps = {
-  state: "positive" | "warning" | "unknown";
-};
-
-const availabilityConfig = {
-  fresh: {
-    className: "border-brand bg-brand-soft text-foreground",
-    icon: BadgeCheck,
-  },
-  few: {
-    className: "border-urgent-border bg-urgent-soft text-foreground",
-    icon: AlertTriangle,
-  },
-  none: {
-    className: "border-border bg-surface-muted text-foreground",
-    icon: CircleX,
-  },
-  unknown: {
-    className: "border-urgent-border bg-urgent-soft text-foreground",
-    icon: CircleHelp,
-  },
-  stale: {
-    className: "border-urgent-border bg-urgent-soft text-foreground",
-    icon: AlertTriangle,
-  },
-  suspended: {
-    className: "border-urgent-border bg-urgent-soft text-foreground",
-    icon: Ban,
-  },
-} satisfies Record<
-  AccommodationAvailabilityState,
-  {
-    className: string;
-    icon: typeof BadgeCheck;
-  }
->;
-
-function RuleIcon({ state }: RuleIconProps) {
-  const className = [
-    "mt-0.5 shrink-0",
-    state === "positive"
-      ? "text-brand-strong"
-      : state === "warning"
-        ? "text-urgent"
-        : "text-muted-foreground",
-  ].join(" ");
-
-  if (state === "positive") return <Check aria-hidden="true" size={17} className={className} />;
-  if (state === "warning") {
-    return <AlertTriangle aria-hidden="true" size={17} className={className} />;
-  }
-  return <CircleHelp aria-hidden="true" size={17} className={className} />;
+function requirementLabel(state: InformationState, positive: string, negative: string, unknown: string) {
+  if (state === "NO") return { label: positive, tone: "positive" as const };
+  if (state === "YES") return { label: negative, tone: "warning" as const };
+  return { label: unknown, tone: "unknown" as const };
 }
 
-function requiredRule(
-  state: InformationState,
-  requiredLabel: string,
-  notRequiredLabel: string,
-  unknownLabel: string,
-) {
-  if (state === "YES") return { state: "warning" as const, label: requiredLabel };
-  if (state === "NO") return { state: "positive" as const, label: notRequiredLabel };
-  return { state: "unknown" as const, label: unknownLabel };
+function availabilityTone(state: Accommodation["availability"]["state"]) {
+  if (state === "fresh") return "positive";
+  if (state === "few") return "warning";
+  if (state === "none" || state === "suspended") return "negative";
+  return "unknown";
 }
 
 export function AccommodationCard({
@@ -103,222 +41,82 @@ export function AccommodationCard({
 }: AccommodationCardProps) {
   const callHref = telephoneHref(accommodation.phone);
   const routeHref = directionsHref(accommodation);
-  const AvailabilityIcon = availabilityConfig[accommodation.availability.state].icon;
-  const availabilityClass =
-    availabilityConfig[accommodation.availability.state].className;
-  const registration = requiredRule(
-    accommodation.lodzRegistrationRequired,
-    "Wymagany ostatni meldunek w Łodzi",
-    "Ostatni meldunek w Łodzi niewymagany",
-    "Wymóg ostatniego meldunku wymaga potwierdzenia",
-  );
-  const referral = requiredRule(
-    accommodation.referralRequired,
-    "Wymagane skierowanie",
-    "Bez skierowania",
-    "Wymóg skierowania wymaga potwierdzenia",
-  );
-  const document = requiredRule(
-    accommodation.documentRequired,
-    "Wymagany dokument",
-    "Bez dokumentów",
-    "Wymóg dokumentu wymaga potwierdzenia",
-  );
-  const petLabel = ({
-    ACCEPTED: "Zwierzęta przyjmowane",
-    NOT_ACCEPTED: "Nie przyjmuje zwierząt",
-    DOG_ONLY: "Przyjmowany tylko pies",
-    BY_ARRANGEMENT: "Zwierzęta po uzgodnieniu",
-    ASSISTANCE_DOG_ONLY: "Przyjmowany pies asystujący",
-    UNKNOWN: "Przyjmowanie zwierząt wymaga potwierdzenia",
-  } as const)[accommodation.petPolicy];
-  const petState = accommodation.petPolicy === "UNKNOWN"
-    ? "unknown"
-    : accommodation.petPolicy === "NOT_ACCEPTED"
-      ? "warning"
-      : "positive";
-  const accessibility = accommodation.accessibility === "YES"
-    ? { state: "positive" as const, label: "Dostępne dla osoby na wózku" }
-    : accommodation.accessibility === "NO"
-      ? { state: "warning" as const, label: "Brak dostępności dla wózka" }
-      : { state: "unknown" as const, label: "Dostępność dla wózka wymaga potwierdzenia" };
+  const referral = requirementLabel(accommodation.referralRequired, "Bez skierowania", "Wymaga skierowania", "Skierowanie: brak danych");
+  const document = requirementLabel(accommodation.documentRequired, "Bez dokumentów", "Wymaga dokumentu", "Dokument: brak danych");
+  const registration = requirementLabel(accommodation.lodzRegistrationRequired, "Meldunek niewymagany", "Wymaga meldunku w Łodzi", "Meldunek: brak danych");
+  const availability = availabilityTone(accommodation.availability.state);
 
   return (
-    <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
-      <div className="min-w-0 space-y-4">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
-            {isBestMatch ? (
-              <span className="inline-flex min-h-8 items-center rounded-full border border-brand bg-brand-soft px-3 text-xs font-extrabold text-foreground">
-                Najlepiej dopasowane
-              </span>
-            ) : null}
-            <div>
-              <h2 className="text-xl font-extrabold leading-tight text-foreground">
-                {accommodation.name}
-              </h2>
-              <p className="mt-1 text-sm font-bold leading-5 text-muted-foreground">
-                {accommodation.typeLabel} • {accommodation.audienceLabel}
-              </p>
-            </div>
-          </div>
-          <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
-            aria-hidden="true"
-          >
-            <ShieldAlert size={24} strokeWidth={2.2} />
+    <article className="md-night-card">
+      <div className="md-night-card-head">
+        <span className="md-night-card-icon"><BedDouble aria-hidden="true" size={20} /></span>
+        <div className="md-night-card-title">
+          {isBestMatch ? <span className="md-night-best">Najlepsze dopasowanie</span> : null}
+          <h2>{accommodation.name}</h2>
+          <p>{accommodation.typeLabel} · {accommodation.audienceLabel}</p>
+        </div>
+        <ChevronRight aria-hidden="true" className="md-night-card-chevron" size={18} />
+      </div>
+
+      <div className="md-night-card-status" data-tone={availability}>
+        <span className="md-night-status-dot" aria-hidden="true" />
+        <strong>{accommodation.availability.label}</strong>
+        <span>{accommodation.availability.confirmed}</span>
+      </div>
+
+      <div className="md-night-card-meta">
+        <span><Clock3 aria-hidden="true" size={15} />{accommodation.admissionsToday}</span>
+        <span><MapPin aria-hidden="true" size={15} />{accommodation.distanceLabel}</span>
+      </div>
+
+      <div className="md-night-card-chips" aria-label="Najważniejsze warunki">
+        {[registration, referral, document].map((item) => (
+          <span key={item.label} className="md-night-rule-chip" data-tone={item.tone}>
+            {item.tone === "positive" ? <Check aria-hidden="true" size={12} /> : item.tone === "warning" ? <AlertTriangle aria-hidden="true" size={12} /> : <CircleHelp aria-hidden="true" size={12} />}
+            {item.label}
           </span>
-        </div>
+        ))}
+      </div>
 
-        <div className="grid min-w-0 gap-2">
-          <div
-            className={[
-              "inline-flex min-h-10 max-w-full min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-base font-extrabold leading-tight",
-              availabilityClass,
-            ].join(" ")}
-          >
-            <AvailabilityIcon
-              aria-hidden="true"
-              className="shrink-0"
-              size={18}
-              strokeWidth={2.4}
-            />
-            {accommodation.availability.label}
+      {accommodation.availability.note ? (
+        <p className="md-night-card-note">{accommodation.availability.note}</p>
+      ) : null}
+
+      {unmetConditions.length > 0 ? (
+        <div className="md-night-card-alert" data-tone="warning">
+          <AlertTriangle aria-hidden="true" size={16} />
+          <div>
+            <strong>To miejsce może nie pasować</strong>
+            <ul>{unmetConditions.map((condition) => <li key={condition}>{condition}</li>)}</ul>
           </div>
-          <p className="text-sm font-extrabold text-foreground">
-            {accommodation.availability.confirmed}
-          </p>
-          {accommodation.availability.note ? (
-            <p className="rounded-lg border border-urgent-border bg-urgent-soft px-3 py-2 text-sm font-semibold leading-6 text-foreground">
-              {accommodation.availability.note}
-            </p>
-          ) : null}
         </div>
+      ) : null}
 
-        <div className="grid min-w-0 gap-2 text-sm font-semibold text-foreground">
-          <p className="flex min-w-0 items-center gap-2">
-            <Clock3 aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-            <span className="min-w-0">{accommodation.admissionsToday}</span>
-          </p>
-          <p className="flex min-w-0 items-center gap-2">
-            <MapPin aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-            <span className="min-w-0">{accommodation.distanceLabel}</span>
-          </p>
-        </div>
-
-        <ul className="grid min-w-0 gap-2 text-sm font-semibold text-foreground">
-          <li className="flex min-w-0 items-start gap-2">
-            <RuleIcon state={registration.state} />
-            <span className="min-w-0">{registration.label}</span>
-          </li>
-          <li className="flex min-w-0 items-start gap-2">
-            <RuleIcon state={referral.state} />
-            <span className="min-w-0">{referral.label}</span>
-          </li>
-          <li className="flex min-w-0 items-start gap-2">
-            <RuleIcon state={document.state} />
-            <span className="min-w-0">{document.label}</span>
-          </li>
-          <li className="flex min-w-0 items-start gap-2">
-            <RuleIcon state={accommodation.sobrietyPolicy === "UNKNOWN" ? "unknown" : "warning"} />
-            <span className="min-w-0">{accommodation.sobrietyRule}</span>
-          </li>
-          <li className="flex min-w-0 items-start gap-2">
-            <Dog aria-hidden="true" size={17} className={[
-              "mt-0.5 shrink-0",
-              petState === "positive"
-                ? "text-brand-strong"
-                : petState === "warning"
-                  ? "text-urgent"
-                  : "text-muted-foreground",
-            ].join(" ")} />
-            <span className="min-w-0">{accommodation.petPolicyNote ?? petLabel}</span>
-          </li>
-          <li className="flex min-w-0 items-start gap-2">
-            <Accessibility aria-hidden="true" size={17} className={[
-              "mt-0.5 shrink-0",
-              accessibility.state === "positive"
-                ? "text-brand-strong"
-                : accessibility.state === "warning"
-                  ? "text-urgent"
-                  : "text-muted-foreground",
-            ].join(" ")} />
-            <span className="min-w-0">{accessibility.label}</span>
-          </li>
-          {accommodation.careServices !== "NO" ? (
-            <li className="flex min-w-0 items-start gap-2">
-              {accommodation.careServices === "YES" ? (
-                <FileText aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-brand-strong" />
-              ) : (
-                <CircleHelp aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="min-w-0">
-                {accommodation.careServices === "YES"
-                  ? "Usługi opiekuńcze na miejscu"
-                  : "Usługi opiekuńcze wymagają potwierdzenia"}
-              </span>
-            </li>
-          ) : null}
-        </ul>
-
-        {unmetConditions.length > 0 ? (
-          <div className="rounded-lg border border-urgent-border bg-urgent-soft px-3 py-2">
-            <p className="text-sm font-extrabold text-foreground">
-              Warunki do sprawdzenia
-            </p>
-            <ul className="mt-1 grid gap-1 text-sm font-semibold leading-6 text-foreground">
-              {unmetConditions.map((condition) => (
-                <li key={condition}>• {condition}</li>
-              ))}
-            </ul>
+      {confirmationConditions.length > 0 ? (
+        <div className="md-night-card-alert" data-tone="unknown">
+          <CircleHelp aria-hidden="true" size={16} />
+          <div>
+            <strong>Przed wyjściem potwierdź</strong>
+            <ul>{confirmationConditions.map((condition) => <li key={condition}>{condition}</li>)}</ul>
           </div>
-        ) : null}
-
-        {confirmationConditions.length > 0 ? (
-          <div className="rounded-lg border border-border bg-surface-muted px-3 py-2">
-            <p className="flex items-center gap-2 text-sm font-extrabold text-foreground">
-              <CircleHelp aria-hidden="true" size={17} className="shrink-0 text-muted-foreground" />
-              Wymaga potwierdzenia
-            </p>
-            <ul className="mt-1 grid gap-1 text-sm font-semibold leading-6 text-foreground">
-              {confirmationConditions.map((condition) => (
-                <li key={condition}>• {condition}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="grid min-w-0 grid-cols-3 gap-2">
-          {callHref ? (
-            <a className="place-card-action" href={callHref}>
-              <Phone aria-hidden="true" size={17} />
-              Zadzwoń
-            </a>
-          ) : (
-            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-              <Phone aria-hidden="true" size={17} />
-              Brak telefonu
-            </span>
-          )}
-          {routeHref ? (
-            <a className="place-card-action" href={routeHref} target="_blank" rel="noreferrer">
-              <Navigation aria-hidden="true" size={17} />
-              Trasa
-            </a>
-          ) : (
-            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-              <Navigation aria-hidden="true" size={17} />
-              Brak trasy
-            </span>
-          )}
-          <Link
-            className="place-card-action place-card-action-primary"
-            href={`/lodz/${accommodation.categorySlug}/${accommodation.slug}`}
-          >
-            Szczegóły
-            <ChevronRight aria-hidden="true" size={17} />
-          </Link>
         </div>
+      ) : null}
+
+      <div className="md-night-card-actions">
+        {callHref ? (
+          <a href={callHref}><Phone aria-hidden="true" size={16} />Zadzwoń</a>
+        ) : (
+          <span aria-disabled="true"><Phone aria-hidden="true" size={16} />Brak telefonu</span>
+        )}
+        {routeHref ? (
+          <a href={routeHref} target="_blank" rel="noreferrer"><Navigation aria-hidden="true" size={16} />Trasa</a>
+        ) : (
+          <span aria-disabled="true"><Navigation aria-hidden="true" size={16} />Brak trasy</span>
+        )}
+        <Link className="md-night-card-primary" href={`/lodz/${accommodation.categorySlug}/${accommodation.slug}`}>
+          Szczegóły
+          <ChevronRight aria-hidden="true" size={16} />
+        </Link>
       </div>
     </article>
   );

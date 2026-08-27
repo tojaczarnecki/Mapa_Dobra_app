@@ -105,7 +105,7 @@ export default async function Home() {
           {categories.map((category) => (
             <CategoryTile
               key={category.slug}
-              href={`/szukaj?kategoria=${category.slug}`}
+              href={category.slug === "nocleg" ? "/znajdz-nocleg" : `/szukaj?kategoria=${category.slug}`}
               label={category.label}
               icon={category.icon}
             />

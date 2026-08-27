@@ -33,7 +33,13 @@ const categoryAliases: Record<string, string[]> = {
   hygiene: ["higiena", "prysznic"],
   medical: ["pomoc-medyczna"],
   legal: ["pomoc-prawna"],
+  psychological: ["pomoc-psychologiczna"],
+  clothing: ["odziez"],
 };
+
+const mappedPublicCategorySlugs = new Set(
+  Object.values(categoryAliases).flat(),
+);
 
 export function normalizePublicSearch(value: string) {
   return value
@@ -46,6 +52,9 @@ export function normalizePublicSearch(value: string) {
 }
 
 function categoryMatches(place: PublicSearchPlace, category: string) {
+  if (category === "other" || category === "inne") {
+    return place.categorySlugs.some((slug) => !mappedPublicCategorySlugs.has(slug));
+  }
   const requested = categoryAliases[category] ?? [category];
   return requested.some((slug) => place.categorySlugs.includes(slug));
 }

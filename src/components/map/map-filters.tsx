@@ -12,8 +12,11 @@ const categoryFilters: Array<{ value: MapCategoryFilter; label: string }> = [
   { value: "food", label: "Jedzenie" },
   { value: "accommodation", label: "Nocleg" },
   { value: "hygiene", label: "Higiena" },
-  { value: "medical", label: "Medyczna" },
+  { value: "medical", label: "Zdrowie" },
   { value: "legal", label: "Prawna" },
+  { value: "psychological", label: "Psycholog" },
+  { value: "clothing", label: "Odzież" },
+  { value: "other", label: "Inne" },
 ];
 
 type MapFiltersProps = {

@@ -8,7 +8,10 @@ export type MapCategory =
   | "accommodation"
   | "hygiene"
   | "medical"
-  | "legal";
+  | "legal"
+  | "psychological"
+  | "clothing"
+  | "other";
 
 type StandardMapStatus = {
   kind: "standard";
@@ -42,12 +45,15 @@ export type MapPlace = {
   status: StandardMapStatus | AccommodationMapStatus;
 };
 
-const categoryBySlug: Record<string, MapCategory> = {
+const categoryBySlug: Partial<Record<string, MapCategory>> = {
   jedzenie: "food",
   nocleg: "accommodation",
   higiena: "hygiene",
+  prysznic: "hygiene",
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
+  "pomoc-psychologiczna": "psychological",
+  odziez: "clothing",
 };
 
 function isConfirmedFree(placeId: string): boolean | null {
@@ -75,11 +81,11 @@ const standardPlaces: MapPlace[] = demoPlaces
     helpTypes: place.helpTypes,
     categories: Array.from(
       new Set([
-        categoryBySlug[place.categorySlug],
+        categoryBySlug[place.categorySlug] ?? "other",
         ...(place.helpTypes.includes("Higiena") || place.helpTypes.includes("Prysznic")
           ? (["hygiene"] as const)
           : []),
-      ].filter(Boolean)),
+      ]),
     ),
     latitude: place.latitude!,
     longitude: place.longitude!,

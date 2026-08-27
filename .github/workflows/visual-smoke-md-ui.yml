@@ -77,6 +77,9 @@ jobs:
         run: |
           curl --fail --silent "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=jedzenie" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/mapa?kategoria=odziez" > /dev/null
+          curl --fail --silent "http://127.0.0.1:3000/znajdz-nocleg" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/uruchom-pomoc" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/ulubione" > /dev/null
           curl --fail --silent "http://127.0.0.1:3000/offline" > /dev/null
@@ -123,6 +126,8 @@ jobs:
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
           $PW --viewport-size="390,844" "$SMART_RESULTS" screenshots/09-smart-search-390.png
           npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
+          $PW --viewport-size="390,844" http://127.0.0.1:3000/znajdz-nocleg screenshots/11-night-wizard-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
