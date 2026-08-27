@@ -1,0 +1,76 @@
+body {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.md-home,
+.md-results-page,
+.md-place-detail-page,
+.md-empty-page {
+  --foreground: #091a3d;
+  --muted-foreground: #647087;
+  --surface: #ffffff;
+  --surface-muted: #f4f6f9;
+  --border: #e3e7ee;
+  --brand: #08255b;
+  --brand-strong: #08255b;
+  --brand-soft: #eef3fb;
+  --focus: #08255b;
+}
+
+.md-place-detail-page .text-brand-strong {
+  color: var(--md-navy);
+}
+
+.md-place-detail-page .bg-surface-muted {
+  background: var(--md-surface-soft);
+}
+
+.md-place-detail-page .border-border {
+  border-color: var(--md-line);
+}
+
+.md-place-detail-page .text-muted-foreground {
+  color: var(--md-muted);
+}
+
+.md-place-detail-page .rounded-xl {
+  border-radius: 10px;
+}
+
+.md-place-detail-page .shadow-sm,
+.md-place-detail-page [class*="shadow-["] {
+  box-shadow: none;
+}
+
+.md-results-page input[type="search"]::-webkit-search-cancel-button,
+.home-search-field input[type="search"]::-webkit-search-cancel-button {
+  opacity: 0.55;
+}
+
+@media (max-width: 380px) {
+  .md-category-grid {
+    gap: 6px;
+  }
+
+  .home-category-tile {
+    min-height: 82px;
+    padding-inline: 4px;
+  }
+
+  .home-category-label {
+    font-size: 0.68rem;
+  }
+
+  .md-results-page {
+    padding-inline: 12px;
+  }
+
+  .md-results-topbar {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .md-filter-popover > summary {
+    padding-inline: 8px;
+  }
+}
