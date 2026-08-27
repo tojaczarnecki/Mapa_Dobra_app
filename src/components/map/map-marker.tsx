@@ -3,9 +3,12 @@
 import { divIcon } from "leaflet";
 import {
   BedDouble,
+  Brain,
+  CircleEllipsis,
   Droplets,
   HeartPulse,
   Scale,
+  Shirt,
   Utensils,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +24,9 @@ const categoryIcon: Record<MapCategory, LucideIcon> = {
   hygiene: Droplets,
   medical: HeartPulse,
   legal: Scale,
+  psychological: Brain,
+  clothing: Shirt,
+  other: CircleEllipsis,
 };
 
 export function MapMarker({
@@ -32,7 +38,7 @@ export function MapMarker({
   selected: boolean;
   onSelect: (place: MapPlace) => void;
 }) {
-  const CategoryIcon = categoryIcon[place.categories[0]];
+  const CategoryIcon = categoryIcon[place.categories[0]] ?? CircleEllipsis;
   const categoryIconMarkup = useMemo(
     () =>
       renderToStaticMarkup(
@@ -50,7 +56,7 @@ export function MapMarker({
       divIcon({
         className: styles.markerHost,
         html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" aria-hidden="true"><span>${categoryIconMarkup}</span></span>`,
-        iconAnchor: [22, 42],
+        iconAnchor: [22, 22],
         iconSize: [44, 44],
       }),
     [categoryIconMarkup, selected],
