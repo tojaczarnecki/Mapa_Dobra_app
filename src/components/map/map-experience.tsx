@@ -33,10 +33,17 @@ type LocationState =
 type MapExperienceProps = {
   places: MapPlace[];
   initialQuery: string;
+  initialIntentText: string;
   initialCategory: MapCategoryFilter;
   initialOpenNow: boolean;
+  initialToday: boolean;
   initialFree: boolean;
+  initialNoReferral: boolean;
+  initialNoDocuments: boolean;
   initialLocate: boolean;
+  todayEligibleIds: string[];
+  noReferralEligibleIds: string[];
+  noDocumentsEligibleIds: string[];
 };
 
 function normalizeSearch(value: string) {
@@ -97,15 +104,26 @@ function locationMessage(location: LocationState) {
 export function MapExperience({
   places,
   initialQuery,
+  initialIntentText,
   initialCategory,
   initialOpenNow,
+  initialToday,
   initialFree,
+  initialNoReferral,
+  initialNoDocuments,
   initialLocate,
+  todayEligibleIds,
+  noReferralEligibleIds,
+  noDocumentsEligibleIds,
 }: MapExperienceProps) {
   const [query, setQuery] = useState(initialQuery);
+  const [intentText, setIntentText] = useState(initialIntentText);
   const [category, setCategory] = useState<MapCategoryFilter>(initialCategory);
   const [openNow, setOpenNow] = useState(initialOpenNow);
+  const [today, setToday] = useState(initialToday);
   const [free, setFree] = useState(initialFree);
+  const [noReferral, setNoReferral] = useState(initialNoReferral);
+  const [noDocuments, setNoDocuments] = useState(initialNoDocuments);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
   const [visiblePlaceIds, setVisiblePlaceIds] = useState(() => places.map((place) => place.id));
@@ -115,6 +133,10 @@ export function MapExperience({
   const [mapResetKey, setMapResetKey] = useState(0);
   const initialLocateRequested = useRef(false);
 
+  const todayEligible = useMemo(() => new Set(todayEligibleIds), [todayEligibleIds]);
+  const noReferralEligible = useMemo(() => new Set(noReferralEligibleIds), [noReferralEligibleIds]);
+  const noDocumentsEligible = useMemo(() => new Set(noDocumentsEligibleIds), [noDocumentsEligibleIds]);
+
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
 
@@ -123,10 +145,13 @@ export function MapExperience({
         !normalizedQuery ||
         normalizeSearch(place.searchTerms.join(" ")).includes(normalizedQuery);
       const matchesCategory = category === "all" || place.categories.includes(category);
+      const matchesToday = !today || todayEligible.has(place.id);
+      const matchesReferral = !noReferral || noReferralEligible.has(place.id);
+      const matchesDocuments = !noDocuments || noDocumentsEligible.has(place.id);
 
-      return matchesQuery && matchesCategory && (!openNow || place.openNow) && (!free || place.free);
+      return matchesQuery && matchesCategory && matchesToday && matchesReferral && matchesDocuments && (!openNow || place.openNow) && (!free || place.free);
     });
-  }, [category, free, openNow, places, query]);
+  }, [category, free, noDocuments, noDocumentsEligible, noReferral, noReferralEligible, openNow, places, query, today, todayEligible]);
 
   const visiblePlaces = useMemo(
     () => filteredPlaces.filter((place) => visiblePlaceIds.includes(place.id)),
@@ -139,13 +164,17 @@ export function MapExperience({
     selectedPlace.status.availabilityState !== "available";
   const listHref = useMemo(() => {
     const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
+    if (intentText.trim()) params.set("zapytanie", intentText.trim());
+    else if (query.trim()) params.set("q", query.trim());
     if (category !== "all") params.set("kategoria", category);
     if (openNow) params.set("otwarte", "1");
+    if (today) params.set("dzisiaj", "1");
     if (free) params.set("bezplatne", "1");
+    if (noReferral) params.set("bez_skierowania", "1");
+    if (noDocuments) params.set("bez_dokumentow", "1");
     const queryString = params.toString();
     return queryString ? `/szukaj?${queryString}` : "/szukaj";
-  }, [category, free, openNow, query]);
+  }, [category, free, intentText, noDocuments, noReferral, openNow, query, today]);
 
   const focusMap = useCallback((coordinates: readonly [number, number], zoom: number) => {
     setFocusTarget((current) => ({
@@ -189,11 +218,28 @@ export function MapExperience({
     handleLocate();
   }, [handleLocate, initialLocate]);
 
+  const handleQueryChange = useCallback((value: string) => {
+    if (intentText) {
+      setIntentText("");
+      setCategory("all");
+      setOpenNow(false);
+      setToday(false);
+      setFree(false);
+      setNoReferral(false);
+      setNoDocuments(false);
+    }
+    setQuery(value);
+  }, [intentText]);
+
   const clearFilters = useCallback(() => {
     setQuery("");
+    setIntentText("");
     setCategory("all");
     setOpenNow(false);
+    setToday(false);
     setFree(false);
+    setNoReferral(false);
+    setNoDocuments(false);
     setSelectedPlaceId(undefined);
   }, []);
 
@@ -207,18 +253,25 @@ export function MapExperience({
       <h1 className="sr-only">Mapa miejsc pomocy w Łodzi</h1>
       <MapControls
         query={query}
+        intentText={intentText}
         category={category}
         openNow={openNow}
+        today={today}
         free={free}
+        noReferral={noReferral}
+        noDocuments={noDocuments}
         filtersOpen={filtersOpen}
         resultCount={filteredPlaces.length}
         listHref={listHref}
         locationPending={location.status === "pending"}
         locationMessage={locationMessage(location)}
-        onQueryChange={setQuery}
+        onQueryChange={handleQueryChange}
         onCategoryChange={setCategory}
         onOpenNowChange={setOpenNow}
+        onTodayChange={setToday}
         onFreeChange={setFree}
+        onNoReferralChange={setNoReferral}
+        onNoDocumentsChange={setNoDocuments}
         onFiltersOpenChange={setFiltersOpen}
         onLocate={handleLocate}
       />
