@@ -7,6 +7,7 @@ import { DetailSection } from "./detail-section";
 import { MapPreview } from "./map-preview";
 import { OpeningHours } from "./opening-hours";
 import { PlaceContact } from "./place-contact";
+import { PlaceFitCheck } from "./place-fit-check";
 import { PlaceHero } from "./place-hero";
 import { RequirementList } from "./requirement-list";
 import { VerificationInfo } from "./verification-info";
@@ -82,6 +83,7 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
     <>
       <DetailSection title="Czy mogę skorzystać z pomocy?">
         <RequirementList items={place.requirements} />
+        <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
       </DetailSection>
 
       <DetailSection title="Godziny działania">
@@ -124,6 +126,7 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
     <>
       <DetailSection title="Czy mogę skorzystać z noclegu?">
         <RequirementList items={admissionItems} />
+        <PlaceFitCheck requirements={admissionItems} phone={place.contact.phone} />
       </DetailSection>
 
       <DetailSection title="Dla kogo jest nocleg">
