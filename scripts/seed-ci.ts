@@ -73,6 +73,38 @@ async function main() {
       });
     }
   }
+  const legacyPlace = await prisma.place.findUniqueOrThrow({ where: { slug: "e2e-place-1" } });
+
+  await prisma.placeUpdateSubmission.upsert({
+    where: { requestId: "00000000-0000-4000-8000-000000000001" },
+    update: {
+      placeId: legacyPlace.id,
+      placeSlug: legacyPlace.slug,
+      placeNameSnapshot: legacyPlace.name,
+      submissionTypes: ["PHONE"],
+      description: "E2E starsze zaakceptowane zgłoszenie oczekujące na publikację.",
+      proposedPhone: "+48421111111",
+      moderationStatus: "APPROVED",
+      publicationStatus: "NOT_PUBLISHED",
+      publishedPlaceId: null,
+      targetPlaceId: legacyPlace.id,
+    },
+    create: {
+      requestId: "00000000-0000-4000-8000-000000000001",
+      placeId: legacyPlace.id,
+      placeSlug: legacyPlace.slug,
+      placeNameSnapshot: legacyPlace.name,
+      submissionTypes: ["PHONE"],
+      description: "E2E starsze zaakceptowane zgłoszenie oczekujące na publikację.",
+      proposedPhone: "+48421111111",
+      moderationStatus: "APPROVED",
+      publicationStatus: "NOT_PUBLISHED",
+      publishedPlaceId: null,
+      targetPlaceId: legacyPlace.id,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  });
+
   console.info(JSON.stringify({ seeded: true, recordKind, adminEmail, placeSlugs: ["e2e-place-1", "e2e-place-2", "e2e-place-3"] }));
 }
 
