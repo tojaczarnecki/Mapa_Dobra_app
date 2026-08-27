@@ -12,6 +12,7 @@ const primaryItems = [
 ];
 
 const moreItems = [
+  { href: "/ulubione", label: "Ulubione" },
   { href: "/#kategorie", label: "Kategorie" },
   { href: "/znajdz-nocleg", label: "Nocleg na dzisiaj" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
