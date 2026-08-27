@@ -1,5 +1,6 @@
 import { Clock3, MapPin, Navigation, Phone } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
+import { FavoritePlaceButton } from "@/components/favorites/favorite-place-button";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { SharePlaceButton } from "./share-place-button";
 
@@ -26,8 +27,13 @@ export function PlaceHero({
 
   return (
     <section className="md-place-hero">
-      <h1>{place.name}</h1>
-      <p className="md-place-type">{place.helpTypes.join(" • ")}</p>
+      <div className="md-place-hero-heading">
+        <div className="min-w-0">
+          <h1>{place.name}</h1>
+          <p className="md-place-type">{place.helpTypes.join(" • ")}</p>
+        </div>
+        <FavoritePlaceButton place={place} />
+      </div>
 
       {showStatus ? (
         <span className={`md-place-status-pill ${statusToneClass[place.status.tone]}`}>
