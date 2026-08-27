@@ -104,32 +104,45 @@ jobs:
             phone: '+48123456789',
             savedAt: new Date().toISOString(),
           }];
+          const commonLocalStorage = [{ name: 'mapa-dobra:privacy-consent', value: 'necessary' }];
           const state = {
             cookies: [],
             origins: [{
               origin: 'http://127.0.0.1:3000',
-              localStorage: [{ name: 'mapa-dobra:favorites:v1', value: JSON.stringify(favorite) }],
+              localStorage: [
+                ...commonLocalStorage,
+                { name: 'mapa-dobra:favorites:v1', value: JSON.stringify(favorite) },
+              ],
+            }],
+          };
+          const cleanState = {
+            cookies: [],
+            origins: [{
+              origin: 'http://127.0.0.1:3000',
+              localStorage: commonLocalStorage,
             }],
           };
           fs.writeFileSync('screenshots/favorites-state.json', JSON.stringify(state));
+          fs.writeFileSync('screenshots/clean-state.json', JSON.stringify(cleanState));
           NODE
-          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=700"
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=900"
           PW_SAVED="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/favorites-state.json --wait-for-timeout=10000"
           SMART_RESULTS="http://127.0.0.1:3000/szukaj?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
           SMART_MAP="http://127.0.0.1:3000/mapa?zapytanie=gdzie%20zjem%20cieply%20posilek%20teraz%20za%20darmo&kategoria=jedzenie&otwarte=1&bezplatne=1"
           $PW --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/01-start-390.png
           $PW --viewport-size="430,932" http://127.0.0.1:3000/ screenshots/02-start-430.png
           $PW --viewport-size="390,844" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/03-results-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=jedzenie" screenshots/04-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/uruchom-pomoc screenshots/05-help-390.png
           $PW --viewport-size="1440,1000" "http://127.0.0.1:3000/szukaj?kategoria=jedzenie" screenshots/06-results-desktop.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/ulubione screenshots/07-favorites-390.png
           $PW_SAVED --viewport-size="390,844" http://127.0.0.1:3000/offline screenshots/08-offline-390.png
           $PW --viewport-size="390,844" "$SMART_RESULTS" screenshots/09-smart-search-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "$SMART_MAP" screenshots/10-smart-map-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/znajdz-nocleg screenshots/11-night-wizard-390.png
-          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=5000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/clean-state.json --wait-for-timeout=10000 --viewport-size="390,844" "http://127.0.0.1:3000/mapa?kategoria=pomoc-psychologiczna" screenshots/12-map-psychological-390.png
           $PW --viewport-size="390,844" http://127.0.0.1:3000/zglos-miejsce screenshots/13-new-place-390.png
+          npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=900 --viewport-size="390,844" http://127.0.0.1:3000/ screenshots/14-first-visit-privacy-390.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
