@@ -30,7 +30,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ id: s
 
   const can = (permission: AdminPermission) => session.user.permissions.includes(permission) || Boolean(access?.active && access.permissions.includes(permission));
   const admissionDays = scheduleFromRows(place.openingHours, "ADMISSION");
-  const verificationGate = facilityVerificationGate(place.publicationStatus, place.verificationQueueStatus);
+  const verificationGate = facilityVerificationGate(place.recordKind, place.publicationStatus, place.verificationQueueStatus);
   const canConfirmFreshness = can("VERIFY_PLACES");
 
   return <div className="space-y-5">
