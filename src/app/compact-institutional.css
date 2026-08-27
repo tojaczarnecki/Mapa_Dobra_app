@@ -15,6 +15,68 @@
  * rozpoznawalnego języka wizualnego Mapy Dobra.
  */
 
+.smart-intent-summary {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 0.7rem;
+  background: #f3faf8;
+}
+
+.smart-intent-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: var(--md-action-strong);
+}
+
+.smart-intent-copy svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+}
+
+.smart-intent-copy div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.4rem;
+  align-items: baseline;
+}
+
+.smart-intent-copy strong {
+  color: var(--md-structure);
+  font-size: 0.8rem;
+}
+
+.smart-intent-copy span {
+  min-width: 0;
+  color: #4d625d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.smart-intent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.smart-intent-chips a {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #b8d8d4;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--md-action-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 @media (max-width: 767px) {
   body {
     padding-bottom: calc(var(--md-public-nav-height) + env(safe-area-inset-bottom));
