@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AccommodationWizard } from "@/components/accommodations/accommodation-wizard";
-import { getPublicAccommodations } from "@/lib/places/public-data";
+import { getPublicAccommodations } from "@/lib/places/public-accommodations";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
