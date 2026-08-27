@@ -12,6 +12,7 @@ import { requireIsolatedTestDatabase } from "./test-env-guard.mjs";
 const connectionString = requireIsolatedTestDatabase();
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 const mode = process.argv[2] ?? "setup";
+const adminEmail = process.env.ADMIN_SEED_EMAIL ?? "e2e-admin@example.test";
 const moderatorEmail = "test-moderator-g3@mapadobra.local";
 const managerEmail = "test-place-manager-g3@mapadobra.local";
 const tokenUserEmail = "test-token-user-g3@mapadobra.local";
@@ -26,7 +27,7 @@ async function deactivateTests() {
 }
 
 async function setup() {
-  const superAdmin = await prisma.adminUser.findUniqueOrThrow({ where: { email: "admin@mapadobra.local" } });
+  const superAdmin = await prisma.adminUser.findUniqueOrThrow({ where: { email: adminEmail } });
   assert.equal(superAdmin.role, "SUPER_ADMIN");
   assert.equal(superAdmin.active, true);
   const testPlaces = await prisma.place.findMany({ where: { recordKind: "TEST" }, orderBy: [{ accommodation: { id: "asc" } }, { name: "asc" }], take: 3, select: { id: true, name: true, accommodation: { select: { id: true, capacityGroups: { where: { active: true }, take: 1 } } } } });
