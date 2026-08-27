@@ -4,7 +4,7 @@
   min-width: 0;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.5rem 1rem calc(4.65rem + env(safe-area-inset-bottom));
+  padding: 0.5rem 1rem calc(4.9rem + env(safe-area-inset-bottom));
 }
 
 .mapControls {
@@ -49,10 +49,10 @@
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid #d8e2df;
+  border-radius: 0.875rem;
   background: var(--surface);
-  box-shadow: 0 12px 30px rgb(17 24 39 / 9%);
+  box-shadow: 0 8px 24px rgb(23 33 43 / 7%);
 }
 
 .mapStage {
@@ -61,7 +61,7 @@
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  background: var(--surface-muted);
+  background: #e8efed;
 }
 
 .leafletMap {
@@ -69,17 +69,26 @@
   height: 100%;
   min-height: 0;
   width: 100%;
-  background: var(--surface-muted);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #e8efed;
+  font-family: "Source Sans 3", Arial, Helvetica, sans-serif;
+}
+
+/*
+ * Własny charakter mapy bez zmiany źródła OSM.
+ * Baza kartograficzna jest spokojniejsza, a warstwa Mapy Dobra ma pierwszy plan.
+ */
+.leafletMap :global(.leaflet-tile) {
+  filter: saturate(0.56) contrast(0.93) brightness(1.055);
 }
 
 .leafletMap :global(.leaflet-control-zoom) {
   margin-bottom: 0.75rem;
   margin-right: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 8px 20px rgb(17 24 39 / 14%);
+  border: 1px solid #c9d7d3;
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 6px 18px rgb(23 33 43 / 12%);
 }
 
 .leafletMap :global(.leaflet-control-zoom a) {
@@ -88,20 +97,34 @@
   height: 2.75rem;
   align-items: center;
   justify-content: center;
-  color: var(--foreground);
-  font-size: 1.35rem;
+  border-bottom-color: #dfe7e5;
+  background: rgb(255 255 255 / 96%);
+  color: var(--home-navy);
+  font-size: 1.25rem;
+  font-weight: 700;
   line-height: 1;
+}
+
+.leafletMap :global(.leaflet-control-zoom a:hover),
+.leafletMap :global(.leaflet-control-zoom a:focus) {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
 }
 
 .leafletMap :global(.leaflet-control-attribution) {
   max-width: calc(100% - 0.5rem);
-  padding: 0.15rem 0.3rem;
-  color: #383630;
-  font-size: 0.65rem;
+  margin: 0 0.25rem 0.25rem 0;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.35rem;
+  background: rgb(255 255 255 / 82%);
+  color: #53615d;
+  font-size: 0.58rem;
+  line-height: 1.25;
+  backdrop-filter: blur(6px);
 }
 
 .leafletMap :global(.leaflet-control-attribution a) {
-  color: #075f53;
+  color: var(--brand-strong);
   font-weight: 700;
 }
 
@@ -120,31 +143,35 @@
   align-items: center;
   justify-content: center;
   border: 3px solid var(--brand-strong);
-  border-radius: 50% 50% 50% 0;
-  background: var(--surface);
-  color: var(--foreground);
-  box-shadow: 0 5px 14px rgb(17 24 39 / 24%);
-  transform: rotate(-45deg);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 97%);
+  color: var(--home-navy);
+  box-shadow:
+    0 0 0 2px rgb(255 255 255 / 88%),
+    0 5px 14px rgb(23 33 43 / 22%);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .mapMarker > span {
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: rotate(45deg);
 }
 
 .mapMarker svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.22rem;
+  height: 1.22rem;
   stroke: currentcolor;
 }
 
 .mapMarkerSelected {
-  border-color: var(--urgent);
+  border-color: var(--home-amber);
+  background: #fffaf0;
+  color: #6c4b0d;
   box-shadow:
-    0 0 0 4px rgb(255 255 255 / 90%),
-    0 6px 16px rgb(17 24 39 / 30%);
+    0 0 0 4px rgb(215 154 43 / 22%),
+    0 7px 18px rgb(23 33 43 / 28%);
+  transform: scale(1.08);
 }
 
 .clusterMarker {
@@ -155,32 +182,32 @@
   justify-content: center;
   border: 3px solid var(--surface);
   border-radius: 50%;
-  background: var(--brand-strong);
+  background: var(--home-navy);
   color: white;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 900;
   box-shadow:
-    0 0 0 3px rgb(19 173 135 / 45%),
-    0 6px 16px rgb(17 24 39 / 24%);
+    0 0 0 3px rgb(19 173 135 / 34%),
+    0 6px 16px rgb(23 33 43 / 22%);
 }
 
 .userMarker {
   display: flex;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.45rem;
+  height: 1.45rem;
   align-items: center;
   justify-content: center;
   border: 3px solid var(--surface);
   border-radius: 50%;
   background: var(--brand-strong);
   box-shadow:
-    0 0 0 4px rgb(19 173 135 / 32%),
-    0 4px 10px rgb(17 24 39 / 24%);
+    0 0 0 5px rgb(19 173 135 / 24%),
+    0 4px 10px rgb(23 33 43 / 22%);
 }
 
 .userMarker > span {
-  width: 0.35rem;
-  height: 0.35rem;
+  width: 0.34rem;
+  height: 0.34rem;
   border-radius: 50%;
   background: white;
 }
@@ -193,7 +220,9 @@
   z-index: 650;
   max-height: min(18rem, calc(100% - 1.3rem));
   overflow-y: auto;
-  border-radius: var(--radius-md);
+  border: 1px solid #d8e2df;
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 28px rgb(23 33 43 / 16%);
 }
 
 .mobileSheetAccommodation {
@@ -235,9 +264,10 @@
   min-height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--foreground);
+  border: 1px solid #d8e2df;
+  border-radius: 0.65rem;
+  background: rgb(255 255 255 / 96%);
+  color: var(--home-navy);
 }
 
 .mobileSheet:not(.mobileSheetAccommodation) article > div:first-child {
@@ -286,14 +316,15 @@
   min-height: 2rem;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid var(--border);
+  border: 1px solid #c9d7d3;
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
-  color: var(--foreground);
+  background: rgb(255 255 255 / 94%);
+  color: var(--home-navy);
   padding: 0.3rem 0.65rem;
   font-size: 0.75rem;
   font-weight: 850;
-  box-shadow: 0 5px 14px rgb(17 24 39 / 12%);
+  box-shadow: 0 5px 14px rgb(23 33 43 / 10%);
+  backdrop-filter: blur(8px);
 }
 
 @media (min-width: 375px) and (max-width: 430px) {
