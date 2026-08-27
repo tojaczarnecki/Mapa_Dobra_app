@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useId, useMemo, useState, type KeyboardEvent } from "react";
+import { useId, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { getHomeSuggestions, type HomeSearchCategory } from "@/lib/home/autosuggest";
 import type { PublicSearchPlace } from "@/lib/places/search";
 
@@ -17,9 +17,16 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const [activeIndex, setActiveIndex] = useState(-1);
   const suggestions = useMemo(() => getHomeSuggestions(query, categories, places), [categories, places, query]);
   const activeSuggestion = activeIndex >= 0 ? suggestions[activeIndex] : undefined;
+  const intentSuggestion = suggestions.find((suggestion) => suggestion.secondary === "Najlepsze dopasowanie");
 
   function goToSuggestion(href: string) {
     window.location.assign(href);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (!intentSuggestion) return;
+    event.preventDefault();
+    goToSuggestion(intentSuggestion.href);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -42,7 +49,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const hasSuggestions = isOpen && suggestions.length > 0;
 
   return (
-    <form action="/szukaj" method="get" className="home-search-form" aria-label="Wyszukiwarka pomocy">
+    <form action="/szukaj" method="get" className="home-search-form" aria-label="Wyszukiwarka pomocy" onSubmit={handleSubmit}>
       <label htmlFor="home-search" className="sr-only">Czego potrzebujesz?</label>
       <div className="home-search-autocomplete">
         <div className="home-search-field">
@@ -50,7 +57,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             id="home-search"
             name="q"
             type="search"
-            placeholder="Wpisz czego szukasz…"
+            placeholder="Np. gdzie zjem ciepły posiłek teraz?"
             autoComplete="off"
             role="combobox"
             aria-autocomplete="list"
