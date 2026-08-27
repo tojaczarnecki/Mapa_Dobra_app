@@ -9,6 +9,7 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
 import "./md-ui.css";
 import "./md-ui-overrides.css";
+import "./md-ui-polish.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
