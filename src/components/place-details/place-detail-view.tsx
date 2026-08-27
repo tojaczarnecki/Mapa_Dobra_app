@@ -80,12 +80,12 @@ function mergeUniqueRequirements(items: DetailListItem[]) {
 function StandardPlaceSections({ place }: { place: PlaceDetail }) {
   return (
     <>
-      <DetailSection title="Godziny działania">
-        <OpeningHours days={place.openingHours} />
-      </DetailSection>
-
       <DetailSection title="Czy mogę skorzystać z pomocy?">
         <RequirementList items={place.requirements} />
+      </DetailSection>
+
+      <DetailSection title="Godziny działania">
+        <OpeningHours days={place.openingHours} />
       </DetailSection>
 
       <DetailSection title="Dla kogo">
@@ -122,12 +122,16 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
 
   return (
     <>
+      <DetailSection title="Czy mogę skorzystać z noclegu?">
+        <RequirementList items={admissionItems} />
+      </DetailSection>
+
       <DetailSection title="Dla kogo jest nocleg">
         <TagList items={accommodation.audience} />
       </DetailSection>
 
-      <DetailSection title="Warunki przyjęcia">
-        <RequirementList items={admissionItems} />
+      <DetailSection title="Godziny przyjęć">
+        <OpeningHours days={place.openingHours} />
       </DetailSection>
 
       <DetailSection title="Dostępność noclegu">
@@ -139,10 +143,6 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
           <CompactInfoList items={accommodation.overnightInfo} />
         </DetailSection>
       ) : null}
-
-      <DetailSection title="Godziny przyjęć">
-        <OpeningHours days={place.openingHours} />
-      </DetailSection>
 
       <DetailSection title="Na miejscu">
         <TagList items={place.services} />
@@ -211,13 +211,13 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
             showStatus={!isAccommodation}
           />
 
-          <VerificationInfo verification={place.verification} />
-
           {isAccommodation ? (
             <AccommodationPlaceSections place={place} />
           ) : (
             <StandardPlaceSections place={place} />
           )}
+
+          <VerificationInfo verification={place.verification} />
         </div>
 
         <SideColumn place={place} />
