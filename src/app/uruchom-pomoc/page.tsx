@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function StartHelpPage() {
   return (
-    <div className="mx-auto w-full max-w-[920px] px-4 pb-28 pt-4 sm:px-6 sm:pt-8 lg:px-8">
+    <div className="md-help-request-page mx-auto w-full max-w-[920px] px-4 pb-28 pt-4 sm:px-6 sm:pt-8 lg:px-8">
       <header className="mx-auto max-w-3xl text-center">
         <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#fff1cf] text-[#9a6815]"><HeartHandshake aria-hidden="true" size={26} /></span>
         <p className="mt-3 text-sm font-bold uppercase tracking-wide text-[#9a6815]">Uruchom pomoc</p>
@@ -21,7 +21,7 @@ export default function StartHelpPage() {
         </p>
       </header>
       <div className="mx-auto mt-5 max-w-3xl">
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-[#d7a548]/55 bg-[#fffaf0] p-3.5 text-sm leading-6">
+        <div className="md-help-trust-note mb-4 flex items-start gap-3 rounded-lg border border-[#d7a548]/55 bg-[#fffaf0] p-3.5 text-sm leading-6">
           <ShieldCheck aria-hidden="true" className="mt-0.5 shrink-0 text-[#b7791f]" size={20} />
           <p><strong>Nie oceniamy i nie etykietujemy.</strong> Zgłoszenie jest prywatne; nie potrzebujemy imienia ani danych osoby.</p>
         </div>
