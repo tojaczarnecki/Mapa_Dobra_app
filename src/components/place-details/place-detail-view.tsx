@@ -186,6 +186,7 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
     place.variant === "accommodation" ? place.accommodation : undefined;
   const isAccommodation = Boolean(accommodation);
   const backHref = isAccommodation ? "/znajdz-nocleg" : "/szukaj";
+  const reportHref = `/zglos-zmiane?place=${encodeURIComponent(place.id)}`;
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
@@ -220,7 +221,11 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
             <StandardPlaceSections place={place} />
           )}
 
-          <VerificationInfo verification={place.verification} />
+          <VerificationInfo
+            verification={place.verification}
+            reportHref={reportHref}
+            phone={place.contact.phone}
+          />
         </div>
 
         <SideColumn place={place} />
