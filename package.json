@@ -13,6 +13,10 @@
     "test:integration": "node scripts/test-admin-place-workflow.mjs",
     "test:cms": "node scripts/test-admin-place-cms.mjs",
     "postinstall": "prisma generate",
+    "seed:e2e": "tsx scripts/seed-ci.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --project=chromium --project=mobile-chromium",
+    "test:a11y": "playwright test tests/e2e/smoke.spec.ts --grep \"accessible\"",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
@@ -46,6 +50,8 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
     "@types/leaflet.markercluster": "^1.5.6",
