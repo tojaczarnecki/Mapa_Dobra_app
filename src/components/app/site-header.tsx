@@ -16,8 +16,10 @@ export function SiteHeader() {
 
   if (pathname.startsWith("/admin")) return null;
 
+  const mobileVisibility = pathname === "/" ? "site-header-home" : "hidden md:block";
+
   return (
-    <header className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""}`}>
+    <header className={`site-header sticky top-0 z-30 ${mobileVisibility}`}>
       <div className="site-header-inner">
         <Link
           href="/"
@@ -43,7 +45,7 @@ export function SiteHeader() {
             >
               {link.label}
             </Link>
-            ))}
+          ))}
           <button
             type="button"
             className="site-header-install"
@@ -52,7 +54,7 @@ export function SiteHeader() {
             <Download aria-hidden="true" size={17} />
             Zainstaluj
           </button>
-          </nav>
+        </nav>
       </div>
     </header>
   );
