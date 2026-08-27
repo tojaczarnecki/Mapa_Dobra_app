@@ -25,6 +25,9 @@ export type CurrentOpeningState = {
   isOpenNow: boolean | null;
   label: string;
   periods: string[];
+  closesInMinutes?: number;
+  opensInMinutes?: number;
+  nextOpeningLabel?: string;
 };
 
 const weekdayByEnglishName: Record<string, PublicWeekday> = {
@@ -35,6 +38,26 @@ const weekdayByEnglishName: Record<string, PublicWeekday> = {
   Friday: "FRIDAY",
   Saturday: "SATURDAY",
   Sunday: "SUNDAY",
+};
+
+const weekdays: PublicWeekday[] = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+];
+
+const weekdayFutureLabels: Record<PublicWeekday, string> = {
+  MONDAY: "W poniedziałek",
+  TUESDAY: "We wtorek",
+  WEDNESDAY: "W środę",
+  THURSDAY: "W czwartek",
+  FRIDAY: "W piątek",
+  SATURDAY: "W sobotę",
+  SUNDAY: "W niedzielę",
 };
 
 function warsawParts(date: Date) {
@@ -61,6 +84,52 @@ function timeToMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
+function openingPeriods(rows: PublicOpeningRow[], kind: "OPERATION" | "ADMISSION", weekday: PublicWeekday) {
+  return rows
+    .filter(
+      (row) =>
+        row.kind === kind &&
+        row.weekday === weekday &&
+        row.status === "OPEN" &&
+        row.opensAt &&
+        row.closesAt,
+    )
+    .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0))
+    .map((row) => ({
+      label: `${row.opensAt}-${row.closesAt}`,
+      opensAtLabel: row.opensAt!,
+      closesAtLabel: row.closesAt!,
+      opensAt: timeToMinutes(row.opensAt!),
+      closesAt: timeToMinutes(row.closesAt!),
+    }));
+}
+
+function findNextOpening(
+  rows: PublicOpeningRow[],
+  kind: "OPERATION" | "ADMISSION",
+  currentWeekday: PublicWeekday,
+) {
+  const currentIndex = weekdays.indexOf(currentWeekday);
+
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const weekday = weekdays[(currentIndex + offset) % weekdays.length];
+    const period = openingPeriods(rows, kind, weekday)[0];
+    if (!period) continue;
+
+    return {
+      offset,
+      label: `${offset === 1 ? "Jutro" : weekdayFutureLabels[weekday]} · od ${period.opensAtLabel}`,
+    };
+  }
+
+  return undefined;
+}
+
+function closingSoonLabel(kind: "OPERATION" | "ADMISSION", minutes: number, closesAt: string) {
+  if (kind === "ADMISSION") return `Przyjęcia kończą się za ${minutes} min · do ${closesAt}`;
+  return `Otwarte jeszcze ${minutes} min · do ${closesAt}`;
+}
+
 export function evaluateCurrentOpening(
   rows: PublicOpeningRow[],
   kind: "OPERATION" | "ADMISSION",
@@ -81,25 +150,21 @@ export function evaluateCurrentOpening(
       periods: [],
     };
   }
+
+  const nextOpening = findNextOpening(rows, kind, current.weekday);
+
   if (first.status === "CLOSED") {
     return {
       status: "CLOSED",
       weekday: current.weekday,
       isOpenNow: false,
-      label: "Dzisiaj zamknięte",
+      label: nextOpening ? `Dzisiaj zamknięte · ${nextOpening.label.toLocaleLowerCase("pl-PL")}` : "Dzisiaj zamknięte",
       periods: [],
+      nextOpeningLabel: nextOpening?.label,
     };
   }
 
-  const periods = todayRows
-    .filter((row) => row.status === "OPEN" && row.opensAt && row.closesAt)
-    .map((row) => ({
-      label: `${row.opensAt}-${row.closesAt}`,
-      opensAtLabel: row.opensAt!,
-      closesAtLabel: row.closesAt!,
-      opensAt: timeToMinutes(row.opensAt!),
-      closesAt: timeToMinutes(row.closesAt!),
-    }));
+  const periods = openingPeriods(rows, kind, current.weekday);
   if (!periods.length) {
     return {
       status: "UNKNOWN",
@@ -115,17 +180,40 @@ export function evaluateCurrentOpening(
   );
   const nextPeriod = periods.find((period) => current.minutes < period.opensAt);
   const isOpenNow = Boolean(currentPeriod);
-  const label = currentPeriod
-    ? `Otwarte teraz · do ${currentPeriod.closesAtLabel}`
-    : nextPeriod
-      ? `Dzisiaj · od ${nextPeriod.opensAtLabel}`
-      : "Dzisiaj zamknięte";
+
+  if (currentPeriod) {
+    const closesInMinutes = Math.max(1, currentPeriod.closesAt - current.minutes);
+    const label = closesInMinutes <= 60
+      ? closingSoonLabel(kind, closesInMinutes, currentPeriod.closesAtLabel)
+      : `Otwarte teraz · do ${currentPeriod.closesAtLabel}`;
+
+    return {
+      status: "OPEN",
+      weekday: current.weekday,
+      isOpenNow: true,
+      label,
+      periods: periods.map((period) => period.label),
+      closesInMinutes,
+    };
+  }
+
+  if (nextPeriod) {
+    return {
+      status: "CLOSED",
+      weekday: current.weekday,
+      isOpenNow: false,
+      label: `Dzisiaj · od ${nextPeriod.opensAtLabel}`,
+      periods: periods.map((period) => period.label),
+      opensInMinutes: Math.max(1, nextPeriod.opensAt - current.minutes),
+    };
+  }
 
   return {
-    status: isOpenNow ? "OPEN" : "CLOSED",
+    status: "CLOSED",
     weekday: current.weekday,
-    isOpenNow,
-    label,
+    isOpenNow: false,
+    label: nextOpening?.label ?? "Dzisiaj zamknięte",
     periods: periods.map((period) => period.label),
+    nextOpeningLabel: nextOpening?.label,
   };
 }
