@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { List, LocateFixed, Map as MapIcon, Search } from "lucide-react";
+import { List, LocateFixed, Map as MapIcon, Search, Sparkles } from "lucide-react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
 
 type MapControlsProps = {
   query: string;
+  intentText: string;
   category: MapCategoryFilter;
   openNow: boolean;
+  today: boolean;
   free: boolean;
+  noReferral: boolean;
+  noDocuments: boolean;
   filtersOpen: boolean;
   resultCount: number;
   listHref: string;
@@ -19,7 +23,10 @@ type MapControlsProps = {
   onQueryChange: (query: string) => void;
   onCategoryChange: (category: MapCategoryFilter) => void;
   onOpenNowChange: (value: boolean) => void;
+  onTodayChange: (value: boolean) => void;
   onFreeChange: (value: boolean) => void;
+  onNoReferralChange: (value: boolean) => void;
+  onNoDocumentsChange: (value: boolean) => void;
   onFiltersOpenChange: (value: boolean) => void;
   onLocate: () => void;
 };
@@ -34,9 +41,13 @@ function placeCountLabel(count: number) {
 
 export function MapControls({
   query,
+  intentText,
   category,
   openNow,
+  today,
   free,
+  noReferral,
+  noDocuments,
   filtersOpen,
   resultCount,
   listHref,
@@ -45,7 +56,10 @@ export function MapControls({
   onQueryChange,
   onCategoryChange,
   onOpenNowChange,
+  onTodayChange,
   onFreeChange,
+  onNoReferralChange,
+  onNoDocumentsChange,
   onFiltersOpenChange,
   onLocate,
 }: MapControlsProps) {
@@ -75,6 +89,13 @@ export function MapControls({
         </button>
       </div>
 
+      {intentText ? (
+        <div className="md-map-intent" role="status">
+          <Sparkles aria-hidden="true" size={14} />
+          <span>Dopasowanie do: „{intentText}”</span>
+        </div>
+      ) : null}
+
       {locationMessage ? (
         <p id="map-location-status" className={styles.locationStatus} role="status">
           {locationMessage}
@@ -89,11 +110,17 @@ export function MapControls({
       <MapFilters
         category={category}
         openNow={openNow}
+        today={today}
         free={free}
+        noReferral={noReferral}
+        noDocuments={noDocuments}
         filtersOpen={filtersOpen}
         onCategoryChange={onCategoryChange}
         onOpenNowChange={onOpenNowChange}
+        onTodayChange={onTodayChange}
         onFreeChange={onFreeChange}
+        onNoReferralChange={onNoReferralChange}
+        onNoDocumentsChange={onNoDocumentsChange}
         onFiltersOpenChange={onFiltersOpenChange}
       />
 
