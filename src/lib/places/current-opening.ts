@@ -179,7 +179,6 @@ export function evaluateCurrentOpening(
     (period) => current.minutes >= period.opensAt && current.minutes < period.closesAt,
   );
   const nextPeriod = periods.find((period) => current.minutes < period.opensAt);
-  const isOpenNow = Boolean(currentPeriod);
 
   if (currentPeriod) {
     const closesInMinutes = Math.max(1, currentPeriod.closesAt - current.minutes);
