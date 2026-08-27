@@ -14,6 +14,7 @@ async function main() {
   const [food, accommodation] = await Promise.all([
     prisma.category.upsert({ where: { slug: "jedzenie" }, update: { name: "Jedzenie", active: true }, create: { slug: "jedzenie", name: "Jedzenie", active: true, sortOrder: 1 } }),
     prisma.category.upsert({ where: { slug: "nocleg" }, update: { name: "Nocleg", active: true }, create: { slug: "nocleg", name: "Nocleg", active: true, sortOrder: 2 } }),
+    prisma.category.upsert({ where: { slug: "higiena" }, update: { name: "Higiena", active: true }, create: { slug: "higiena", name: "Higiena", active: true, sortOrder: 3 } }),
   ]);
   const organization = await prisma.organization.upsert({
     where: { slug: "e2e-organizacja" },
