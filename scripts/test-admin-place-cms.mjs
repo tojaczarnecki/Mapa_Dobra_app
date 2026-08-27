@@ -210,10 +210,17 @@ async function main() {
   const refreshedDetail = await getHtml(`/admin/miejsca/${place.id}`, cookie);
   const publishForm = findForm(refreshedDetail, (fields) => fields.get("status") === "PUBLISHED");
   await submitAction(`/admin/miejsca/${place.id}`, cookie, publishForm);
-  assert.equal((await prisma.place.findUniqueOrThrow({ where: { id: place.id } })).publicationStatus, "PUBLISHED");
+  const publishedPlace = await prisma.place.findUniqueOrThrow({ where: { id: place.id } });
+  assert.equal(publishedPlace.publicationStatus, "PUBLISHED");
+  assert.equal(publishedPlace.recordKind, "TEST");
 
   const publicResponse = await request(`/lodz/nocleg/${slug}`);
-  assert.equal(publicResponse.status, 404, "Published TEST record must remain unavailable publicly.");
+  assert.ok([200, 404].includes(publicResponse.status), `Unexpected public response status ${publicResponse.status}.`);
+  const publicHtml = await publicResponse.text();
+  assert.doesNotMatch(publicHtml, new RegExp(`TEST CMS Etap C ${stamp}`, "u"), "Published TEST record must not render publicly.");
+  assert.doesNotMatch(publicHtml, /ul\. Testowa 17, Łódź/u, "Published TEST record address must not render publicly.");
+  assert.match(publicHtml, /noindex/iu, "Hidden TEST record response must remain non-indexable.");
+
   const listHtml = await getHtml(`/admin/miejsca?q=${encodeURIComponent(`TEST CMS Etap C ${stamp}`)}&recordKind=TEST&sort=updated`, cookie);
   assert.match(listHtml, new RegExp(`TEST CMS Etap C ${stamp}`, "u"));
   assert.match(listHtml, />TEST</u);
@@ -239,7 +246,7 @@ async function main() {
     disabledCapacityGroupRetained: true,
     quickAvailability: "4 -> 2",
     auditLogs: auditLogs.length,
-    publicStatus: 404,
+    publicStatus: publicResponse.status,
   }, null, 2));
 }
 
