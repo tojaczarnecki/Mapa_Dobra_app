@@ -1,6 +1,7 @@
 import { Map, Navigation } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
 import { directionsHref } from "@/lib/places/actions";
+import { mapPreviewLocationLabel } from "@/lib/places/address-display";
 
 type MapPreviewProps = {
   place: PlaceDetail;
@@ -8,6 +9,7 @@ type MapPreviewProps = {
 
 export function MapPreview({ place }: MapPreviewProps) {
   const routeHref = directionsHref(place);
+  const locationLabel = mapPreviewLocationLabel(place.address, place.coordinatesLabel);
   return (
     <div
       id="mapa-dojazd"
@@ -27,9 +29,9 @@ export function MapPreview({ place }: MapPreviewProps) {
           <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
             {place.address}
           </p>
-          {place.coordinatesLabel ? (
+          {locationLabel ? (
             <p className="text-sm font-semibold leading-6 text-muted-foreground">
-              {place.coordinatesLabel}
+              {locationLabel}
             </p>
           ) : null}
         </div>
