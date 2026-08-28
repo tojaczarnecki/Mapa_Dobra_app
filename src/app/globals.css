@@ -343,6 +343,26 @@ input {
   outline: 0;
 }
 
+.home-search-clear {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.5rem;
+  color: var(--home-text-secondary);
+  display: inline-flex;
+  flex: 0 0 2.75rem;
+  height: 2.75rem;
+  justify-content: center;
+  margin-right: -0.35rem;
+  width: 2.75rem;
+}
+
+.home-search-clear:hover,
+.home-search-clear:focus-visible {
+  background: var(--surface-muted);
+  color: var(--home-text);
+}
+
 .home-search-field input::placeholder {
   color: var(--home-text-secondary);
   opacity: 1;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Flag } from "lucide-react";
+import { ArrowLeft, Flag, MapPin } from "lucide-react";
 import type { DetailListItem, PlaceDetail } from "@/data/demo-place-details";
 import { AccessibilityList } from "./accessibility-list";
 import { AccommodationAvailability } from "./accommodation-availability";
@@ -38,6 +38,21 @@ function Description({ paragraphs }: { paragraphs: string[] }) {
         <p key={paragraph}>{paragraph}</p>
       ))}
     </div>
+  );
+}
+
+function LocationSummary({ place }: { place: PlaceDetail }) {
+  return (
+    <section className="border-b border-border py-4 sm:py-5" aria-labelledby="place-location-title">
+      <h2 id="place-location-title" className="text-xl font-extrabold leading-tight text-foreground">Adres</h2>
+      <div className="mt-3 flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground">
+        <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} />
+        <span className="min-w-0">{place.address}</span>
+      </div>
+      <Link href="#mapa-dojazd" className="mt-2 inline-flex min-h-11 items-center px-1 text-sm font-extrabold text-brand-strong underline underline-offset-4">
+        Pokaż mapę i dojazd
+      </Link>
+    </section>
   );
 }
 
@@ -86,10 +101,6 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
         <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
       </DetailSection>
 
-      <DetailSection title="Godziny działania">
-        <OpeningHours days={place.openingHours} />
-      </DetailSection>
-
       <DetailSection title="Dla kogo">
         <TagList items={place.audience} />
       </DetailSection>
@@ -98,13 +109,14 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
         <TagList items={place.services} />
       </DetailSection>
 
+      <DetailSection title="Kiedy">
+        <OpeningHours days={place.openingHours} />
+      </DetailSection>
+
       <DetailSection title="Dostępność">
         <AccessibilityList items={place.accessibility} />
       </DetailSection>
 
-      <DetailSection title="O miejscu">
-        <Description paragraphs={place.description} />
-      </DetailSection>
     </>
   );
 }
@@ -133,7 +145,7 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
         <TagList items={accommodation.audience} />
       </DetailSection>
 
-      <DetailSection title="Godziny przyjęć">
+      <DetailSection title="Kiedy">
         <OpeningHours days={place.openingHours} />
       </DetailSection>
 
@@ -150,30 +162,13 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
       <DetailSection title="Na miejscu">
         <TagList items={place.services} />
       </DetailSection>
-
-      <DetailSection title="O miejscu">
-        <Description paragraphs={place.description} />
-      </DetailSection>
     </>
   );
 }
 
 function SideColumn({ place }: { place: PlaceDetail }) {
-  const hasContact = Boolean(
-    place.contact.phone ||
-      place.contact.email ||
-      place.contact.website ||
-      place.contact.social,
-  );
-
   return (
     <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
-      {hasContact ? (
-        <DetailSection title="Kontakt">
-          <PlaceContact contact={place.contact} />
-        </DetailSection>
-      ) : null}
-
       <MapPreview place={place} />
 
       <Link
@@ -187,6 +182,15 @@ function SideColumn({ place }: { place: PlaceDetail }) {
         Zgłoś zmianę lub błąd
       </Link>
     </aside>
+  );
+}
+
+function placeHasContact(place: PlaceDetail) {
+  return Boolean(
+    place.contact.phone ||
+      place.contact.email ||
+      place.contact.website ||
+      place.contact.social,
   );
 }
 
@@ -230,11 +234,21 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
             <StandardPlaceSections place={place} />
           )}
 
+          {placeHasContact(place) ? (
+            <DetailSection title="Kontakt">
+              <PlaceContact contact={place.contact} />
+            </DetailSection>
+          ) : null}
+          <LocationSummary place={place} />
+
           <VerificationInfo
             verification={place.verification}
             reportHref={reportHref}
             phone={place.contact.phone}
           />
+          <DetailSection title="O miejscu">
+            <Description paragraphs={place.description} />
+          </DetailSection>
         </div>
 
         <SideColumn place={place} />

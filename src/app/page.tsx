@@ -77,6 +77,24 @@ export default async function Home() {
         <h1 className="home-motto">Wszędzie tam, gdzie dzieje się dobro!</h1>
       </header>
 
+      <section className="home-search-section" aria-labelledby="home-search-title">
+        <h2 id="home-search-title" className="sr-only">Znajdź pomoc</h2>
+        <HomeSearchAutocomplete
+          categories={categories.map(({ label, slug }) => ({ label, slug }))}
+          places={searchPlaces}
+        />
+        <div className="home-now-shortcuts" aria-label="Szybkie wyszukiwanie">
+          <Link href="/mapa?otwarte=1&lokalizacja=moja">
+            <LocateFixed aria-hidden="true" size={17} />
+            Gdzie mogę iść teraz?
+          </Link>
+          <Link href="/znajdz-nocleg">
+            <Clock3 aria-hidden="true" size={17} />
+            Potrzebuję noclegu na dziś
+          </Link>
+        </div>
+      </section>
+
       <section className="home-primary-actions" aria-label="Główne ścieżki">
         <PrimaryActionCard
           href="/szukaj"
@@ -90,24 +108,6 @@ export default async function Home() {
           description="Martwisz się o kogoś? Pomóż uruchomić wsparcie."
           variant="activate"
         />
-      </section>
-
-      <section className="home-search-section" aria-labelledby="home-search-title">
-        <h2 id="home-search-title" className="sr-only">Znajdź pomoc</h2>
-        <HomeSearchAutocomplete
-          categories={categories.map(({ label, slug }) => ({ label, slug }))}
-          places={searchPlaces}
-        />
-        <div className="home-now-shortcuts" aria-label="Szybkie wyszukiwanie">
-          <Link href="/mapa?otwarte=1&lokalizacja=moja">
-            <LocateFixed aria-hidden="true" size={17} />
-            Pomoc dostępna teraz
-          </Link>
-          <Link href="/znajdz-nocleg">
-            <Clock3 aria-hidden="true" size={17} />
-            Nocleg na dzisiaj
-          </Link>
-        </div>
       </section>
 
       <section id="kategorie" className="home-category-section" aria-labelledby="home-category-title">

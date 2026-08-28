@@ -6,10 +6,10 @@ export function NoResults({ clearHref = "/szukaj" }: { clearHref?: string }) {
       <div className="space-y-4">
         <div className="space-y-2">
           <h2 className="text-xl font-extrabold leading-tight text-foreground">
-            Nie znaleźliśmy miejsc spełniających te kryteria.
+            Nie znaleźliśmy miejsc pasujących do tego zapytania.
           </h2>
           <p className="text-base leading-7 text-muted-foreground">
-            Zmień frazę lub wyczyść filtry, aby zobaczyć inne możliwości.
+            Spróbuj zmienić wyszukiwanie albo wyczyść filtry, aby zobaczyć inne możliwości.
           </p>
         </div>
         <Link

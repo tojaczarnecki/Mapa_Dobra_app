@@ -1,7 +1,7 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { useId, useMemo, useState, type KeyboardEvent } from "react";
+import { Search, X } from "lucide-react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { getHomeSuggestions, type HomeSearchCategory } from "@/lib/home/autosuggest";
 import type { PublicSearchPlace } from "@/lib/places/search";
 
@@ -15,6 +15,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
   const suggestions = useMemo(() => getHomeSuggestions(query, categories, places), [categories, places, query]);
   const activeSuggestion = activeIndex >= 0 ? suggestions[activeIndex] : undefined;
 
@@ -39,6 +40,13 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
     }
   }
 
+  function clearQuery() {
+    setQuery("");
+    setIsOpen(false);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  }
+
   const hasSuggestions = isOpen && suggestions.length > 0;
 
   return (
@@ -52,7 +60,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             id="home-search"
             name="q"
             type="search"
-            placeholder="Czego potrzebujesz?"
+            placeholder="Np. gdzie dostanę dzisiaj jedzenie?"
             autoComplete="off"
             role="combobox"
             aria-autocomplete="list"
@@ -60,6 +68,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             aria-expanded={hasSuggestions}
             aria-activedescendant={activeSuggestion ? `${listboxId}-${activeSuggestion.id}` : undefined}
             value={query}
+            ref={inputRef}
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(-1);
@@ -68,6 +77,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             onFocus={() => setIsOpen(query.trim().length >= 2)}
             onKeyDown={handleKeyDown}
           />
+          {query ? <button type="button" className="home-search-clear" aria-label="Wyczyść wyszukiwanie" onClick={clearQuery}><X aria-hidden="true" size={19} /></button> : null}
         </div>
         {hasSuggestions ? (
           <ul id={listboxId} className="home-search-suggestions" role="listbox" aria-label="Podpowiedzi wyszukiwania">

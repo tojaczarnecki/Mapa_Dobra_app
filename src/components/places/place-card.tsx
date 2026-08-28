@@ -18,7 +18,7 @@ export function PlaceCard({ place }: { place: DemoPlace }) {
   const routeHref = directionsHref(place);
 
   return (
-    <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-3.5 shadow-[0_8px_22px_rgb(17_24_39_/_5%)] sm:p-4">
+    <article className="w-full min-w-0 max-w-full rounded-lg border border-border bg-surface p-3 sm:p-3.5">
       <div className="min-w-0 space-y-3">
         <div className="flex min-w-0 gap-3">
           <span
