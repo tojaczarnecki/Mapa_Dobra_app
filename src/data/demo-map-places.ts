@@ -2,6 +2,7 @@ import type { PlaceStatus } from "@/data/demo-places";
 import { demoAccommodations } from "@/data/demo-accommodations";
 import { demoPlaceDetails } from "@/data/demo-place-details";
 import { demoPlaces } from "@/data/demo-places";
+import type { AvailabilityFreshness } from "@/lib/accommodations/freshness";
 
 export type MapCategory =
   | "food"
@@ -22,6 +23,7 @@ type StandardMapStatus = {
 type AccommodationMapStatus = {
   kind: "accommodation";
   availabilityState: "available" | "few" | "full" | "unknown" | "stale" | "suspended";
+  freshness?: AvailabilityFreshness;
   availabilityLabel: string;
   confirmed: string;
   admissionsToday: string;

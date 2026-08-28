@@ -1,4 +1,7 @@
 export const ACCOMMODATION_FRESHNESS_LIMIT_MS = 24 * 60 * 60 * 1000;
+export const ACCOMMODATION_FRESHNESS_FRESH_LIMIT_MS = 12 * 60 * 60 * 1000;
+
+export type AvailabilityFreshness = "FRESH" | "AGING" | "STALE" | "UNKNOWN";
 
 export type StoredAvailabilityState =
   | "AVAILABLE"
@@ -7,6 +10,19 @@ export type StoredAvailabilityState =
   | "UNKNOWN"
   | "STALE"
   | "SUSPENDED";
+
+export function resolveAvailabilityFreshness(
+  _state: StoredAvailabilityState,
+  confirmedAt: Date | null,
+  now = new Date(),
+): AvailabilityFreshness {
+  if (!confirmedAt) return "UNKNOWN";
+
+  const age = now.getTime() - confirmedAt.getTime();
+  if (age > ACCOMMODATION_FRESHNESS_LIMIT_MS) return "STALE";
+  if (age > ACCOMMODATION_FRESHNESS_FRESH_LIMIT_MS) return "AGING";
+  return "FRESH";
+}
 
 export function resolveAvailabilityState(
   state: StoredAvailabilityState,

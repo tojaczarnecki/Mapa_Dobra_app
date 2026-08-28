@@ -3,6 +3,7 @@ import {
   type AccommodationAvailabilityState,
 } from "@/data/demo-accommodations";
 import type { InformationState } from "@/lib/accommodations/types";
+import type { AvailabilityFreshness } from "@/lib/accommodations/freshness";
 import { demoPlaces } from "@/data/demo-places";
 
 export type DetailTone = "positive" | "warning" | "neutral" | "unknown";
@@ -50,6 +51,7 @@ export type CapacityGroupDetails = {
 
 export type AccommodationAvailabilityDetails = {
   state: "available" | "few" | "full" | "unknown" | "stale" | "suspended";
+  freshness?: AvailabilityFreshness;
   label: string;
   confirmed: string;
   note?: string;

@@ -30,6 +30,10 @@ function compactAccommodationNote(state: MapPlace["status"]) {
     return undefined;
   }
 
+  if (state.freshness === "AGING") {
+    return "Dane warto potwierdzić telefonicznie.";
+  }
+
   switch (state.availabilityState) {
     case "few":
       return "Miejsce może szybko przestać być dostępne. Zadzwoń przed przyjazdem.";

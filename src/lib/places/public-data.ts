@@ -21,7 +21,7 @@ import {
   normalizePetPolicy,
   normalizeSobrietyPolicy,
 } from "@/lib/accommodations/types";
-import { resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
+import { resolveAvailabilityFreshness, resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
 import { evaluateCurrentOpening } from "@/lib/places/current-opening";
 import type { PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
@@ -204,18 +204,24 @@ function triRequirement(label: string, value: "YES" | "NO" | "UNKNOWN") : Detail
 function accommodationAvailability(place: PublicPlaceRecord): NonNullable<PlaceDetail["accommodation"]>["availability"] {
   const accommodation = place.accommodation!;
   const effectiveState = resolveAvailabilityState(accommodation.availabilityState, accommodation.availabilityConfirmedAt);
+  const freshness = resolveAvailabilityFreshness(accommodation.availabilityState, accommodation.availabilityConfirmedAt);
   const state = ({ AVAILABLE: "available", FEW: "few", FULL: "full", UNKNOWN: "unknown", STALE: "stale", SUSPENDED: "suspended" } as const)[effectiveState];
   const reportedFreePlaces = accommodation.capacityGroups.some((group) => group.availableBeds !== null)
     ? accommodation.capacityGroups.reduce((sum, group) => sum + (group.availableBeds ?? 0), 0)
     : undefined;
   return {
     state,
+    freshness,
     label: state === "stale"
       ? "Dane o wolnych miejscach są nieaktualne"
       : accommodation.availabilityLabel ?? ({ available: "Są wolne miejsca", few: "Niewiele miejsc", full: "Brak miejsc", unknown: "Brak aktualnych danych", stale: "Dane o wolnych miejscach są nieaktualne", suspended: "Przyjęcia czasowo wstrzymane" } as const)[state],
     confirmed: relativeAge(accommodation.availabilityConfirmedAt),
     note: state === "stale"
       ? staleAvailabilityNote(accommodation.availabilityState, reportedFreePlaces)
+      : freshness === "AGING"
+        ? "Dane warto potwierdzić telefonicznie."
+        : freshness === "UNKNOWN"
+          ? "Brak świeżego potwierdzenia dostępności."
       : accommodation.availabilityNote ?? undefined,
   };
 }
@@ -335,6 +341,7 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
     acceptedProfiles: profiles.length ? profiles : ["other"],
     availability: {
       state: accommodationState(effectiveAvailability),
+      freshness: publicAvailability.freshness,
       freePlaces: effectiveAvailability === "STALE" ? undefined : accommodation.capacityGroups.some((group) => group.availableBeds !== null) ? available : undefined,
       label: publicAvailability.label,
       confirmed: relativeAge(accommodation.availabilityConfirmedAt),
@@ -394,7 +401,7 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   };
   if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: opening.label } };
   const availability = accommodationAvailability(place);
-  return { ...base, status: { kind: "accommodation", availabilityState: availability.state, availabilityLabel: availability.label, confirmed: availability.confirmed, admissionsToday: place.accommodation.admissionHoursDescription ?? "Godziny przyjęć wymagają potwierdzenia", availabilityNote: availability.note } };
+  return { ...base, status: { kind: "accommodation", availabilityState: availability.state, freshness: availability.freshness, availabilityLabel: availability.label, confirmed: availability.confirmed, admissionsToday: place.accommodation.admissionHoursDescription ?? "Godziny przyjęć wymagają potwierdzenia", availabilityNote: availability.note } };
 }
 
 export async function getPublicSearchPlaces() {

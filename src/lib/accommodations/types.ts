@@ -26,6 +26,8 @@ export type AccommodationAvailabilityState =
   | "stale"
   | "suspended";
 
+export type AccommodationAvailabilityFreshness = "FRESH" | "AGING" | "STALE" | "UNKNOWN";
+
 export type AccommodationPetPolicy =
   | "ACCEPTED"
   | "NOT_ACCEPTED"
@@ -51,6 +53,7 @@ export type Accommodation = {
   acceptedProfiles: AccommodationProfile[];
   availability: {
     state: AccommodationAvailabilityState;
+    freshness?: AccommodationAvailabilityFreshness;
     freePlaces?: number;
     label: string;
     confirmed: string;
