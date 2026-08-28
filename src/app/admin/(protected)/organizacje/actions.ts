@@ -28,7 +28,7 @@ export async function saveOrganization(
 ): Promise<DirectoryActionState> {
   const session = await requirePermission("MANAGE_ORGANIZATIONS");
   const validation = validateOrganizationForm(formData);
-  if (!validation.ok) return { error: validation.error };
+  if (!validation.ok) return { error: validation.error, fieldErrors: validation.fieldErrors };
   const input = validation.data;
 
   try {
@@ -40,13 +40,17 @@ export async function saveOrganization(
 
       const organizations = await transaction.organization.findMany({
         where: input.id ? { id: { not: input.id } } : undefined,
-        select: { id: true, name: true },
+        select: { id: true, name: true, nip: true, regon: true, krs: true },
       });
       const identical = organizations.find((item) => compareOrganizationNames(input.name, item.name) === "same");
       if (identical) throw new Error("DUPLICATE_NAME");
       const similar = organizations.find((item) => compareOrganizationNames(input.name, item.name) === "similar");
       if (similar && formData.get("confirmSimilar") !== "yes") {
         throw new Error(`SIMILAR:${similar.name}`);
+      }
+      for (const field of ["nip", "regon", "krs"] as const) {
+        const value = input[field];
+        if (value && organizations.some((item) => item[field] === value)) throw new Error(`DUPLICATE_${field.toUpperCase()}`);
       }
 
       const values = {
@@ -55,6 +59,9 @@ export async function saveOrganization(
         phone: input.phone || null,
         email: input.email || null,
         website: input.website || null,
+        nip: input.nip || null,
+        regon: input.regon || null,
+        krs: input.krs || null,
       };
       const saved = existing
         ? await transaction.organization.update({ where: { id: existing.id }, data: values })
@@ -62,7 +69,7 @@ export async function saveOrganization(
             data: { ...values, slug: await uniqueOrganizationSlug(transaction, input.name) },
           });
       const previousValues = existing
-        ? { name: existing.name, description: existing.description, phone: existing.phone, email: existing.email, website: existing.website, active: existing.active }
+        ? { name: existing.name, description: existing.description, phone: existing.phone, email: existing.email, website: existing.website, nip: existing.nip, regon: existing.regon, krs: existing.krs, active: existing.active }
         : null;
       const newValues = { ...values, active: saved.active };
       const changedFields = Object.keys(newValues).filter((key) => (
@@ -90,6 +97,15 @@ export async function saveOrganization(
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
     if (reason === "DUPLICATE_NAME") return { error: "Organizacja o identycznej nazwie już istnieje." };
+    if (reason === "DUPLICATE_NIP") return { error: "Organizacja z tym NIP już istnieje.", fieldErrors: { nip: "Organizacja z tym NIP już istnieje." } };
+    if (reason === "DUPLICATE_REGON") return { error: "Organizacja z tym REGON już istnieje.", fieldErrors: { regon: "Organizacja z tym REGON już istnieje." } };
+    if (reason === "DUPLICATE_KRS") return { error: "Organizacja z tym KRS już istnieje.", fieldErrors: { krs: "Organizacja z tym KRS już istnieje." } };
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(" ") : String(error.meta?.target ?? "");
+      if (target.includes("nip")) return { error: "Organizacja z tym NIP już istnieje.", fieldErrors: { nip: "Organizacja z tym NIP już istnieje." } };
+      if (target.includes("regon")) return { error: "Organizacja z tym REGON już istnieje.", fieldErrors: { regon: "Organizacja z tym REGON już istnieje." } };
+      if (target.includes("krs")) return { error: "Organizacja z tym KRS już istnieje.", fieldErrors: { krs: "Organizacja z tym KRS już istnieje." } };
+    }
     if (reason.startsWith("SIMILAR:")) return { warning: `Podobna organizacja już istnieje: ${reason.slice(8)}.` };
     return { error: "Nie udało się zapisać organizacji. Spróbuj ponownie." };
   }

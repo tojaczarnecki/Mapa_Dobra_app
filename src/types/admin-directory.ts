@@ -1,5 +1,6 @@
 export type DirectoryActionState = {
   error?: string;
+  fieldErrors?: Partial<Record<"nip" | "regon" | "krs", string>>;
   success?: string;
   entityId?: string;
   warning?: string;
@@ -12,6 +13,9 @@ export type OrganizationFormValue = {
   phone: string;
   email: string;
   website: string;
+  nip: string;
+  regon: string;
+  krs: string;
 };
 
 export type CategoryFormValue = {

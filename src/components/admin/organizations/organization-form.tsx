@@ -24,8 +24,14 @@ function SubmitButton({ editing, warning }: { editing: boolean; warning: boolean
 export function OrganizationForm({ initialData }: { initialData: OrganizationFormValue }) {
   const router = useRouter();
   const [dirty, setDirty] = useState(false);
+  const [formValues, setFormValues] = useState(initialData);
   const [state, formAction] = useActionState(saveOrganization, initialState);
   useUnsavedChanges(dirty);
+
+  function updateField(field: keyof OrganizationFormValue, value: string) {
+    setFormValues((current) => ({ ...current, [field]: value }));
+    setDirty(true);
+  }
 
   useEffect(() => {
     if (state.success && state.entityId) {
@@ -34,6 +40,7 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
   }, [router, state]);
 
   const editing = Boolean(initialData.id);
+  const identifierFieldClass = (field: "nip" | "regon" | "krs") => `${fieldClass}${state.fieldErrors?.[field] ? " border-urgent focus:border-urgent focus:ring-urgent/25" : ""}`;
   return (
     <form action={formAction} className="space-y-4 pb-16" onChange={() => setDirty(true)}>
       {initialData.id ? <input type="hidden" name="id" value={initialData.id} /> : null}
@@ -42,24 +49,48 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-bold sm:col-span-2">
             <span className="mb-1.5 block">Nazwa *</span>
-            <input name="name" required maxLength={250} defaultValue={initialData.name} className={fieldClass} />
+            <input name="name" required maxLength={250} value={formValues.name} onChange={(event) => updateField("name", event.target.value)} className={fieldClass} />
           </label>
           <label className="block text-sm font-bold">
             <span className="mb-1.5 block">Telefon</span>
-            <input name="phone" type="tel" maxLength={50} defaultValue={initialData.phone} className={fieldClass} />
+            <input name="phone" type="tel" maxLength={50} value={formValues.phone} onChange={(event) => updateField("phone", event.target.value)} className={fieldClass} />
           </label>
           <label className="block text-sm font-bold">
             <span className="mb-1.5 block">E-mail</span>
-            <input name="email" type="email" maxLength={320} defaultValue={initialData.email} className={fieldClass} />
+            <input name="email" type="email" maxLength={320} value={formValues.email} onChange={(event) => updateField("email", event.target.value)} className={fieldClass} />
           </label>
           <label className="block text-sm font-bold sm:col-span-2">
             <span className="mb-1.5 block">Strona WWW</span>
-            <input name="website" type="url" maxLength={2048} placeholder="https://…" defaultValue={initialData.website} className={fieldClass} />
+            <input name="website" type="text" inputMode="url" maxLength={2048} placeholder="https://…" value={formValues.website} onChange={(event) => updateField("website", event.target.value)} className={fieldClass} />
           </label>
           <label className="block text-sm font-bold sm:col-span-2">
             <span className="mb-1.5 block">Opis</span>
-            <textarea name="description" maxLength={2000} rows={5} defaultValue={initialData.description} className={`${fieldClass} resize-y`} />
+            <textarea name="description" maxLength={2000} rows={5} value={formValues.description} onChange={(event) => updateField("description", event.target.value)} className={`${fieldClass} resize-y`} />
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Dane rejestrowe</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {(["nip", "regon", "krs"] as const).map((field) => (
+            <label key={field} className="block text-sm font-bold">
+              <span className="mb-1.5 block">{field.toUpperCase()}</span>
+              <input
+                id={`organization-${field}`}
+                name={field}
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={20}
+                value={formValues[field]}
+                onChange={(event) => updateField(field, event.target.value)}
+                className={identifierFieldClass(field)}
+                aria-invalid={state.fieldErrors?.[field] ? "true" : undefined}
+                aria-describedby={state.fieldErrors?.[field] ? `organization-${field}-error` : undefined}
+              />
+              {state.fieldErrors?.[field] ? <p id={`organization-${field}-error`} className="mt-1.5 text-xs font-semibold text-[#8c2d0c]">{state.fieldErrors[field]}</p> : null}
+            </label>
+          ))}
         </div>
       </section>
 

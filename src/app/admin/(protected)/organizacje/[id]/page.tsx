@@ -64,6 +64,12 @@ export default async function OrganizationDetailPage({ params }: { params: Promi
         ]} />
       </DetailSection>
 
+      {(organization.nip || organization.regon || organization.krs) ? <DetailSection title="Dane rejestrowe"><InfoRows rows={[
+        ...(organization.nip ? [{ label: "NIP", value: organization.nip }] : []),
+        ...(organization.regon ? [{ label: "REGON", value: organization.regon }] : []),
+        ...(organization.krs ? [{ label: "KRS", value: organization.krs }] : []),
+      ]} /></DetailSection> : null}
+
       <DetailSection title="Prowadzone miejsca">
         {organization.places.length ? <ul className="divide-y divide-border">{organization.places.map((place) => (
           <li key={place.id} className="grid gap-2 py-3 first:pt-0 last:pb-0 lg:grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_auto] lg:items-center">
