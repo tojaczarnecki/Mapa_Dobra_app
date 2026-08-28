@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
 
 const batchStatusLabels = {
+  PROCESSING: "W trakcie zapisu",
   STAGED: "Przygotowana",
+  FAILED: "Zapis nieudany",
   IMPORTED: "Zaimportowana",
   COMPLETED_WITH_REVIEW: "Import zakończony - wymaga decyzji",
 } as const;

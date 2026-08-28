@@ -1,0 +1,2 @@
+ALTER TYPE "ImportBatchStatus" ADD VALUE 'PROCESSING';
+ALTER TYPE "ImportBatchStatus" ADD VALUE 'FAILED';

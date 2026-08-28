@@ -319,7 +319,9 @@ enum ChangeOrigin {
 }
 
 enum ImportBatchStatus {
+  PROCESSING
   STAGED
+  FAILED
   IMPORTED
   COMPLETED_WITH_REVIEW
 }
