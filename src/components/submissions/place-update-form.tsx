@@ -283,7 +283,7 @@ export function PlaceUpdateForm({
           )}
         </div>
 
-        <FormSection title="Której informacji dotyczy zgłoszenie?" description="Możesz wybrać kilka." compact className="py-4 sm:py-6">
+        <FormSection title="Czego dotyczy problem?" description="Wybierz jedną lub kilka informacji." compact className="py-4 sm:py-6">
           <fieldset aria-describedby={errors.reportTypes ? "update-report-types-error" : undefined}>
             <legend className="sr-only">Typ informacji</legend>
             <div className="space-y-3">

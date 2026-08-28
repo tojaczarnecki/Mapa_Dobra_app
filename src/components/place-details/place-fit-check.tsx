@@ -34,7 +34,7 @@ export function PlaceFitCheck({
     <details className="mt-3 rounded-lg border border-border bg-surface-muted/45">
       <summary className="touch-target flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-extrabold text-brand-strong">
         <ShieldQuestion aria-hidden="true" size={18} />
-        Sprawdź swoją sytuację
+        Sprawdź, czy możesz skorzystać
       </summary>
 
       <div className="border-t border-border px-3 pb-3 pt-3">
@@ -71,7 +71,7 @@ export function PlaceFitCheck({
               <div className="flex items-start gap-2">
                 <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} />
                 <div>
-                  <p className="text-sm font-extrabold text-foreground">Wybrane warunki pasują do danych tego miejsca.</p>
+                  <p className="text-sm font-extrabold text-foreground">Na podstawie dostępnych informacji możesz skorzystać z tej pomocy.</p>
                   <p className="mt-0.5 text-xs font-semibold leading-5 text-muted-foreground">To nie jest gwarancja przyjęcia, ale nie widzimy sprzeczności w podanych informacjach.</p>
                 </div>
               </div>
@@ -80,7 +80,7 @@ export function PlaceFitCheck({
                 <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0 text-[#b7791f]" size={18} />
                 <div className="min-w-0">
                   <p className="text-sm font-extrabold text-foreground">
-                    {conflicts.length > 0 ? "To miejsce może mieć warunek, który Cię dotyczy." : "Nie mamy pełnych danych dla wybranej sytuacji."}
+                    {conflicts.length > 0 ? "Możesz skorzystać, jeśli spełniasz dodatkowy warunek." : "Nie mamy wystarczających danych, żeby odpowiedzieć jednoznacznie."}
                   </p>
                   {conflicts.length > 0 ? (
                     <ul className="mt-1 grid gap-1 text-xs font-semibold leading-5 text-muted-foreground">

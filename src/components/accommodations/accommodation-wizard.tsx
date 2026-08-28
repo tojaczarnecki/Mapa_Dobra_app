@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Accessibility,
   Baby,
-  BedDouble,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -119,7 +118,7 @@ const profileLabel = Object.fromEntries(
 
 function optionClasses(isSelected: boolean, compact = false) {
   return [
-    "group flex w-full min-w-0 items-center gap-3 rounded-xl border bg-surface text-left font-extrabold text-foreground shadow-[0_8px_22px_rgb(17_24_39_/_5%)] transition hover:border-brand hover:bg-brand-soft focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
+    "group flex w-full min-w-0 items-center gap-3 rounded-lg border bg-surface text-left font-extrabold text-foreground transition hover:border-brand hover:bg-brand-soft focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
     compact ? "min-h-12 px-3 py-2 text-sm" : "min-h-16 px-4 py-3 text-base",
     isSelected
       ? "border-brand bg-brand-soft"
@@ -200,14 +199,13 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
             <div className="min-w-0 space-y-4">
               <div className="space-y-2">
                 <p className="text-sm font-extrabold text-brand-strong">
-                  Nocleg na dzisiaj
+                  Nocleg na dziś
                 </p>
                 <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">
                   Znajdź miejsce, które może Cię przyjąć.
                 </h1>
                 <p className="text-base font-semibold leading-7 text-muted-foreground">
-                  Odpowiedz na kilka prostych pytań. Nie zapisujemy tych odpowiedzi
-                  jako profilu.
+                  Odpowiedz tylko na pytania, które pomagają znaleźć właściwe miejsce.
                 </p>
               </div>
 
@@ -424,31 +422,12 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-            <div className="flex items-start gap-3">
-              <span
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
-                aria-hidden="true"
-              >
-                <BedDouble size={22} strokeWidth={2.2} />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-lg font-extrabold text-foreground">
-                  Sprawdzimy najważniejsze warunki
-                </h2>
-                <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-                  Grupa, przyjęcia dzisiaj, wolne miejsca, świeżość informacji i
-                  wymagania placówki są ważniejsze niż sama odległość.
-                </p>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section className="min-w-0 space-y-4" aria-live="polite">
           {showResults ? (
             <>
-              <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+              <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
                 <div className="min-w-0 space-y-3">
                   <div>
                     <p className="text-sm font-extrabold text-brand-strong">

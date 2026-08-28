@@ -139,7 +139,7 @@ export function AccommodationCard({
   const rules = [registration, referral, document, sobriety, pet, accessibility, ...(care ? [care] : [])];
 
   return (
-    <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-3.5 shadow-[0_8px_22px_rgb(17_24_39_/_5%)] sm:p-4">
+    <article className="w-full min-w-0 max-w-full rounded-lg border border-border bg-surface p-3.5 sm:p-4">
       <div className="min-w-0 space-y-3">
         <div className="min-w-0">
           {isBestMatch ? (
@@ -153,6 +153,7 @@ export function AccommodationCard({
           <p className="mt-1 text-sm font-bold leading-5 text-muted-foreground">
             {accommodation.typeLabel} • {accommodation.audienceLabel}
           </p>
+          {isBestMatch ? <p className="mt-2 text-sm font-extrabold text-brand-strong">Pasuje do wskazanych potrzeb.</p> : null}
         </div>
 
         <div className={["flex min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2", availabilityClass].join(" ")}>
