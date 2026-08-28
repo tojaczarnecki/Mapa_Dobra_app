@@ -1,4 +1,5 @@
-const STATIC_CACHE = "mapa-dobra-static-v1";
+const STATIC_CACHE_PREFIX = "mapa-dobra-static-";
+const STATIC_CACHE = `${STATIC_CACHE_PREFIX}v2`;
 const PRECACHE = [
   "/offline",
   "/brand/mapa-dobra-logo.svg",
@@ -14,7 +15,11 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE).map((key) => caches.delete(key)))),
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key.startsWith(STATIC_CACHE_PREFIX) && key !== STATIC_CACHE)
+        .map((key) => caches.delete(key)),
+    )),
   );
   self.clients.claim();
 });

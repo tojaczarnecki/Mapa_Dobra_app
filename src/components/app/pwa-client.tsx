@@ -34,7 +34,19 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   const [dismissed, setDismissed] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(DISMISSED_KEY) === "1");
 
   useEffect(() => {
-    const updateConnection = () => setOffline(!navigator.onLine);
+    let workerRegistration: ServiceWorkerRegistration | undefined;
+
+    const updateServiceWorker = () => {
+      if (!enabled || !navigator.onLine || document.visibilityState !== "visible" || !workerRegistration) return;
+      void workerRegistration.update().catch(() => {
+        // A failed update check must never block the public application.
+      });
+    };
+    const updateConnection = () => {
+      const isOffline = !navigator.onLine;
+      setOffline(isOffline);
+      if (!isOffline) updateServiceWorker();
+    };
     const updateStandalone = () => setStandalone(isStandalone());
     const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
@@ -54,6 +66,9 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       if (isIosSafari()) setIosInstructions(true);
       else setShowInstall(true);
     };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") updateServiceWorker();
+    };
 
     updateConnection();
     updateStandalone();
@@ -62,11 +77,17 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("mapa-dobra:open-install", onOpenInstall);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     if (enabled && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-        // The application remains usable online when registration is unavailable.
-      });
+      navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .then((registration) => {
+          workerRegistration = registration;
+          updateServiceWorker();
+        })
+        .catch(() => {
+          // The application remains usable online when registration is unavailable.
+        });
     }
 
     return () => {
@@ -75,6 +96,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("mapa-dobra:open-install", onOpenInstall);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [enabled]);
 
