@@ -31,7 +31,7 @@ export function TextField({
         <input
           id={inputId}
           className={[
-            "touch-target w-full rounded-lg border border-border bg-white px-4 py-3 text-base text-foreground shadow-sm transition placeholder:text-slate-500 hover:border-slate-400 focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/35",
+            "touch-target w-full rounded-lg border border-border bg-white px-4 py-3 text-base text-foreground shadow-sm transition placeholder:text-slate-500 hover:border-slate-400 focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/35 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:opacity-70",
             icon ? "pl-12" : "",
             className,
           ].join(" ")}

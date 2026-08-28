@@ -2,16 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUp, Check, Download, Smartphone } from "lucide-react";
+import { ArrowUp, Download, Smartphone } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 const findLinks = [
-  { href: "/szukaj", label: "Szukaj pomocy" },
+  { href: "/szukaj", label: "Znajdź pomoc" },
   { href: "/mapa", label: "Mapa" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
-  { href: "/ulubione", label: "Ulubione" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś" },
   { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra" },
 ];
 
 const contributeLinks = [
@@ -97,8 +97,8 @@ export function SiteFooter() {
           {findLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
         </nav>
 
-        <nav aria-label="Zaangażuj się" className="site-footer-group">
-          <h2>Zaangażuj się</h2>
+        <nav aria-label="Współtwórz" className="site-footer-group">
+          <h2>Współtwórz</h2>
           {contributeLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
         </nav>
 
@@ -116,11 +116,6 @@ export function SiteFooter() {
               <p>Miej pomoc zawsze pod ręką. Bez opłat, bez App Store i Google Play.</p>
             </div>
           </div>
-          <ul className="site-footer-install-benefits" aria-label="Korzyści instalacji">
-            {["Bezpłatna", "Szybki dostęp z ekranu głównego", "Działa jak aplikacja", "Nie musisz jej szukać w przeglądarce"].map((benefit) => (
-              <li key={benefit}><Check aria-hidden="true" size={16} />{benefit}</li>
-            ))}
-          </ul>
           {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
             <Download aria-hidden="true" size={17} />
             Zainstaluj bezpłatnie
@@ -133,9 +128,10 @@ export function SiteFooter() {
           <span>© 2026 Mapa Dobra</span>
           <div className="site-footer-social" aria-label="Media społecznościowe">
             {socialProfiles.map(({ platform, href }) => {
+              if (!href) return null;
               const label = `Mapa Dobra na ${platform}`;
               const content = <SocialIcon platform={platform} />;
-              return href ? <a key={platform} href={href} className="site-footer-social-item" aria-label={label} title={label} target="_blank" rel="noopener noreferrer">{content}</a> : <span key={platform} className="site-footer-social-item site-footer-social-item-disabled" role="img" aria-label={label} title={label}>{content}</span>;
+              return <a key={platform} href={href} className="site-footer-social-item" aria-label={label} title={label} target="_blank" rel="noopener noreferrer">{content}</a>;
             })}
           </div>
           <button type="button" className="site-footer-top" onClick={scrollToTop}>

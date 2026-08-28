@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { PwaClient } from "@/components/app/pwa-client";
@@ -8,6 +9,13 @@ import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import "./globals.css";
 import "./compact-institutional.css";
+
+const sourceSans = Source_Sans_3({
+  subsets: ["latin-ext"],
+  display: "swap",
+  variable: "--font-source-sans-3",
+  weight: ["400", "600", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -37,7 +45,7 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="pl">
-      <body>
+      <body className={sourceSans.variable}>
         <div className="min-h-screen bg-background text-foreground">
           <a className="skip-link" href="#main-content">
             Przejdź do treści

@@ -91,7 +91,7 @@ export function SubmissionDraftEditor({
           <form action={rebaseSubmissionDraft} className="mt-3">
             <input type="hidden" name="draftId" value={draft.id} />
             <input type="hidden" name="items" value={payload} />
-            <button type="submit" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[#8c2d0c]/35 bg-white px-4 py-2 text-sm font-bold text-[#8c2d0c] hover:bg-[#fff9ea]">
+            <button type="submit" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[#8c2d0c]/35 bg-white px-4 py-2 text-sm font-bold text-[#8c2d0c] hover:bg-surface-muted">
               <RefreshCw aria-hidden="true" size={17} /> Zaktualizuj dane bazowe (rebase)
             </button>
           </form>

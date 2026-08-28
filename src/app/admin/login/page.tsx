@@ -12,7 +12,7 @@ export default async function AdminLoginPage() {
   if (session) redirect("/admin");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f5ef] px-5 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-background px-5 py-10">
       <section className="w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-[0_18px_45px_rgb(29_29_27_/_8%)] sm:p-8">
         <Image
           src="/brand/mapa-dobra-logo.svg"

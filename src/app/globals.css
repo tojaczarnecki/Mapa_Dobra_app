@@ -1,22 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff9ea;
-  --foreground: #1d1d1b;
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f7fafb;
+  --color-text: #18364d;
+  --color-text-secondary: #52606d;
+  --color-border: #e5e5e5;
+  --color-primary: #13ad87;
+  --color-primary-hover: #0f766e;
+  --color-positive: #0f766e;
+  --color-warning: #d79a2b;
+  --color-danger: #b42318;
+  --color-unknown: #667085;
+  --color-focus: #0f766e;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --radius-small: 0.5rem;
+  --radius-medium: 0.75rem;
+  --radius-large: 1rem;
+  --layer-content: 0;
+  --layer-sticky: 20;
+  --layer-header: 30;
+  --layer-bottom-nav: 40;
+  --layer-sheet: 45;
+  --layer-overlay: 50;
+  --layer-modal: 60;
+  --background: var(--color-background);
+  --foreground: var(--color-text);
   --surface: #ffffff;
-  --surface-muted: #f2ead8;
-  --muted-foreground: #4d4a43;
-  --border: #ded5c1;
-  --brand: #13ad87;
-  --brand-strong: #0f766e;
+  --surface-muted: var(--color-surface-subtle);
+  --muted-foreground: var(--color-text-secondary);
+  --border: var(--color-border);
+  --brand: var(--color-primary);
+  --brand-strong: var(--color-primary-hover);
   --brand-soft: #e4f7f2;
   --urgent: #e9521a;
   --urgent-soft: #fff1e9;
   --urgent-border: #e9521a;
-  --focus: #0f766e;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
+  --focus: var(--color-focus);
+  --radius-sm: var(--radius-small);
+  --radius-md: var(--radius-medium);
+  --radius-lg: var(--radius-large);
   --home-background: #ffffff;
   --home-surface: #ffffff;
   --home-text: #17212b;
@@ -40,7 +70,7 @@
   --color-urgent: var(--urgent);
   --color-urgent-soft: var(--urgent-soft);
   --color-urgent-border: var(--urgent-border);
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-source-sans-3), system-ui, sans-serif;
 }
 
 * {
@@ -55,7 +85,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-source-sans-3), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   text-rendering: optimizeLegibility;
 }
 
@@ -65,10 +95,6 @@ body:has(.home-page) {
 
 body:has(.home-page) > div {
   background: var(--home-background);
-}
-
-body:has(.home-page) {
-  font-family: "Source Sans 3", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a,
@@ -1005,7 +1031,7 @@ input {
   padding: 0.25rem 0.5rem max(0.25rem, env(safe-area-inset-bottom));
   position: fixed;
   right: 0;
-  z-index: 40;
+  z-index: var(--layer-bottom-nav);
 }
 
 .mobile-bottom-nav-inner {
@@ -1063,7 +1089,7 @@ input {
 .mobile-more-layer {
   inset: 0;
   position: fixed;
-  z-index: 45;
+  z-index: var(--layer-sheet);
 }
 
 .mobile-more-backdrop {
@@ -1134,6 +1160,16 @@ input {
   margin-top: 0.5rem;
 }
 
+.mobile-more-group-title {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
+  padding: 0.9rem 0 0.3rem;
+  text-transform: uppercase;
+}
+
 .mobile-more-links a {
   align-items: center;
   border-bottom: 1px solid #e5e5e5;
@@ -1144,6 +1180,24 @@ input {
   justify-content: space-between;
   min-height: 3.25rem;
   text-decoration: none;
+}
+
+.mobile-more-link-label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.65rem;
+}
+
+.mobile-more-link-label svg {
+  color: var(--color-primary-hover);
+}
+
+.mobile-more-link-prominent {
+  color: #805712 !important;
+}
+
+.mobile-more-link-prominent .mobile-more-link-label svg {
+  color: var(--color-warning);
 }
 
 .mobile-more-links a:hover,

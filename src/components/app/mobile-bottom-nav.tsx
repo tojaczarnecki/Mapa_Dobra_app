@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, HeartHandshake, Home, Map, Menu, Smartphone, X } from "lucide-react";
+import { BedDouble, Bell, BookOpen, Bookmark, ChevronRight, Flag, HeartHandshake, Home, LifeBuoy, Map, MapPinPlus, Menu, Smartphone, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -12,13 +12,21 @@ const primaryItems = [
 ];
 
 const moreItems = [
-  { href: "/ulubione", label: "Ulubione" },
-  { href: "/#kategorie", label: "Kategorie" },
-  { href: "/znajdz-nocleg", label: "Nocleg na dzisiaj" },
-  { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
-  { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce" },
-  { href: "/zglos-zmiane", label: "Zgłoś zmianę" },
-];
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś", icon: BedDouble, group: "quick" },
+  { href: "/uruchom-pomoc", label: "Uruchom pomoc", icon: LifeBuoy, group: "quick", prominent: true },
+  { href: "/zapisane", label: "Zapisane miejsca", icon: Bookmark, group: "personal" },
+  { href: "/ustawienia/powiadomienia", label: "Powiadomienia", icon: Bell, group: "personal" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra", icon: BookOpen, group: "learn" },
+  { href: "/zglos-miejsce", label: "Zgłoś nowe miejsce", icon: MapPinPlus, group: "engage" },
+  { href: "/zglos-zmiane", label: "Zgłoś zmianę", icon: Flag, group: "engage" },
+] as const;
+
+const moreGroupLabels = {
+  quick: "Szybko",
+  personal: "Dla mnie",
+  learn: "Dowiedz się",
+  engage: "Współtwórz",
+} as const;
 
 function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches ||
@@ -142,12 +150,19 @@ export function MobileBottomNav() {
               </button>
             </div>
             <nav aria-label="Więcej opcji" className="mobile-more-links">
-              {moreItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={closeMore}>
-                  <span>{item.label}</span>
-                  <ChevronRight aria-hidden="true" size={19} />
-                </Link>
-              ))}
+              {moreItems.map((item, index) => {
+                const Icon = item.icon;
+                const showGroup = index === 0 || item.group !== moreItems[index - 1]?.group;
+                return (
+                  <div key={item.href}>
+                    {showGroup ? <h3 className="mobile-more-group-title">{moreGroupLabels[item.group]}</h3> : null}
+                    <Link className={"prominent" in item && item.prominent ? "mobile-more-link-prominent" : undefined} href={item.href} onClick={closeMore}>
+                      <span className="mobile-more-link-label"><Icon aria-hidden="true" size={19} /><span>{item.label}</span></span>
+                      <ChevronRight aria-hidden="true" size={19} />
+                    </Link>
+                  </div>
+                );
+              })}
             </nav>
             {installAvailable ? (
               <button

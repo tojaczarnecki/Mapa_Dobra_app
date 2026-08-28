@@ -205,7 +205,7 @@ function FormSectionNavigation() {
   }, [activeSection]);
 
   return (
-    <nav aria-label="Sekcje formularza" className="sticky top-0 z-20 self-start overflow-x-auto border-y border-border bg-[#f7f5ef]/95 py-2 backdrop-blur xl:top-4 xl:overflow-visible xl:rounded-lg xl:border xl:bg-white xl:p-2">
+    <nav aria-label="Sekcje formularza" className="sticky top-0 z-20 self-start overflow-x-auto border-y border-border bg-background/95 py-2 backdrop-blur xl:top-4 xl:overflow-visible xl:rounded-lg xl:border xl:bg-white xl:p-2">
       <ul className="flex w-max gap-1 xl:w-auto xl:flex-col">
         {formSections.map((section) => (
           <li key={section.id}>
@@ -719,7 +719,7 @@ export function PlaceForm({
       {state.error ? <p role="alert" className="rounded-lg border border-urgent/40 bg-urgent-soft px-4 py-3 text-sm font-semibold">{state.error}</p> : null}
         </div>
       </div>
-      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-[#f7f5ef]/95 px-1 py-3 backdrop-blur">
+      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-background/95 px-1 py-3 backdrop-blur">
         <p className="text-xs text-muted-foreground">Zmiany zostaną zapisane dopiero po użyciu przycisku.</p>
         <SubmitButton isEditing={isEditing} />
       </div>

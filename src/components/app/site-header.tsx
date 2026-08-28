@@ -6,10 +6,10 @@ import { Download } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/szukaj", label: "Szukaj" },
+  { href: "/szukaj", label: "Znajdź pomoc" },
   { href: "/mapa", label: "Mapa" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
-  { href: "/ulubione", label: "Ulubione" },
+  { href: "/znajdz-nocleg", label: "Nocleg na dziś" },
+  { href: "/encyklopedia", label: "Encyklopedia Dobra" },
 ];
 
 export function SiteHeader() {

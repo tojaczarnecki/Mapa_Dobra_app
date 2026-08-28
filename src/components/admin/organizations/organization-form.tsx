@@ -74,7 +74,7 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
       ) : null}
       {state.error ? <p role="alert" className="rounded-lg border border-urgent/35 bg-urgent-soft px-4 py-3 text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : null}
 
-      <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-[#f7f5ef]/95 py-3 backdrop-blur">
+      <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background/95 py-3 backdrop-blur">
         <SubmitButton editing={editing} warning={Boolean(state.warning)} />
       </div>
     </form>
