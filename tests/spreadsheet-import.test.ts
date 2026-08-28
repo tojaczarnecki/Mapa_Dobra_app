@@ -85,6 +85,16 @@ test("CSV delimiter detection ignores delimiters inside quoted fields", () => {
   assert.deepEqual(parseCsv('Name,Description\nPlace,"A; B; C"').rows[0], ["Place", "A; B; C"]);
 });
 
+test("CSV preserves logical source row numbers around blank records and multiline cells", () => {
+  const parsed = parseCsv("\n\nNazwa;Adres\nPlace A;Adres A\n\nPlace B;Adres B\n");
+  assert.equal(parsed.headerRowNumber, 3);
+  assert.deepEqual(parsed.rowNumbers, [4, 6]);
+  const multiline = parseCsv('Nazwa,Opis\nPlace,"Pierwsza\nDruga"\nKolejne,"Tekst"');
+  assert.equal(multiline.headerRowNumber, 1);
+  assert.deepEqual(multiline.rowNumbers, [2, 3]);
+  assert.equal(multiline.rows[0]?.[1], "Pierwsza\nDruga");
+});
+
 test("CSV pads short rows and rejects malformed structure", () => {
   assert.deepEqual(parseCsv("A,B,C\n1,2").rows, [["1", "2", ""]]);
   expectCode(() => parseCsv("A,B\n1,2,3"), "TOO_MANY_COLUMNS");
@@ -109,6 +119,14 @@ test("XLSX reads sheets, shared strings, inline strings, numbers and empty cells
   assert.deepEqual(parseSelectedSheet(parsed, 0).rows[0], ["Łódź", "00123", "Tekst"]);
   assert.equal(parseSelectedSheet(parsed, 0).rows[1][1], "");
   assert.equal(parseSelectedSheet(parsed, 1).rows[0][0], "Arkusz");
+});
+
+test("XLSX preserves worksheet row numbers when blank rows are skipped", () => {
+  const files = xlsxFiles();
+  files["xl/worksheets/sheet1.xml"] = '<worksheet><sheetData><row r="3"><c r="A3" t="inlineStr"><is><t>Nazwa</t></is></c><c r="B3" t="inlineStr"><is><t>Adres</t></is></c></row><row r="4"><c r="A4" t="inlineStr"><is><t>Place A</t></is></c><c r="B4" t="inlineStr"><is><t>Adres A</t></is></c></row><row r="5"></row><row r="6"><c r="A6" t="inlineStr"><is><t>Place B</t></is></c><c r="B6" t="inlineStr"><is><t>Adres B</t></is></c></row></sheetData></worksheet>';
+  const parsed = parseSelectedSheet(parseXlsx(zip(files)), 0);
+  assert.equal(parsed.headerRowNumber, 3);
+  assert.deepEqual(parsed.rowNumbers, [4, 6]);
 });
 
 test("XLSX preserves sparse cell positions and columns after Z", () => {

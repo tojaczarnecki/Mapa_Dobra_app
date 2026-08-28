@@ -38,6 +38,8 @@ export type ParsedSheet = {
   sheetName: string;
   headers: string[];
   rows: SpreadsheetRow[];
+  headerRowNumber: number;
+  rowNumbers: number[];
 };
 export type ParsedSpreadsheet = {
   format: "CSV" | "XLSX";
@@ -62,14 +64,19 @@ function isEmptyRow(row: string[]): boolean {
   return row.every((cell) => cell === "");
 }
 
-function validateTable(sheetName: string, rawRows: string[][], presentRows?: Set<number>[]): ParsedSheet {
-  const rows = rawRows.map((row) => Array.from({ length: row.length }, (_, index) => assertCellLength(row[index] ?? ""))).filter((row) => !isEmptyRow(row));
+function validateTable(sheetName: string, rawRows: string[][], sourceRowNumbers: number[], presentRows?: Set<number>[]): ParsedSheet {
+  const rowsWithNumbers = rawRows.map((row, index) => ({
+    row: Array.from({ length: row.length }, (_, columnIndex) => assertCellLength(row[columnIndex] ?? "")),
+    rowNumber: sourceRowNumbers[index] ?? index + 1,
+    present: presentRows?.[index],
+  })).filter(({ row }) => !isEmptyRow(row));
+  const rows = rowsWithNumbers.map(({ row }) => row);
   if (!rows.length) fail("EMPTY_SHEET");
 
   const headers = rows[0];
   if (headers.length === 0) fail("INVALID_HEADERS");
   headers.forEach((header, index) => {
-    if (!header && presentRows?.[0]?.has(index) !== false) fail("INVALID_HEADERS");
+    if (!header && rowsWithNumbers[0]?.present?.has(index) !== false) fail("INVALID_HEADERS");
   });
   const seen = new Set<string>();
   for (const header of headers) {
@@ -86,7 +93,13 @@ function validateTable(sheetName: string, rawRows: string[][], presentRows?: Set
     if (row.length > headers.length) fail("TOO_MANY_COLUMNS");
     return headers.map((_, index) => row[index] ?? "");
   });
-  return { sheetName, headers, rows: normalizedRows };
+  return {
+    sheetName,
+    headers,
+    rows: normalizedRows,
+    headerRowNumber: rowsWithNumbers[0]?.rowNumber ?? 1,
+    rowNumbers: rowsWithNumbers.slice(1).map(({ rowNumber }) => rowNumber),
+  };
 }
 
 function firstRecordDelimiter(input: string): string {
@@ -101,7 +114,9 @@ function firstRecordDelimiter(input: string): string {
         quoted = !quoted;
       }
     } else if (!quoted && (char === "\n" || char === "\r")) {
-      break;
+      if (record.replace(/^\uFEFF/, "").trim()) break;
+      record = "";
+      if (char === "\r" && input[index + 1] === "\n") index += 1;
     } else {
       record += char;
     }
@@ -114,8 +129,11 @@ function firstRecordDelimiter(input: string): string {
   return counts.sort((a, b) => b.count - a.count || [",", ";", "\t"].indexOf(a.delimiter) - [",", ";", "\t"].indexOf(b.delimiter))[0].delimiter;
 }
 
-function parseCsvRecords(input: string, delimiter: string): string[][] {
-  const rows: string[][] = [];
+type CsvRecord = { row: string[]; rowNumber: number };
+
+function parseCsvRecords(input: string, delimiter: string): CsvRecord[] {
+  const rows: CsvRecord[] = [];
+  let logicalRowNumber = 1;
   let row: string[] = [];
   let cell = "";
   let quoted = false;
@@ -140,7 +158,8 @@ function parseCsvRecords(input: string, delimiter: string): string[][] {
         afterQuote = false;
       } else if (char === "\r" || char === "\n") {
         row.push(cell);
-        rows.push(row);
+        rows.push({ row, rowNumber: logicalRowNumber });
+        logicalRowNumber += 1;
         row = [];
         cell = "";
         afterQuote = false;
@@ -157,7 +176,8 @@ function parseCsvRecords(input: string, delimiter: string): string[][] {
       cell = "";
     } else if (char === "\r" || char === "\n") {
       row.push(cell);
-      rows.push(row);
+      rows.push({ row, rowNumber: logicalRowNumber });
+      logicalRowNumber += 1;
       row = [];
       cell = "";
       if (char === "\r" && input[index + 1] === "\n") index += 1;
@@ -168,14 +188,15 @@ function parseCsvRecords(input: string, delimiter: string): string[][] {
   if (quoted) fail("INVALID_CSV");
   if (row.length || cell.length || afterQuote) {
     row.push(cell);
-    rows.push(row);
+    rows.push({ row, rowNumber: logicalRowNumber });
   }
   return rows;
 }
 
 export function parseCsv(input: string): ParsedSheet {
   const delimiter = firstRecordDelimiter(input);
-  return validateTable("CSV", parseCsvRecords(input, delimiter));
+  const records = parseCsvRecords(input, delimiter);
+  return validateTable("CSV", records.map(({ row }) => row), records.map(({ rowNumber }) => rowNumber));
 }
 
 function ensureRange(buffer: Buffer, offset: number, size: number): void {
@@ -263,13 +284,18 @@ function sharedStrings(xml: string): string[] {
   );
 }
 
-function parseXlsxRows(xml: string, shared: string[]): { rows: string[][]; presentRows: Set<number>[] } {
+function parseXlsxRows(xml: string, shared: string[]): { rows: string[][]; rowNumbers: number[]; presentRows: Set<number>[] } {
   const rows: string[][] = [];
+  const rowNumbers: number[] = [];
   const presentRows: Set<number>[] = [];
-  for (const rowMatch of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+  let fallbackRowNumber = 0;
+  for (const rowMatch of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+    const explicitRowNumber = Number(xmlAttribute(rowMatch[1], "r"));
+    const rowNumber = Number.isInteger(explicitRowNumber) && explicitRowNumber > 0 ? explicitRowNumber : fallbackRowNumber + 1;
+    fallbackRowNumber = rowNumber;
     const cells: string[] = [];
     const present = new Set<number>();
-    for (const cellMatch of rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+    for (const cellMatch of rowMatch[2].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
       const attributes = cellMatch[1];
       const body = cellMatch[2];
       const reference = xmlAttribute(attributes, "r")?.match(/^([A-Z]+)\d+$/)?.[1];
@@ -288,10 +314,11 @@ function parseXlsxRows(xml: string, shared: string[]): { rows: string[][]; prese
     }
     if (!isEmptyRow(cells)) {
       rows.push(cells);
+      rowNumbers.push(rowNumber);
       presentRows.push(present);
     }
   }
-  return { rows, presentRows };
+  return { rows, rowNumbers, presentRows };
 }
 
 function resolveSheetPath(target: string): string {
@@ -320,7 +347,7 @@ export function parseXlsx(buffer: Buffer): ParsedSpreadsheet {
     const sheetXml = sheetPath ? files.get(sheetPath)?.toString("utf8") : undefined;
     if (!name || !sheetXml || /<!DOCTYPE|<!ENTITY/i.test(sheetXml)) fail("INVALID_XLSX");
     const sheetRows = parseXlsxRows(sheetXml, shared);
-    parsedSheets.push(validateTable(name, sheetRows.rows, sheetRows.presentRows));
+    parsedSheets.push(validateTable(name, sheetRows.rows, sheetRows.rowNumbers, sheetRows.presentRows));
   }
   if (!parsedSheets.length) fail("NO_SHEETS");
   return {
