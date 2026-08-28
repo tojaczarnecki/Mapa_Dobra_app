@@ -12,6 +12,10 @@ type GeoapifyFeature = {
     postcode?: string;
     city?: string;
     district?: string;
+    city_district?: string;
+    suburb?: string;
+    quarter?: string;
+    neighbourhood?: string;
     lat?: number;
     lon?: number;
     country_code?: string;
@@ -39,6 +43,17 @@ export function buildGeoapifyAutocompleteUrl(query: string, apiKey: string) {
   return url;
 }
 
+function isAdministrativeDistrict(value: string) {
+  return /^(?:gmina|powiat|wojew[oó]dztwo)\b/iu.test(value.trim());
+}
+
+export function normalizeGeoapifyDistrict(properties: GeoapifyFeature["properties"]) {
+  const candidates = [properties?.city_district, properties?.suburb, properties?.quarter, properties?.neighbourhood, properties?.district];
+  return candidates
+    .map((value) => value?.trim() || null)
+    .find((value) => value && !isAdministrativeDistrict(value)) ?? null;
+}
+
 export function normalizeGeoapifyFeatures(value: unknown): GeocodingSuggestion[] {
   if (!value || typeof value !== "object" || !("features" in value) || !Array.isArray(value.features)) return [];
 
@@ -56,7 +71,7 @@ export function normalizeGeoapifyFeatures(value: unknown): GeocodingSuggestion[]
       latitude,
       longitude,
       city: properties?.city?.trim() || null,
-      district: properties?.district?.trim() || null,
+      district: normalizeGeoapifyDistrict(properties),
       importance: null,
       road: properties?.street?.trim() || null,
       houseNumber: properties?.housenumber?.trim() || null,

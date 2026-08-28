@@ -4,6 +4,7 @@ import {
   autocompleteQueryIsEligible,
   buildGeoapifyAutocompleteUrl,
   geoapifyApiKey,
+  normalizeGeoapifyDistrict,
   normalizeGeoapifyFeatures,
   rankAutocompleteSuggestions,
 } from "../src/lib/geocoding/autocomplete.ts";
@@ -26,6 +27,12 @@ test("Geoapify results are normalized, capped, and preserve Polish characters", 
   assert.equal(suggestions.length, 7);
   assert.equal(suggestions[0].road, "Żółta");
   assert.equal(suggestions[0].city, "Łódź");
+});
+
+test("Geoapify prefers a local district over an administrative municipality", () => {
+  assert.equal(normalizeGeoapifyDistrict({ district: "Gmina Łódź", suburb: "Górna" }), "Górna");
+  assert.equal(normalizeGeoapifyDistrict({ district: "Gmina Łódź" }), null);
+  assert.equal(normalizeGeoapifyDistrict({ district: "Powiat łódzki wschodni" }), null);
 });
 
 test("missing address parts are represented as null and do not overwrite existing fields", () => {

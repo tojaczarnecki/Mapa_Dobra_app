@@ -528,23 +528,30 @@ export function PlaceForm({
 
       <FormSection id="adres" title="Adres">
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-bold">
+              <span className="mb-1.5 block">Pełny adres</span>
+              <LocationAutocomplete
+                value={payload.addressLine}
+                onChange={(addressLine) => update({ addressLine })}
+                onSelect={(suggestion) => update(addressFieldsFromSuggestion(suggestion))}
+                className={fieldClass}
+                required
+                placeholder="Zacznij wpisywać ulicę lub adres"
+              />
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">Wyszukaj adres i wybierz sugestię. Szczegóły możesz poprawić ręcznie poniżej.</p>
+          </div>
           <Field label="Ulica" value={payload.street} onChange={(street) => update({ street })} />
           <Field label="Numer" value={payload.buildingNumber} onChange={(buildingNumber) => update({ buildingNumber })} />
-          <label className="block text-sm font-bold sm:col-span-2">
-            <span className="mb-1.5 block">Pełny adres</span>
-            <LocationAutocomplete
-              value={payload.addressLine}
-              onChange={(addressLine) => update({ addressLine })}
-              onSelect={(suggestion) => update(addressFieldsFromSuggestion(suggestion))}
-              className={fieldClass}
-              required
-              placeholder="Zacznij wpisywać ulicę lub adres"
-            />
-          </label>
           <Field label="Kod pocztowy" value={payload.postalCode} onChange={(postalCode) => update({ postalCode })} />
           <Field label="Miasto" value={payload.city} required onChange={(city) => update({ city })} />
-          <Field label="Dzielnica" value={payload.district} onChange={(district) => update({ district })} />
-          <div />
+          <div className="sm:col-span-2">
+            <Field label="Dzielnica" value={payload.district} onChange={(district) => update({ district })} />
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-xs font-semibold text-muted-foreground">Współrzędne mapy</p>
+          </div>
           <Field label="Szerokość geograficzna" type="number" value={payload.latitude ?? ""} onChange={(value) => update({ latitude: value ? Number(value) : null })} />
           <Field label="Długość geograficzna" type="number" value={payload.longitude ?? ""} onChange={(value) => update({ longitude: value ? Number(value) : null })} />
         </div>
