@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function StartHelpPage() {
   return (
-    <div className="md-help-request-page mx-auto w-full max-w-[920px] px-4 pb-28 pt-4 sm:px-6 sm:pt-8 lg:px-8">
+    <div className="md-help-request-page mx-auto w-full max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-8 lg:px-8">
       <header className="mx-auto max-w-3xl text-center">
         <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#fff1cf] text-[#9a6815]"><HeartHandshake aria-hidden="true" size={26} /></span>
         <p className="mt-3 text-sm font-bold uppercase tracking-wide text-[#9a6815]">Uruchom pomoc</p>

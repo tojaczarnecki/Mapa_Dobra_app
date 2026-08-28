@@ -145,6 +145,38 @@
   height: 1rem;
 }
 
+/* Supporting public flows stay compact without changing their submission contracts. */
+.md-help-request-page > header {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+.md-help-request-page > header > span {
+  background: var(--brand-soft) !important;
+  color: var(--brand-strong) !important;
+}
+
+.md-help-request-page .md-help-trust-note {
+  border-color: color-mix(in srgb, var(--color-warning) 48%, var(--border)) !important;
+  background: var(--surface-muted) !important;
+}
+
+.md-help-request-page section[aria-labelledby="help-wizard-title"],
+.md-new-place-page form,
+.md-place-update-page form {
+  border-radius: 0.75rem !important;
+  box-shadow: none !important;
+}
+
+.md-help-request-page section[aria-labelledby="help-wizard-title"] {
+  border-color: var(--border) !important;
+}
+
+.md-new-place-page form,
+.md-place-update-page form {
+  background: var(--surface) !important;
+}
+
 /* Help flow: the first decision should arrive before the page starts to feel like a landing page. */
 .md-help-request-page .md-help-trust-note {
   margin-bottom: 0.7rem;
