@@ -9,6 +9,7 @@ import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
 import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 import { LocationAutocomplete } from "@/components/location/location-autocomplete";
+import { TokenInput } from "@/components/ui/token-input";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
@@ -519,14 +520,8 @@ export function PlaceForm({
           <textarea className={fieldClass} rows={5} value={payload.description} onChange={(event) => update({ description: event.target.value })} />
         </label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Dla kogo, po jednej pozycji w wierszu</span>
-            <textarea className={fieldClass} rows={4} value={payload.audience.join("\n")} onChange={(event) => update({ audience: lines(event.target.value) })} />
-          </label>
-          <label className="block text-sm font-bold">
-            <span className="mb-1.5 block">Usługi na miejscu, po jednej pozycji w wierszu</span>
-            <textarea className={fieldClass} rows={4} value={payload.services.join("\n")} onChange={(event) => update({ services: lines(event.target.value) })} />
-          </label>
+          <TokenInput label="Dla kogo" values={payload.audience} onChange={(audience) => update({ audience })} />
+          <TokenInput label="Usługi na miejscu" values={payload.services} onChange={(services) => update({ services })} />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Wybrane: {selectedCategoryNames.join(", ") || "brak"}</p>
       </FormSection>
