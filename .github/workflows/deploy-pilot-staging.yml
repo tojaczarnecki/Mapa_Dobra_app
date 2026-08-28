@@ -1,0 +1,161 @@
+name: Deploy pilot to IQHost staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: "Optional successful Build staging release artifact run ID. Leave empty to use latest successful release/pilot-current-ui run."
+        required: false
+        type: string
+      confirm_staging:
+        description: "Confirm deployment to STAGING"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: iqhost-pilot-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirm_staging == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+      STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      STAGING_SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+      STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+      STAGING_APP_ROOT: ${{ secrets.STAGING_APP_ROOT }}
+      STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+
+    steps:
+      - name: Checkout deployment tooling
+        uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in STAGING_SSH_HOST STAGING_SSH_USER STAGING_SSH_PORT STAGING_SSH_PRIVATE_KEY STAGING_SSH_KNOWN_HOSTS STAGING_APP_ROOT STAGING_BASE_URL; do
+            test -n "${!name:-}" || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
+          done
+          [[ "$STAGING_SSH_PORT" =~ ^[0-9]+$ ]]
+          [[ "$STAGING_APP_ROOT" == /* ]]
+          [[ "$STAGING_APP_ROOT" != *" "* ]]
+          [[ "$STAGING_BASE_URL" == https://* ]]
+
+      - name: Resolve successful pilot artifact run
+        id: release
+        shell: bash
+        env:
+          REQUESTED_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$REQUESTED_RUN_ID"
+          if [[ -z "$RUN_ID" ]]; then
+            RUN_ID="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow "Build staging release artifact" \
+              --branch release/pilot-current-ui \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')"
+          fi
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "Could not resolve a successful pilot artifact run." >&2; exit 1; }
+
+          RUN_META="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          [[ "$(jq -r '.conclusion' <<< "$RUN_META")" == "success" ]] || { echo "Selected run is not successful." >&2; exit 1; }
+          [[ "$(jq -r '.head_branch' <<< "$RUN_META")" == "release/pilot-current-ui" ]] || { echo "Selected run is not from release/pilot-current-ui." >&2; exit 1; }
+
+          ARTIFACT_NAME="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.expired == false) | .name' | grep '^release-' | head -n 1)"
+          test -n "$ARTIFACT_NAME" || { echo "No non-expired release artifact found." >&2; exit 1; }
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Download reviewed release artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mapa-dobra-release
+          gh run download "${{ steps.release.outputs.run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "${{ steps.release.outputs.artifact_name }}" \
+            --dir /tmp/mapa-dobra-release
+
+          mapfile -t archives < <(find /tmp/mapa-dobra-release -maxdepth 2 -type f -name 'release-*.tar.gz' -print)
+          [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one release tar.gz, found ${#archives[@]}." >&2; exit 1; }
+          printf '%s\n' "${archives[0]}" > /tmp/mapa-dobra-release/archive-path
+
+      - name: Configure SSH trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$STAGING_SSH_PRIVATE_KEY" > "$HOME/.ssh/mapa_dobra_staging"
+          chmod 600 "$HOME/.ssh/mapa_dobra_staging"
+          printf '%s\n' "$STAGING_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Upload and activate release atomically
+        id: activate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(cat /tmp/mapa-dobra-release/archive-path)"
+          ARCHIVE_NAME="$(basename "$ARCHIVE")"
+          TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
+          SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          SCP=(scp -P "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+
+          "${SSH[@]}" "$TARGET" "mkdir -p '$STAGING_APP_ROOT/incoming'"
+          "${SCP[@]}" scripts/iqhost-release.sh "$TARGET:$STAGING_APP_ROOT/deploy-release.sh"
+          "${SCP[@]}" "$ARCHIVE" "$TARGET:$STAGING_APP_ROOT/incoming/$ARCHIVE_NAME"
+          "${SSH[@]}" "$TARGET" "chmod 700 '$STAGING_APP_ROOT/deploy-release.sh' && bash '$STAGING_APP_ROOT/deploy-release.sh' activate '$STAGING_APP_ROOT' '$STAGING_APP_ROOT/incoming/$ARCHIVE_NAME' staging"
+          echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke staging and rollback on failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${STAGING_BASE_URL%/}"
+          TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
+          SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+
+          healthy=0
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 12 "$BASE_URL/api/health" >/tmp/mapa-dobra-health.json \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/" >/dev/null \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/mapa" >/dev/null \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/znajdz-nocleg" >/dev/null; then
+              healthy=1
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ "$healthy" -ne 1 ]]; then
+            echo "Staging smoke failed. Rolling back the current symlink." >&2
+            "${SSH[@]}" "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' rollback '$STAGING_APP_ROOT' staging" || true
+            exit 1
+          fi
+
+          cat /tmp/mapa-dobra-health.json
+          "${SSH[@]}" "$TARGET" "rm -f '$STAGING_APP_ROOT/incoming/${{ steps.activate.outputs.archive_name }}'"
+
+      - name: Report active staging release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
+          ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' status '$STAGING_APP_ROOT'"
