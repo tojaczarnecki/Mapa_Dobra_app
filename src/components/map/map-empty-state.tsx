@@ -15,7 +15,7 @@ export function MapEmptyState({
 }: MapEmptyStateProps) {
   return (
     <section
-      className="absolute left-1/2 top-1/2 z-[600] w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface p-4 text-center shadow-[0_16px_38px_rgb(17_24_39_/_18%)]"
+      className="absolute left-1/2 top-1/2 z-[var(--layer-overlay)] w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface p-4 text-center shadow-[0_16px_38px_rgb(17_24_39_/_18%)]"
       aria-live="polite"
     >
       <MapPinOff aria-hidden="true" className="mx-auto mb-2 text-brand-strong" size={26} />

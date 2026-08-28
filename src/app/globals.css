@@ -1648,7 +1648,7 @@ input {
 }
 
 .quick-action-crisis .quick-action-icon {
-  background: #fff9ea;
+  background: var(--surface-muted);
   color: var(--urgent);
 }
 

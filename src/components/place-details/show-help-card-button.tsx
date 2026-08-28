@@ -56,7 +56,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#102a3b]/55 p-0 sm:items-center sm:p-5" role="presentation">
+        <div className="fixed inset-0 z-[var(--layer-modal)] flex items-end justify-center bg-[#102a3b]/55 p-0 sm:items-center sm:p-5" role="presentation">
           <section
             className="relative max-h-[100dvh] w-full max-w-[34rem] overflow-y-auto rounded-t-2xl bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl sm:p-6"
             role="dialog"

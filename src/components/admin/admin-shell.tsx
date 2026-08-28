@@ -97,7 +97,7 @@ export function AdminShell({ displayName, role, permissions, children }: AdminSh
             </Link> : null}
             {can("VIEW_HELP_REQUESTS") ? <Link
               href="/admin/zgloszenia-pomocy"
-              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-[#fff1cf]"
+              className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition hover:bg-brand-soft"
             >
               <HeartHandshake aria-hidden="true" size={19} />
               Uruchom pomoc
