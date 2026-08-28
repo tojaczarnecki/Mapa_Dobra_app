@@ -8,6 +8,7 @@ import { AlertTriangle, Plus, Power, RotateCcw, Save, Search, Trash2 } from "luc
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
 import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
+import { LocationAutocomplete } from "@/components/location/location-autocomplete";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
@@ -19,6 +20,7 @@ import {
   weekdayOptions,
 } from "@/lib/places/constants";
 import { deriveTodayHoursLabel, validateOpeningSchedule } from "@/lib/places/opening-hours";
+import { addressFieldsFromSuggestion } from "@/lib/places/address-form";
 import type {
   AdminAccommodation,
   AdminOpeningDay,
@@ -533,7 +535,17 @@ export function PlaceForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ulica" value={payload.street} onChange={(street) => update({ street })} />
           <Field label="Numer" value={payload.buildingNumber} onChange={(buildingNumber) => update({ buildingNumber })} />
-          <div className="sm:col-span-2"><Field label="Pełny adres" value={payload.addressLine} required onChange={(addressLine) => update({ addressLine })} /></div>
+          <label className="block text-sm font-bold sm:col-span-2">
+            <span className="mb-1.5 block">Pełny adres</span>
+            <LocationAutocomplete
+              value={payload.addressLine}
+              onChange={(addressLine) => update({ addressLine })}
+              onSelect={(suggestion) => update(addressFieldsFromSuggestion(suggestion))}
+              className={fieldClass}
+              required
+              placeholder="Zacznij wpisywać ulicę lub adres"
+            />
+          </label>
           <Field label="Kod pocztowy" value={payload.postalCode} onChange={(postalCode) => update({ postalCode })} />
           <Field label="Miasto" value={payload.city} required onChange={(city) => update({ city })} />
           <Field label="Dzielnica" value={payload.district} onChange={(district) => update({ district })} />
