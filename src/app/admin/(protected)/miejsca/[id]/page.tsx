@@ -6,6 +6,7 @@ import { PlacePublicationBadge } from "@/components/admin/places/place-publicati
 import { PlaceRecordBadge } from "@/components/admin/places/place-record-badge";
 import { PlaceStatusActions } from "@/components/admin/places/place-status-actions";
 import { QuickAvailabilityForm } from "@/components/admin/places/quick-availability-form";
+import { ConfirmAccommodationAvailability } from "@/components/admin/places/confirm-accommodation-availability";
 import { getAdminPlace, getAdminPlaceHistory } from "@/lib/places/admin-data";
 import {
   accessibilityOptions,
@@ -192,6 +193,7 @@ function AccommodationSection({ placeId, accommodation }: { placeId: string; acc
   return (
     <DetailSection title="Nocleg">
       <InfoRows rows={[{ label: "Typ", value: accommodationTypeLabels[accommodation.type] }, { label: "Grupy docelowe", value: accommodation.targetGroups.length ? accommodation.targetGroups.join(", ") : "Brak danych" }, { label: "Dostępność", value: availabilityLabels[accommodation.availabilityState] }, { label: "Aktualizacja", value: formatDate(accommodation.availabilityConfirmedAt) }, { label: "Przyjmuje dzisiaj", value: stateLabels[accommodation.acceptsToday] }, { label: "Skierowanie", value: stateLabels[accommodation.referralRequired] }, { label: "Dokument", value: stateLabels[accommodation.documentRequired] }, { label: "Meldunek w Łodzi", value: stateLabels[accommodation.lodzRegistrationRequired] }, { label: "Trzeźwość", value: sobrietyPolicyLabels[accommodation.sobrietyPolicy] }, { label: "Zwierzęta", value: petPolicyLabels[accommodation.petPolicy] }, { label: "Usługi opiekuńcze", value: stateLabels[accommodation.careServices] }, { label: "Wyżywienie", value: accommodation.mealsInfo ?? "Brak danych" }, { label: "Higiena", value: accommodation.hygieneInfo ?? "Brak danych" }, { label: "Bagaż", value: accommodation.luggageInfo ?? "Brak danych" }, { label: "Godzina powrotu", value: accommodation.returnTimeInfo ?? "Brak danych" }, { label: "Maksymalny pobyt", value: accommodation.maxStayInfo ?? "Brak danych" }, { label: "Odpłatność", value: accommodation.feeInfo ?? "Brak danych" }]} />
+      <ConfirmAccommodationAvailability placeId={placeId} confirmedAt={accommodation.availabilityConfirmedAt} />
       {activeGroups.length ? (
         <>
           <CapacityTable groups={activeGroups} />

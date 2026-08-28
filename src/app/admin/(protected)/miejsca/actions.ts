@@ -679,3 +679,75 @@ export async function updateAccommodationAvailability(
     return { error: "Nie udało się zapisać dostępności. Spróbuj ponownie." };
   }
 }
+
+export type ConfirmAccommodationAvailabilityActionState = {
+  error?: string;
+  success?: string;
+  confirmedAt?: string;
+};
+
+export async function confirmAccommodationAvailability(
+  placeId: string,
+  previousState: ConfirmAccommodationAvailabilityActionState,
+  formData: FormData,
+): Promise<ConfirmAccommodationAvailabilityActionState> {
+  void previousState;
+  void formData;
+  if (!uuidPattern.test(placeId)) return { error: "Nieprawidłowe miejsce." };
+  const session = await requirePlacePermission("UPDATE_BED_AVAILABILITY", placeId);
+  const facilityUpdate = session.user.role === "PLACE_MANAGER";
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const place = await transaction.place.findUnique({
+        where: { id: placeId },
+        select: {
+          slug: true,
+          primaryCategory: { select: { slug: true } },
+          accommodation: {
+            select: { id: true, availabilityConfirmedAt: true },
+          },
+        },
+      });
+      if (!place) throw new Error("NOT_FOUND");
+      if (!place.accommodation) throw new Error("NO_ACCOMMODATION");
+
+      const now = new Date();
+      await transaction.accommodationDetails.update({
+        where: { id: place.accommodation.id },
+        data: { availabilityConfirmedAt: now },
+      });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "AVAILABILITY_UPDATED",
+          entityType: "PLACE",
+          entityId: placeId,
+          changedFields: ["availabilityConfirmedAt"],
+          previousValues: {
+            availabilityConfirmedAt: place.accommodation.availabilityConfirmedAt?.toISOString() ?? null,
+          },
+          newValues: { availabilityConfirmedAt: now.toISOString() },
+          changeOrigin: facilityUpdate ? "FACILITY_REPRESENTATIVE" : "ADMIN_MANUAL",
+          note: "Potwierdzono aktualność danych dostępności noclegu bez zmiany stanu ani liczby miejsc.",
+        },
+      });
+      return {
+        confirmedAt: now.toISOString(),
+        publicHref: `/lodz/${place.primaryCategory.slug}/${place.slug}`,
+      };
+    });
+
+    revalidatePath(`/admin/miejsca/${placeId}`);
+    revalidatePath("/admin/miejsca");
+    revalidatePath("/znajdz-nocleg");
+    revalidatePath("/mapa");
+    revalidatePath(result.publicHref);
+    return { success: "Dane o dostępności zostały potwierdzone.", confirmedAt: result.confirmedAt };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "NOT_FOUND") return { error: "Nie znaleziono tego miejsca." };
+    if (reason === "NO_ACCOMMODATION") return { error: "To miejsce nie ma danych noclegowych." };
+    return { error: "Nie udało się potwierdzić danych o dostępności." };
+  }
+}
