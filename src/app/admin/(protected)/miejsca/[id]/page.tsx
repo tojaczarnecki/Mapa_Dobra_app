@@ -21,6 +21,7 @@ import {
 import { isPubliclyVisiblePlace } from "@/lib/places/public-visibility";
 import type { PlacePublicationStatusValue } from "@/types/place-admin";
 import { requirePermission } from "@/lib/admin/session";
+import { resolveAvailabilityFreshness, type AvailabilityFreshness } from "@/lib/accommodations/freshness";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const stateLabels = { YES: "Tak", NO: "Nie", UNKNOWN: "Brak danych" } as const;
@@ -28,6 +29,18 @@ const availabilityLabels = {
   AVAILABLE: "Są wolne miejsca", FEW: "Niewiele miejsc", FULL: "Brak miejsc",
   UNKNOWN: "Brak aktualnych danych", STALE: "Dane mogą być nieaktualne", SUSPENDED: "Przyjęcia wstrzymane",
 } as const;
+const freshnessLabels: Record<AvailabilityFreshness, string> = {
+  FRESH: "Dane aktualne",
+  AGING: "Warto ponownie potwierdzić",
+  STALE: "Dane wymagają potwierdzenia",
+  UNKNOWN: "Brak potwierdzenia",
+};
+const freshnessClasses: Record<AvailabilityFreshness, string> = {
+  FRESH: "border-brand/35 bg-brand-soft text-brand-strong",
+  AGING: "border-border bg-surface-muted text-muted-foreground",
+  STALE: "border-urgent-border bg-urgent-soft text-[#8c2d0c]",
+  UNKNOWN: "border-border bg-surface-muted text-muted-foreground",
+};
 const auditActionLabels: Record<string, string> = {
   LOGIN: "Logowanie",
   STATUS_CHANGED: "Zmiana statusu zgłoszenia",
@@ -190,9 +203,10 @@ type AdminAccommodation = NonNullable<NonNullable<Awaited<ReturnType<typeof getA
 function AccommodationSection({ placeId, accommodation }: { placeId: string; accommodation: AdminAccommodation }) {
   const activeGroups = accommodation.capacityGroups.filter((group) => group.active);
   const inactiveGroups = accommodation.capacityGroups.filter((group) => !group.active);
+  const freshness = resolveAvailabilityFreshness(accommodation.availabilityState, accommodation.availabilityConfirmedAt);
   return (
     <DetailSection title="Nocleg">
-      <InfoRows rows={[{ label: "Typ", value: accommodationTypeLabels[accommodation.type] }, { label: "Grupy docelowe", value: accommodation.targetGroups.length ? accommodation.targetGroups.join(", ") : "Brak danych" }, { label: "Dostępność", value: availabilityLabels[accommodation.availabilityState] }, { label: "Aktualizacja", value: formatDate(accommodation.availabilityConfirmedAt) }, { label: "Przyjmuje dzisiaj", value: stateLabels[accommodation.acceptsToday] }, { label: "Skierowanie", value: stateLabels[accommodation.referralRequired] }, { label: "Dokument", value: stateLabels[accommodation.documentRequired] }, { label: "Meldunek w Łodzi", value: stateLabels[accommodation.lodzRegistrationRequired] }, { label: "Trzeźwość", value: sobrietyPolicyLabels[accommodation.sobrietyPolicy] }, { label: "Zwierzęta", value: petPolicyLabels[accommodation.petPolicy] }, { label: "Usługi opiekuńcze", value: stateLabels[accommodation.careServices] }, { label: "Wyżywienie", value: accommodation.mealsInfo ?? "Brak danych" }, { label: "Higiena", value: accommodation.hygieneInfo ?? "Brak danych" }, { label: "Bagaż", value: accommodation.luggageInfo ?? "Brak danych" }, { label: "Godzina powrotu", value: accommodation.returnTimeInfo ?? "Brak danych" }, { label: "Maksymalny pobyt", value: accommodation.maxStayInfo ?? "Brak danych" }, { label: "Odpłatność", value: accommodation.feeInfo ?? "Brak danych" }]} />
+      <InfoRows rows={[{ label: "Typ", value: accommodationTypeLabels[accommodation.type] }, { label: "Grupy docelowe", value: accommodation.targetGroups.length ? accommodation.targetGroups.join(", ") : "Brak danych" }, { label: "Dostępność", value: availabilityLabels[accommodation.availabilityState] }, { label: "Ostatnio potwierdzono", value: <span className="flex flex-wrap items-center gap-2">{formatDate(accommodation.availabilityConfirmedAt)}<span className={`inline-flex min-h-7 items-center rounded-full border px-2 py-1 text-xs font-bold ${freshnessClasses[freshness]}`}>{freshnessLabels[freshness]}</span></span> }, { label: "Przyjmuje dzisiaj", value: stateLabels[accommodation.acceptsToday] }, { label: "Skierowanie", value: stateLabels[accommodation.referralRequired] }, { label: "Dokument", value: stateLabels[accommodation.documentRequired] }, { label: "Meldunek w Łodzi", value: stateLabels[accommodation.lodzRegistrationRequired] }, { label: "Trzeźwość", value: sobrietyPolicyLabels[accommodation.sobrietyPolicy] }, { label: "Zwierzęta", value: petPolicyLabels[accommodation.petPolicy] }, { label: "Usługi opiekuńcze", value: stateLabels[accommodation.careServices] }, { label: "Wyżywienie", value: accommodation.mealsInfo ?? "Brak danych" }, { label: "Higiena", value: accommodation.hygieneInfo ?? "Brak danych" }, { label: "Bagaż", value: accommodation.luggageInfo ?? "Brak danych" }, { label: "Godzina powrotu", value: accommodation.returnTimeInfo ?? "Brak danych" }, { label: "Maksymalny pobyt", value: accommodation.maxStayInfo ?? "Brak danych" }, { label: "Odpłatność", value: accommodation.feeInfo ?? "Brak danych" }]} />
       <ConfirmAccommodationAvailability placeId={placeId} confirmedAt={accommodation.availabilityConfirmedAt} />
       {activeGroups.length ? (
         <>
