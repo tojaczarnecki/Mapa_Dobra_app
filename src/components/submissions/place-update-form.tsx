@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { Flag, LockKeyhole, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import {
   createSubmissionRequestId,
   fieldDescriptionIds,
@@ -77,6 +80,8 @@ export function PlaceUpdateForm({
   const isSubmittingRef = useRef(false);
   const requestIdRef = useRef<string | undefined>(undefined);
   const successRef = useRef<HTMLDivElement>(null);
+  const formDraft = useFormDraft({ formType: "place-change", storage: "local", ttlMs: 7 * 24 * 60 * 60 * 1000, entityId: place?.id ?? requestedPlace, data: { placeReference, reportTypes, assessment, description, correctHours, correctAddress, correctPhone, closedSince, sourceType, sourceUrl }, enabled: !submission });
+  useUnsavedChangesGuard(!submission && formDraft.isDirty);
 
   useEffect(() => {
     if (submission) {
@@ -180,6 +185,7 @@ export function PlaceUpdateForm({
       });
 
       if (!response.ok) throw new Error("Submission failed");
+      formDraft.clear();
       setSubmission(nextSubmission);
     } catch {
       setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
@@ -233,6 +239,7 @@ export function PlaceUpdateForm({
 
   return (
     <div className="space-y-5">
+      <FormDraftResume draft={formDraft.storedDraft} label={place ? `Zgłoś zmianę dla: ${place.name}` : "Zgłoś zmianę lub błąd"} onResume={() => { const restored = formDraft.resume(); if (restored) { const data = restored.data; setPlaceReference(data.placeReference); setReportTypes(data.reportTypes); setAssessment(data.assessment); setDescription(data.description); setCorrectHours(data.correctHours); setCorrectAddress(data.correctAddress); setCorrectPhone(data.correctPhone); setClosedSince(data.closedSince); setSourceType(data.sourceType); setSourceUrl(data.sourceUrl); } }} onDiscard={() => { formDraft.discard(); setPlaceReference(""); setReportTypes([]); setAssessment(undefined); setDescription(""); setCorrectHours(""); setCorrectAddress(""); setCorrectPhone(""); setClosedSince(""); setSourceType(""); setSourceUrl(""); }} />
       <header className="space-y-2">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
           <Flag aria-hidden="true" size={23} />

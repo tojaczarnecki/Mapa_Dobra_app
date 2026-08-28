@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { Download, Share, WifiOff, X } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
+const RESUME_STALE_AFTER_MS = 90_000;
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -26,15 +27,37 @@ function isIosSafari() {
 
 export function PwaClient({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [offline, setOffline] = useState(false);
+  const [reconnected, setReconnected] = useState(false);
+  const [revalidating, setRevalidating] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [iosInstructions, setIosInstructions] = useState(false);
   const [standalone, setStandalone] = useState(false);
+  const connectionInitialized = useRef(false);
+  const reconnectTimer = useRef<number | undefined>(undefined);
+  const lastActiveAt = useRef(0);
+  const revalidatingRef = useRef(false);
   const [dismissed, setDismissed] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(DISMISSED_KEY) === "1");
 
   useEffect(() => {
     let workerRegistration: ServiceWorkerRegistration | undefined;
+
+    lastActiveAt.current = Date.now();
+    const revalidateIfStale = () => {
+      if (document.visibilityState !== "visible" || revalidatingRef.current) return;
+      const inactiveFor = Date.now() - lastActiveAt.current;
+      lastActiveAt.current = Date.now();
+      if (inactiveFor < RESUME_STALE_AFTER_MS) return;
+      revalidatingRef.current = true;
+      setRevalidating(true);
+      router.refresh();
+      window.setTimeout(() => {
+        revalidatingRef.current = false;
+        setRevalidating(false);
+      }, 1500);
+    };
 
     const updateServiceWorker = () => {
       if (!enabled || !navigator.onLine || document.visibilityState !== "visible" || !workerRegistration) return;
@@ -45,8 +68,18 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     const updateConnection = () => {
       const isOffline = !navigator.onLine;
       setOffline(isOffline);
-      if (!isOffline) updateServiceWorker();
+      if (!isOffline) {
+        if (connectionInitialized.current) {
+          setReconnected(true);
+          if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = window.setTimeout(() => setReconnected(false), 2600);
+          revalidateIfStale();
+        }
+        updateServiceWorker();
+      }
+      connectionInitialized.current = true;
     };
+    const onNetworkFailure = () => setOffline(true);
     const updateStandalone = () => setStandalone(isStandalone());
     const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
@@ -67,17 +100,26 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       else setShowInstall(true);
     };
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") updateServiceWorker();
+      if (document.visibilityState === "hidden") lastActiveAt.current = Date.now();
+      else {
+        revalidateIfStale();
+        updateServiceWorker();
+      }
     };
+    const onPageShow = () => revalidateIfStale();
+    const onFocus = () => revalidateIfStale();
 
     updateConnection();
     updateStandalone();
     window.addEventListener("online", updateConnection);
     window.addEventListener("offline", updateConnection);
+    window.addEventListener("mapa-dobra:network-failure", onNetworkFailure);
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
     window.addEventListener("mapa-dobra:open-install", onOpenInstall);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
 
     if (enabled && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
@@ -91,14 +133,18 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     }
 
     return () => {
+      if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
       window.removeEventListener("online", updateConnection);
       window.removeEventListener("offline", updateConnection);
+      window.removeEventListener("mapa-dobra:network-failure", onNetworkFailure);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener("mapa-dobra:open-install", onOpenInstall);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
     };
-  }, [enabled]);
+  }, [enabled, router]);
 
   const dismissInstall = () => {
     window.localStorage.setItem(DISMISSED_KEY, "1");
@@ -125,7 +171,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
           <span>Jesteś offline. Zapisane miejsca nadal są dostępne.</span>
           <Link href="/offline">Pokaż zapisane</Link>
         </div>
-      ) : null}
+      ) : reconnected ? <div className="offline-notice offline-notice-reconnected" role="status" aria-live="polite">Połączenie przywrócone.</div> : revalidating ? <div className="offline-notice" role="status" aria-live="polite">Aktualizuję dane…</div> : null}
       {showPublicInstallUi && showInstall ? (
         <aside className="pwa-install-notice md-pwa-install" aria-label="Instalacja Mapy Dobra">
           <div className="pwa-install-icon" aria-hidden="true"><Download size={20} /></div>

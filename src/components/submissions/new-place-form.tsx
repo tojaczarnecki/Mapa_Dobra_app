@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { Info, LockKeyhole, MapPinned } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import {
   createSubmissionRequestId,
   fieldDescriptionIds,
@@ -164,6 +167,12 @@ function joinPresent(values: string[], separator = ", ") {
   return values.filter((value) => value.trim()).join(separator);
 }
 
+function draftDataWithoutContact(value: NewPlaceDraft): Omit<NewPlaceDraft, "submitterContact"> {
+  const { submitterContact, ...safeData } = value;
+  void submitterContact;
+  return safeData;
+}
+
 export function NewPlaceForm() {
   const [draft, setDraft] = useState<NewPlaceDraft>(initialDraft);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -195,6 +204,8 @@ export function NewPlaceForm() {
   );
 
   const currentStep = steps[currentStepIndex] ?? steps[steps.length - 1];
+  const formDraft = useFormDraft({ formType: "new-place", storage: "local", ttlMs: 7 * 24 * 60 * 60 * 1000, data: draftDataWithoutContact(draft), currentStep: currentStep.id, enabled: !submission });
+  useUnsavedChangesGuard(!submission && formDraft.isDirty);
 
   useEffect(() => {
     if (submission) {
@@ -429,6 +440,7 @@ export function NewPlaceForm() {
         throw new Error("Submission failed");
       }
 
+      formDraft.clear();
       setSubmission(nextSubmission);
     } catch {
       setSubmitError("Nie udało się wysłać zgłoszenia. Spróbuj ponownie.");
@@ -568,6 +580,7 @@ export function NewPlaceForm() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      <FormDraftResume draft={formDraft.storedDraft} label="Zgłoś nowe miejsce" onResume={() => { const restored = formDraft.resume(); if (restored) { setDraft((current) => ({ ...current, ...restored.data, submitterContact: current.submitterContact })); const restoredSteps = ["basic", "location", "help", ...(restored.data.helpCategories.includes("accommodation") ? ["accommodation"] : []), "source", "summary"]; const nextIndex = restoredSteps.indexOf(String(restored.currentStep)); if (nextIndex >= 0) setCurrentStepIndex(nextIndex); } }} onDiscard={() => { formDraft.discard(); resetForm(); }} />
       <header className="space-y-1.5 sm:space-y-2">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
           <MapPinned aria-hidden="true" size={23} />

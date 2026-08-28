@@ -4,6 +4,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Crosshair, HeartHandshake, MapPin, Send, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { useFormDraft } from "@/components/forms/use-form-draft";
+import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import { helpRequestNeedLabels } from "@/lib/help-requests/validation";
 import type { HelpRequestNeed } from "@/generated/prisma/enums";
 
@@ -50,6 +53,19 @@ export function HelpRequestWizard() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string>();
+  const draftData = {
+    emergencyAnswer: form.emergencyAnswer,
+    locationMode: form.locationMode,
+    addressText: form.addressText,
+    locationDescription: form.locationDescription,
+    latitude: form.latitude,
+    longitude: form.longitude,
+    locationAccuracy: form.locationAccuracy,
+    needs: form.needs,
+    description: form.description,
+  };
+  const formDraft = useFormDraft({ formType: "help-request", storage: "session", ttlMs: 2 * 60 * 60 * 1000, data: draftData, currentStep: step, enabled: !sent });
+  useUnsavedChangesGuard(!sent && formDraft.isDirty);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -114,6 +130,7 @@ export function HelpRequestWizard() {
         }),
       });
       if (!response.ok) throw new Error("SUBMIT_FAILED");
+      formDraft.clear();
       setSent(true);
     } catch {
       setError("Nie udało się przekazać informacji. Spróbuj ponownie.");
@@ -127,7 +144,9 @@ export function HelpRequestWizard() {
   }
 
   return (
-    <section className="rounded-xl border border-[#d7a548]/55 bg-white p-4 shadow-[0_14px_34px_rgb(17_24_39_/_6%)] sm:p-7" aria-labelledby="help-wizard-title">
+    <>
+      <FormDraftResume draft={formDraft.storedDraft} label="Uruchom pomoc" onResume={() => { const restored = formDraft.resume(); if (restored) { setForm((current) => ({ ...current, ...restored.data })); if (typeof restored.currentStep === "number") setStep(Math.min(6, Math.max(1, restored.currentStep)) as Step); } }} onDiscard={() => { formDraft.discard(); setForm(initialState); setStep(1); }} />
+      <section className="rounded-xl border border-[#d7a548]/55 bg-white p-4 shadow-[0_14px_34px_rgb(17_24_39_/_6%)] sm:p-7" aria-labelledby="help-wizard-title">
       <div className="flex items-center justify-between gap-3"><p className="text-sm font-bold text-[#9a6815]">Krok {progress}</p><ShieldCheck aria-hidden="true" className="text-[#b7791f]" size={22} /></div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f6ead0]" aria-hidden="true"><div className="h-full rounded-full bg-[#d79a2b] transition-all" style={{ width: `${(step / 6) * 100}%` }} /></div>
       <div className="mt-7 min-h-[24rem]">
@@ -141,6 +160,7 @@ export function HelpRequestWizard() {
       {error ? <p className="mt-4 rounded-lg border border-[#e9521a]/40 bg-[#fff1e9] p-3 text-sm font-semibold text-[#7e2b0f]" role="alert">{error}</p> : null}
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"><button type="button" onClick={() => setStep((current) => Math.max(1, current - 1) as Step)} disabled={step === 1 || sending} className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-bold text-muted-foreground hover:bg-surface-muted disabled:invisible"><ArrowLeft aria-hidden="true" size={18} />Wstecz</button>{step < 6 ? <button type="button" onClick={next} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#d79a2b] px-5 py-3 text-sm font-bold text-[#352307] hover:bg-[#c48821]">Dalej <ArrowRight aria-hidden="true" size={18} /></button> : <button type="button" onClick={submit} disabled={sending} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#d79a2b] px-5 py-3 text-sm font-bold text-[#352307] hover:bg-[#c48821] disabled:opacity-60"><Send aria-hidden="true" size={18} />{sending ? "Przekazuję…" : "Uruchom pomoc"}</button>}</div>
       <p className="mt-4 flex gap-2 text-xs leading-5 text-muted-foreground"><MapPin aria-hidden="true" className="shrink-0" size={15} />Prywatne zgłoszenie · nie publikujemy treści ani dokładnej lokalizacji.</p>
-    </section>
+      </section>
+    </>
   );
 }

@@ -1778,6 +1778,71 @@ body[data-privacy-screen-open="true"] .mobile-bottom-nav {
   align-items: center;
 }
 
+.form-draft-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.875rem 1rem;
+}
+
+.form-draft-resume-kicker {
+  color: var(--brand-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.form-draft-resume h2 {
+  margin-top: 0.15rem;
+  font-weight: 800;
+}
+
+.form-draft-resume p:last-child {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.form-draft-resume-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.form-draft-resume-primary,
+.form-draft-resume-secondary {
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.form-draft-resume-primary {
+  background: var(--brand);
+  color: white;
+}
+
+.form-draft-resume-secondary {
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+@media (max-width: 639px) {
+  .form-draft-resume {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-draft-resume-actions > * {
+    flex: 1;
+  }
+}
+
 @media (min-width: 64rem) {
   .admin-place-header {
     display: grid;
