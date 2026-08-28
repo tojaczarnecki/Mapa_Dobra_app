@@ -127,6 +127,13 @@ export type MappingIssueCode = "INVALID_MAPPING" | "DUPLICATE_COLUMN_MAPPING" | 
 export type MappingIssue = { code: MappingIssueCode; field?: CanonicalImportField; columnIndex?: number | null };
 export type ColumnMappingValidation = { ok: true; mapping: ColumnMapping } | { ok: false; errors: MappingIssue[] };
 
+export function mappingIssueMessage(issue: MappingIssue): string {
+  const label = issue.field ? definitionByKey.get(issue.field)?.label ?? "to pole" : "to pole";
+  if (issue.code === "MISSING_REQUIRED_MAPPING") return `Wybierz kolumnę dla pola ${label}.`;
+  if (issue.code === "DUPLICATE_COLUMN_MAPPING") return `Ta kolumna jest już przypisana do innego pola (${label}).`;
+  return `Wybierz prawidłową kolumnę dla pola ${label}.`;
+}
+
 export function validateColumnMapping(headers: string[], mapping: ColumnMapping): ColumnMappingValidation {
   const errors: MappingIssue[] = [];
   const used = new Map<number, CanonicalImportField>();

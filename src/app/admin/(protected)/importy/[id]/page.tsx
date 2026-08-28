@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { importIssueLabel } from "@/lib/imports/issue-labels";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -68,14 +69,16 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
       <nav aria-label="Status kandydatów" className="flex max-w-full gap-2 overflow-x-auto pb-1">
         {(Object.keys(statusLabels) as Status[]).map((value) => <Link key={value} href={`/admin/importy/${id}?status=${value}`} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-bold ${status === value ? "border-brand bg-brand-soft text-brand-strong" : "border-border bg-white"}`}>{statusLabels[value]} ({count(value)})</Link>)}
       </nav>
+      {status === "IMPORT_READY" ? <p className="text-sm text-muted-foreground">Rekord jest gotowy do utworzenia jako szkic. Akcja utworzenia miejsca będzie dostępna w kolejnym kroku.</p> : null}
+      {status === "REQUIRES_REVIEW" ? <p className="text-sm text-muted-foreground">Ten rekord wymaga rozstrzygnięcia konfliktu przed utworzeniem miejsca.</p> : null}
       <p className="text-sm text-muted-foreground">Oryginalne pozycje źródłowe pozostają niezmienione. Kandydaci wymagający decyzji nie zostali utworzeni jako miejsca.</p>
       {batch.candidates.length ? <ol className="space-y-2">{batch.candidates.map((candidate) => (
         <li key={candidate.id} className="rounded-lg border border-border bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0"><span className="text-xs font-bold uppercase text-muted-foreground">{statusLabels[candidate.status]}</span><h2 className="mt-1 text-base font-bold">{candidate.proposedName}</h2><p className="mt-1 text-sm">{candidate.proposedAddress ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">{candidate.categorySlugs.join(" · ") || "Brak klasyfikacji"}</p></div>
-            <div className="flex flex-wrap gap-2">{candidate.createdPlace ? <Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {candidate.matchedPlace.recordKind}</Link> : null}<Link href={`/admin/weryfikacja/${candidate.createdPlace?.id ?? candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link></div>
+            <div className="flex flex-wrap gap-2">{candidate.createdPlace ? <Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {candidate.matchedPlace.recordKind}</Link> : null}{candidate.queueStatus ? <Link href={`/admin/weryfikacja/${candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link> : null}</div>
           </div>
-          {candidate.reviewReasons.length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{candidate.reviewReasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul> : null}
+          {candidate.reviewReasons.length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{candidate.reviewReasons.map((reason) => <li key={reason}>• {importIssueLabel(reason)}</li>)}</ul> : null}
           <details className="mt-3 border-t border-border pt-3 text-sm">
             <summary className="min-h-11 cursor-pointer font-bold text-brand-strong">Pokaż dokładny zapis z PDF</summary>
             <div className="space-y-3 pt-2">{candidate.sources.map(({ sourceEntry }) => <article key={sourceEntry.id} className="rounded-md bg-[#f5f3ed] p-3"><p className="text-xs font-bold uppercase text-muted-foreground">{sourceEntry.section} · strony {sourceEntry.sourcePages.join(", ")}</p><pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-sans text-sm leading-5">{sourceEntry.rawText}</pre></article>)}</div>

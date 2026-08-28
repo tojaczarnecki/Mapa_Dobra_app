@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   mapSpreadsheetRows,
+  mappingIssueMessage,
   normalizeImportHeader,
   suggestColumnMapping,
   validateColumnMapping,
@@ -22,6 +23,20 @@ test("suggestions report a conflict instead of assigning one column twice", () =
   assert.equal(result.fields.name.columnIndex, null);
   assert.equal(result.fields.name.match, "conflict");
   assert.deepEqual(result.conflicts, [{ columnIndex: 0, header: "Nazwa", fields: ["name"] }, { columnIndex: 1, header: "Nazwa", fields: ["name"] }]);
+});
+
+test("ambiguous suggestions remain unresolved without duplicate assignments", () => {
+  const result = suggestColumnMapping(["Nazwa", "Adres", "Kategoria główna", "Nazwa"]);
+  assert.equal(result.fields.name.columnIndex, null);
+  assert.equal(result.fields.name.match, "conflict");
+  assert.equal(validateColumnMapping(["Nazwa", "Adres", "Kategoria główna", "Nazwa"], { name: null, addressLine: 1, primaryCategory: 2 }).ok, false);
+});
+
+test("required mapping issues have field-specific messages", () => {
+  const result = validateColumnMapping(["Nazwa", "Adres"], { name: 0, addressLine: 1, primaryCategory: null });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(mappingIssueMessage(result.errors.find((issue) => issue.field === "primaryCategory")!), "Wybierz kolumnę dla pola Kategoria główna.");
 });
 
 test("manual mapping validates required fields, indices and duplicate columns", () => {

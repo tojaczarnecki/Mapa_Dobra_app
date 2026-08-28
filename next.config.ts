@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: getServerActionsAllowedOrigins(),
+      bodySizeLimit: "6mb",
     },
   },
   poweredByHeader: false,
