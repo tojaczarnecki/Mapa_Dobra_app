@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - staging-uruchom-pomoc
+      - release/pilot-current-ui
 
 permissions:
   contents: read
