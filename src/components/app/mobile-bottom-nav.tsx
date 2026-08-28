@@ -52,6 +52,13 @@ export function MobileBottomNav() {
   const installAvailable = useSyncExternalStore(subscribeToInstallState, getInstallAvailability, () => false);
 
   useEffect(() => {
+    document.body.dataset.mobileOverlayOpen = moreOpen ? "true" : "false";
+    return () => {
+      delete document.body.dataset.mobileOverlayOpen;
+    };
+  }, [moreOpen]);
+
+  useEffect(() => {
     if (!moreOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {

@@ -18,7 +18,7 @@ export function SiteHeader() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <header className={`site-header sticky top-0 z-30 ${pathname === "/" ? "site-header-home" : ""}`}>
+    <header className={`site-header hidden sticky top-0 z-30 md:block ${pathname === "/" ? "site-header-home" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"

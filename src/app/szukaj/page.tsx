@@ -5,7 +5,7 @@ import { List, LocateFixed, Map as MapIcon, MapPin, Search, SlidersHorizontal, S
 import { NoResults } from "@/components/places/no-results";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchSortSelect } from "@/components/places/search-sort-select";
-import { TextField } from "@/components/ui/text-field";
+import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { interpretSearchQuery, searchIntentHref, type SearchIntentToken } from "@/lib/places/search-intent";
 import { filterPublicSearchPlaces, type PublicSearchFilters } from "@/lib/places/search";
@@ -126,7 +126,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 {preserveFiltersOnSubmit && filters.noReferral ? <input type="hidden" name="bez_skierowania" value="1" /> : null}
                 {preserveFiltersOnSubmit && filters.noDocuments ? <input type="hidden" name="bez_dokumentow" value="1" /> : null}
                 {preserveFiltersOnSubmit && sort !== "best" ? <input type="hidden" name="sort" value={sort} /> : null}
-                <TextField icon={<Search aria-hidden="true" size={22} strokeWidth={2.25} />} label="Czego szukasz?" name="q" defaultValue={searchValue} placeholder="np. ciepły posiłek dzisiaj bez skierowania" className="min-h-12 py-2.5 text-base sm:min-h-16 sm:py-3 sm:text-lg" />
+                <label htmlFor="search-query" className="block text-sm font-semibold text-foreground">Czego szukasz?</label>
+                <div className="relative mt-2">
+                  <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-brand" size={22} strokeWidth={2.25} />
+                  <ClearableSearchInput id="search-query" name="q" defaultValue={searchValue} placeholder="np. ciepły posiłek dzisiaj bez skierowania" className="min-h-12 rounded-lg border border-border bg-white py-2.5 pl-12 text-base shadow-sm transition placeholder:text-slate-500 hover:border-slate-400 focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/35 sm:min-h-16 sm:py-3 sm:text-lg" />
+                </div>
               </form>
 
               {interpretedText ? (

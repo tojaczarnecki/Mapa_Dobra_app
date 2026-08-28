@@ -663,45 +663,70 @@ input {
 }
 
 .privacy-consent-layer {
+  background: #ffffff;
+  color: var(--home-text);
   inset: 0;
-  pointer-events: none;
+  overflow-y: auto;
   position: fixed;
   z-index: 60;
 }
 
-.privacy-consent-backdrop {
-  background: rgb(23 33 43 / 18%);
-  border: 0;
-  inset: 0;
-  pointer-events: auto;
-  position: absolute;
+body[data-privacy-screen-open="true"] .site-header,
+body[data-privacy-screen-open="true"] #main-content,
+body[data-privacy-screen-open="true"] .site-footer,
+body[data-privacy-screen-open="true"] .mobile-bottom-nav {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.privacy-consent-screen {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(1.5rem + env(safe-area-inset-top)) 1rem calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+.privacy-consent-content {
+  max-width: 38rem;
+  outline: none;
   width: 100%;
 }
 
-.privacy-consent-panel {
-  background: #ffffff;
-  border: 1px solid #dce3e8;
-  border-radius: 1rem;
-  bottom: 1rem;
-  box-shadow: 0 14px 34px rgb(23 33 43 / 14%);
-  color: var(--home-text);
-  left: 1rem;
-  max-width: min(42rem, calc(100vw - 2rem));
-  padding: 1.25rem;
-  pointer-events: auto;
-  position: absolute;
-  right: 1rem;
+.privacy-consent-brand {
+  margin-bottom: 2.5rem;
 }
 
-.privacy-consent-panel h2,
-.privacy-consent-category h3 {
+.privacy-consent-brand img {
+  display: block;
+  height: auto;
+  max-width: min(100%, 14rem);
+  width: 14rem;
+}
+
+.privacy-consent-panel {
+  color: var(--home-text);
+}
+
+.privacy-consent-eyebrow {
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.65rem;
+}
+
+.privacy-consent-panel h1,
+.privacy-consent-category h2 {
   color: #18364d;
   font-weight: 600;
   margin: 0;
 }
 
-.privacy-consent-panel h2 {
-  font-size: 1.25rem;
+.privacy-consent-panel h1 {
+  font-size: 2.25rem;
+  line-height: 1.1;
 }
 
 .privacy-consent-panel p {
@@ -709,6 +734,22 @@ input {
   font-size: 0.9375rem;
   line-height: 1.5;
   margin: 0.625rem 0 0;
+}
+
+.privacy-consent-benefits {
+  color: var(--home-text-secondary);
+  display: grid;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.privacy-consent-benefits li::before {
+  color: #0f766e;
+  content: "✓";
+  font-weight: 700;
+  margin-right: 0.55rem;
 }
 
 .privacy-consent-actions {
@@ -780,7 +821,7 @@ input {
   padding: 0.875rem;
 }
 
-.privacy-consent-category h3 {
+.privacy-consent-category h2 {
   font-size: 1rem;
 }
 
@@ -796,15 +837,18 @@ input {
   width: 1.25rem;
 }
 
+.privacy-consent-policy-link {
+  align-items: center;
+  color: #18364d;
+  display: inline-flex;
+  min-height: 3rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 @media (max-width: 639px) {
-  .privacy-consent-panel {
-    border-bottom: 0;
-    border-radius: 1rem 1rem 0 0;
-    bottom: 0;
-    left: 0;
-    max-width: none;
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
-    right: 0;
+  .privacy-consent-brand {
+    margin-bottom: 2rem;
   }
 
   .privacy-consent-actions {
@@ -814,7 +858,9 @@ input {
 
   .privacy-consent-primary,
   .privacy-consent-secondary,
-  .privacy-consent-text-button {
+  .privacy-consent-text-button,
+  .privacy-consent-policy-link {
+    justify-content: center;
     width: 100%;
   }
 }

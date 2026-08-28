@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
+import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 
 type MapControlsProps = {
   query: string;
@@ -83,10 +84,10 @@ export function MapControls({
             className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-strong"
             size={20}
           />
-          <input
-            type="search"
+          <ClearableSearchInput
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
+            onClear={() => onQueryChange("")}
             placeholder="Czego potrzebujesz?"
             className="h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30"
           />

@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { getHomeSuggestions, type HomeSearchCategory } from "@/lib/home/autosuggest";
 import type { PublicSearchPlace } from "@/lib/places/search";
+import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 
 type HomeSearchAutocompleteProps = {
   categories: HomeSearchCategory[];
@@ -48,10 +49,9 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
       <div className="home-search-autocomplete">
         <div className="home-search-field">
           <Search aria-hidden="true" className="shrink-0" size={23} strokeWidth={2.1} />
-          <input
+          <ClearableSearchInput
             id="home-search"
             name="q"
-            type="search"
             placeholder="Czego potrzebujesz?"
             autoComplete="off"
             role="combobox"
@@ -60,6 +60,11 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
             aria-expanded={hasSuggestions}
             aria-activedescendant={activeSuggestion ? `${listboxId}-${activeSuggestion.id}` : undefined}
             value={query}
+            onClear={() => {
+              setQuery("");
+              setActiveIndex(-1);
+              setIsOpen(false);
+            }}
             onChange={(event) => {
               setQuery(event.target.value);
               setActiveIndex(-1);

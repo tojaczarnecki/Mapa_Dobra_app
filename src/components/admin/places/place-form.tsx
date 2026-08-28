@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, Power, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 import { savePlace } from "@/app/admin/(protected)/miejsca/actions";
 import { useUnsavedChanges } from "@/components/admin/unsaved-changes";
+import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 import {
   accessibilityOptions,
   accommodationTypeLabels,
@@ -451,11 +452,11 @@ export function PlaceForm({
               <label className="relative block">
                 <span className="sr-only">Szukaj organizacji</span>
                 <Search aria-hidden="true" size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
+                <ClearableSearchInput
                   value={organizationQuery}
                   placeholder="Szukaj organizacji"
                   className={`${fieldClass} pl-10`}
+                  onClear={() => setOrganizationQuery("")}
                   onChange={(event) => {
                     event.stopPropagation();
                     setOrganizationQuery(event.target.value);

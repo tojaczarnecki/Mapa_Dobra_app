@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { isConsentChoice, PRIVACY_CONSENT_KEY, type ConsentChoice } from "@/lib/privacy/consent";
+import { isConsentChoice, PRIVACY_CONSENT_COOKIE, PRIVACY_CONSENT_KEY, type ConsentChoice } from "@/lib/privacy/consent";
+import { PrivacyPolicyContent } from "@/components/app/privacy-policy-content";
 
 function readConsent(): ConsentChoice | null {
   try {
@@ -12,9 +14,16 @@ function readConsent(): ConsentChoice | null {
   }
 }
 
-export function PrivacyConsent() {
+export function PrivacyConsent({
+  initialConsent,
+  children,
+}: {
+  initialConsent: ConsentChoice | null;
+  children: React.ReactNode;
+}) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [privacyView, setPrivacyView] = useState<"consent" | "policy">("consent");
+  const screenRef = useRef<HTMLDivElement>(null);
   const consent = useSyncExternalStore(
     (onChange) => {
       const notify = () => onChange();
@@ -26,23 +35,31 @@ export function PrivacyConsent() {
       };
     },
     readConsent,
-    () => null,
+    () => initialConsent,
   );
+  const showPanel = consent === null || settingsOpen;
+  const isInitialVisit = consent === null;
+  const isPolicyView = privacyView === "policy";
 
   useEffect(() => {
-    const openSettings = () => setSettingsOpen(true);
+    const openSettings = () => {
+      setPrivacyView("consent");
+      setSettingsOpen(true);
+    };
     window.addEventListener("mapa-dobra:open-cookie-settings", openSettings);
     return () => window.removeEventListener("mapa-dobra:open-cookie-settings", openSettings);
   }, []);
 
   useEffect(() => {
-    if (!settingsOpen) return;
+    if (!showPanel) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && consent !== null) setSettingsOpen(false);
       if (event.key !== "Tab") return;
 
-      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])') ?? []);
+      const focusable = Array.from(
+        screenRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])') ?? [],
+      );
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -58,76 +75,87 @@ export function PrivacyConsent() {
     const previousOverflow = document.body.style.overflow;
     document.addEventListener("keydown", closeOnEscape);
     document.body.style.overflow = "hidden";
-    dialogRef.current?.focus();
+    screenRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", closeOnEscape);
       document.body.style.overflow = previousOverflow;
     };
-  }, [consent, settingsOpen]);
+  }, [consent, showPanel]);
+
+  useEffect(() => {
+    document.body.dataset.privacyScreenOpen = showPanel ? "true" : "false";
+    return () => {
+      delete document.body.dataset.privacyScreenOpen;
+    };
+  }, [showPanel]);
 
   const saveConsent = (choice: ConsentChoice) => {
     window.localStorage.setItem(PRIVACY_CONSENT_KEY, choice);
+    document.cookie = `${PRIVACY_CONSENT_COOKIE}=${choice}; Path=/; Max-Age=31536000; SameSite=Lax`;
     window.dispatchEvent(new Event("mapa-dobra:consent-changed"));
     setSettingsOpen(false);
   };
 
-  const showPanel = consent === null || settingsOpen;
-  if (!showPanel) return null;
-
-  if (!settingsOpen) {
-    return (
-      <div className="privacy-consent-layer privacy-consent-layer-initial">
-        <div
-          ref={dialogRef}
-          className="privacy-consent-panel privacy-consent-panel-initial"
-          role="region"
-          aria-labelledby="privacy-consent-title"
-        >
-          <div className="privacy-consent-initial-copy">
-            <h2 id="privacy-consent-title">Prywatność</h2>
-            <p>Używamy tylko technologii niezbędnych do działania Mapy Dobra i zapamiętania tego wyboru.</p>
-          </div>
-          <div className="privacy-consent-actions privacy-consent-actions-initial">
-            <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>Rozumiem</button>
-            <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(true)}>Więcej</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!showPanel) return <>{children}</>;
 
   return (
     <div className="privacy-consent-layer">
-      <button
-        type="button"
-        className="privacy-consent-backdrop"
-        aria-label="Zamknij ustawienia prywatności"
-        onClick={() => consent !== null && setSettingsOpen(false)}
-      />
-      <div
-        ref={dialogRef}
-        className="privacy-consent-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="privacy-consent-title"
-        tabIndex={-1}
-      >
-        <h2 id="privacy-consent-title">Ustawienia prywatności</h2>
-        <p>Publiczna część Mapy Dobra nie korzysta obecnie z dodatkowych skryptów analitycznych ani marketingowych.</p>
-        <div className="privacy-consent-category">
-          <div>
-            <h3>Niezbędne</h3>
-            <p>Aktywne zawsze. Obejmują zapamiętanie tego wyboru, działanie PWA oraz techniczne elementy wymagane przez serwis.</p>
+      <section className="privacy-consent-screen" aria-labelledby="privacy-consent-title">
+        <div ref={screenRef} className="privacy-consent-content" tabIndex={-1}>
+          <div className="privacy-consent-brand">
+            <Image src="/brand/mapa-dobra-logo.svg" alt="Mapa Dobra" width={226} height={53} priority />
           </div>
-          <input type="checkbox" checked readOnly aria-label="Technologie niezbędne są zawsze aktywne" />
+          <div className="privacy-consent-panel">
+            {isPolicyView ? (
+              <>
+                <p className="privacy-consent-eyebrow">INFORMACJE I DOKUMENTY</p>
+                <h1 id="privacy-consent-title">Polityka prywatności</h1>
+                <PrivacyPolicyContent />
+                <div className="privacy-consent-actions">
+                  <button type="button" className="privacy-consent-text-button" onClick={() => setPrivacyView("consent")}>
+                    Wróć
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="privacy-consent-eyebrow">INFORMACJE O APLIKACJI</p>
+                <h1 id="privacy-consent-title">Prywatność</h1>
+                <p>
+                  Mapa Dobra używa tylko technologii niezbędnych do działania aplikacji i zapamiętania Twoich ustawień. Nie używamy obecnie reklamowych ani marketingowych plików cookie.
+                </p>
+                <ul className="privacy-consent-benefits">
+                  <li>Działanie aplikacji</li>
+                  <li>Zapamiętanie ustawień</li>
+                  <li>Działanie PWA</li>
+                </ul>
+                {!isInitialVisit ? (
+                  <div className="privacy-consent-category">
+                    <div>
+                      <h2>Niezbędne technologie</h2>
+                      <p>Aktywne zawsze i potrzebne do działania Mapy Dobra.</p>
+                    </div>
+                    <input type="checkbox" checked readOnly aria-label="Niezbędne technologie są aktywne" />
+                  </div>
+                ) : null}
+                <div className="privacy-consent-actions">
+                  <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>
+                    {isInitialVisit ? "Rozumiem" : "Zapisz ustawienia"}
+                  </button>
+                  <button type="button" className="privacy-consent-policy-link" onClick={() => setPrivacyView("policy")}>
+                    Polityka prywatności
+                  </button>
+                  {!isInitialVisit ? (
+                    <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>
+                      Wróć do aplikacji
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-        <div className="privacy-consent-actions">
-          <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>Zapisz ustawienia</button>
-          {consent !== null ? (
-            <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>Wróć</button>
-          ) : null}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

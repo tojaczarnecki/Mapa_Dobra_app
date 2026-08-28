@@ -1,4 +1,5 @@
 export const PRIVACY_CONSENT_KEY = "mapa-dobra:privacy-consent";
+export const PRIVACY_CONSENT_COOKIE = "mapa_dobra_privacy_consent";
 
 export type ConsentChoice = "necessary" | "all";
 

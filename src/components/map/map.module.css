@@ -1,10 +1,10 @@
 .mapPage {
   display: flex;
-  height: calc(100dvh - 3.5rem);
+  height: calc(100dvh - env(safe-area-inset-top));
   min-width: 0;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.5rem 1rem calc(4.9rem + env(safe-area-inset-bottom));
+  padding: 0.5rem 1rem calc(var(--md-public-nav-height, 4.9rem) + env(safe-area-inset-bottom) + 0.75rem);
 }
 
 .mapControls {
@@ -434,6 +434,30 @@
   backdrop-filter: blur(8px);
 }
 
+:global(body[data-mobile-overlay-open="true"]) .searchAreaButton,
+:global(body[data-mobile-overlay-open="true"]) .clearAreaButton,
+:global(body[data-mobile-overlay-open="true"]) .mapControls,
+:global(body[data-mobile-overlay-open="true"]) .mobileSheet,
+:global(body[data-mobile-overlay-open="true"]) .mobileResultSummary,
+:global(body[data-mobile-overlay-open="true"]) .mapPurpose,
+:global(body[data-mobile-overlay-open="true"]) .tileError,
+:global(body[data-mobile-overlay-open="true"]) .mapStage > section,
+:global(body[data-mobile-overlay-open="true"]) .leafletMap :global(.leaflet-control-container) {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+:global(body[data-mobile-overlay-open="true"]) .searchAreaButton,
+:global(body[data-mobile-overlay-open="true"]) .clearAreaButton,
+:global(body[data-mobile-overlay-open="true"]) .mapControls,
+:global(body[data-mobile-overlay-open="true"]) .mobileSheet,
+:global(body[data-mobile-overlay-open="true"]) .mobileResultSummary,
+:global(body[data-mobile-overlay-open="true"]) .mapPurpose,
+:global(body[data-mobile-overlay-open="true"]) .tileError,
+:global(body[data-mobile-overlay-open="true"]) .mapStage > section {
+  opacity: 0;
+}
+
 .mapBrandLabel {
   display: none;
 }
@@ -461,9 +485,9 @@
 
 @media (min-width: 640px) {
   .mapPage {
-    height: calc(100dvh - 4rem);
+    height: calc(100dvh - env(safe-area-inset-top));
     gap: 0.5rem;
-    padding: 0.75rem 1.5rem 1rem;
+    padding: 0.75rem 1.5rem calc(var(--md-public-nav-height, 4.9rem) + env(safe-area-inset-bottom) + 1rem);
   }
 
   .mobileSheet {
@@ -486,6 +510,13 @@
 
   .mapFilterViewport::after {
     display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .mapPage {
+    height: calc(100dvh - 4rem);
+    padding-bottom: 1rem;
   }
 }
 
