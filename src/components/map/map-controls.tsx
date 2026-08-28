@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { List, LocateFixed, Search, Sparkles } from "lucide-react";
+import { List, LocateFixed, Search, Sparkles, X } from "lucide-react";
 import type { FormEvent } from "react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
@@ -87,9 +87,19 @@ export function MapControls({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Czego potrzebujesz?"
-            className="h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30"
+            placeholder="Np. jedzenie dzisiaj"
+            className="h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-12 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30"
           />
+          {query ? (
+            <button
+              type="button"
+              className="touch-target absolute right-0.5 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+              aria-label="Wyczyść wyszukiwanie"
+              onClick={() => onQueryChange("")}
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          ) : null}
         </label>
         <button
           type="button"

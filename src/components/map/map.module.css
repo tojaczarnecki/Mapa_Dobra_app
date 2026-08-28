@@ -11,6 +11,8 @@
   display: grid;
   min-width: 0;
   gap: 0.5rem;
+  position: relative;
+  z-index: var(--layer-header);
 }
 
 .mapFilterViewport {
@@ -24,7 +26,7 @@
   right: 0;
   bottom: 0.25rem;
   width: 2rem;
-  background: linear-gradient(90deg, rgb(255 249 234 / 0%), var(--background));
+  background: linear-gradient(90deg, rgb(255 255 255 / 0%), var(--background));
   content: "";
   opacity: 0;
   pointer-events: none;
@@ -48,6 +50,7 @@
   min-height: 0;
   min-width: 0;
   flex: 1;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid #d8e2df;
   border-radius: 0.875rem;
@@ -62,6 +65,7 @@
   flex: 1;
   overflow: hidden;
   background: #e8efed;
+  z-index: var(--layer-content);
 }
 
 .leafletMap {
@@ -99,7 +103,7 @@
   justify-content: center;
   border-bottom-color: #dfe7e5;
   background: rgb(255 255 255 / 97%);
-  color: var(--home-navy);
+  color: var(--color-text);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1;
@@ -109,6 +113,11 @@
 .leafletMap :global(.leaflet-control-zoom a:focus) {
   background: var(--brand-soft);
   color: var(--brand-strong);
+}
+
+.leafletMap :global(.leaflet-control-zoom a:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
 }
 
 .leafletMap :global(.leaflet-control-attribution) {
@@ -145,7 +154,7 @@
   border: 3px solid var(--brand-strong);
   border-radius: 50%;
   background: rgb(255 255 255 / 98%);
-  color: var(--home-navy);
+  color: var(--color-text);
   box-shadow:
     0 0 0 2px rgb(255 255 255 / 90%),
     0 5px 14px rgb(23 33 43 / 22%);
@@ -165,8 +174,8 @@
 }
 
 .mapMarkerSelected {
-  border-color: var(--home-amber);
-  background: #fffaf0;
+  border-color: var(--color-warning);
+  background: rgb(215 154 43 / 12%);
   color: #6c4b0d;
   box-shadow:
     0 0 0 4px rgb(215 154 43 / 23%),
@@ -218,7 +227,7 @@
   position: absolute;
   top: 0.65rem;
   right: 0.65rem;
-  z-index: 640;
+  z-index: var(--layer-sticky);
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
@@ -264,9 +273,9 @@
 .mobileSheet {
   position: absolute;
   right: 0.65rem;
-  bottom: 0.65rem;
+  bottom: calc(0.65rem + env(safe-area-inset-bottom));
   left: 0.65rem;
-  z-index: 650;
+  z-index: var(--layer-sheet);
   max-height: min(18rem, calc(100% - 1.3rem));
   overflow-y: auto;
   border: 1px solid #d8e2df;
@@ -282,9 +291,9 @@
 .mobileResultSummary {
   position: absolute;
   right: 4rem;
-  bottom: 0.65rem;
+  bottom: calc(0.65rem + env(safe-area-inset-bottom));
   left: 0.65rem;
-  z-index: 610;
+  z-index: var(--layer-sticky);
   display: flex;
   min-height: 3.35rem;
   align-items: center;
@@ -386,7 +395,7 @@
   top: 0.65rem;
   right: 0.65rem;
   left: 0.65rem;
-  z-index: 670;
+  z-index: var(--layer-overlay);
   display: flex;
   min-height: 2.75rem;
   align-items: center;
@@ -418,7 +427,7 @@
   position: absolute;
   top: 0.65rem;
   left: 0.65rem;
-  z-index: 500;
+  z-index: var(--layer-content);
   display: flex;
   min-height: 2rem;
   align-items: center;

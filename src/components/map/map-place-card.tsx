@@ -201,7 +201,7 @@ export function MapPlaceCard({
   return (
     <article
       className={[
-        "min-w-0 rounded-lg border border-border bg-surface shadow-[0_12px_30px_rgb(17_24_39_/_12%)]",
+        "min-w-0 rounded-lg border border-border bg-surface shadow-[0_8px_22px_rgb(17_24_39_/_11%)]",
         useCompactAccommodation
           ? styles.compactAccommodationCard
           : "space-y-3 p-3.5 sm:p-4",

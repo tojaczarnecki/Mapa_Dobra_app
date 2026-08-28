@@ -126,7 +126,7 @@ export function MapFilters({
       {filtersOpen ? (
         <section
           id="map-additional-filters"
-          className="absolute right-0 top-[calc(100%+3.25rem)] z-[700] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]"
+          className="absolute right-0 top-[calc(100%+3.25rem)] z-[var(--layer-sheet)] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]"
           aria-label="Dodatkowe filtry mapy"
         >
           <div className="mb-2 flex items-center justify-between gap-3">

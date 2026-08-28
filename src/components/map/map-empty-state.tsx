@@ -20,8 +20,11 @@ export function MapEmptyState({
     >
       <MapPinOff aria-hidden="true" className="mx-auto mb-2 text-brand-strong" size={26} />
       <h2 className="text-base font-extrabold leading-6 text-foreground">
-        W tym obszarze nie znaleźliśmy miejsc spełniających wybrane warunki.
+        Brak miejsc w tym obszarze.
       </h2>
+      <p className="mt-1 text-sm leading-5 text-muted-foreground">
+        Zmień filtry lub przesuń mapę, aby zobaczyć inne możliwości.
+      </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {areaIsEmpty ? (
           <button
