@@ -2,6 +2,8 @@ import { normalizeAddress, normalizeComparable } from "@/lib/imports/caritas-gdz
 import { prisma } from "@/lib/prisma";
 import { isPilotGPlaceId, pilotGPlaceIds } from "@/lib/verification/pilot-g";
 import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
+import { findLivePlaceMatch, type LivePlaceMatch } from "@/lib/imports/live-place-match";
+import type { ImportPlaceReference } from "@/lib/imports/matching";
 
 export type VerificationQueueItem = {
   id: string;
@@ -164,26 +166,59 @@ function similarity(left: string, right: string) {
 }
 
 export async function getCandidateComparisonOptions(candidateId: string) {
-  const candidate = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { importBatchId: true, proposedName: true, proposedAddress: true, proposedPhone: true } });
+  const candidate = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { importBatchId: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedWebsite: true, proposedData: true, matchedPlaceId: true, organizationDecision: { select: { decision: true, organizationId: true } }, importBatch: { select: { metadata: true } } } });
   if (!candidate) return { allPlaces: [], suggestions: [], relatedCandidates: [] };
   const [places, candidates] = await Promise.all([
     prisma.place.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, addressLine: true, phone: true, organization: { select: { name: true } }, categories: { include: { category: { select: { name: true } } } } },
+      select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, organization: { select: { name: true } }, categories: { include: { category: { select: { name: true } } } } },
     }),
     prisma.importCandidate.findMany({
       where: { id: { not: candidateId }, importBatchId: candidate.importBatchId },
       select: { id: true, proposedName: true, proposedAddress: true, proposedPhone: true, categorySlugs: true },
     }),
   ]);
+  if (isSpreadsheetBatchMetadata(candidate.importBatch.metadata)) {
+    const proposed = typeof candidate.proposedData === "object" && candidate.proposedData !== null && !Array.isArray(candidate.proposedData) ? candidate.proposedData as Record<string, unknown> : null;
+    const mapped = proposed?.mappedValues && typeof proposed.mappedValues === "object" && !Array.isArray(proposed.mappedValues) ? proposed.mappedValues as Record<string, unknown> : null;
+    const analysis = proposed?.analysis && typeof proposed.analysis === "object" && !Array.isArray(proposed.analysis) ? proposed.analysis as Record<string, unknown> : null;
+    const organization = analysis?.organization && typeof analysis.organization === "object" && !Array.isArray(analysis.organization) ? analysis.organization as Record<string, unknown> : null;
+    const organizationId = candidate.organizationDecision
+      ? candidate.organizationDecision.decision === "SELECTED_ORGANIZATION" ? candidate.organizationDecision.organizationId : null
+      : typeof organization?.organizationId === "string" ? organization.organizationId : null;
+    const values = {
+      name: candidate.proposedName,
+      addressLine: candidate.proposedAddress,
+      street: typeof mapped?.street === "string" ? mapped.street : null,
+      buildingNumber: typeof mapped?.buildingNumber === "string" ? mapped.buildingNumber : null,
+      phone: candidate.proposedPhone ?? (typeof mapped?.phone === "string" ? mapped.phone : null),
+      website: candidate.proposedWebsite ?? (typeof mapped?.website === "string" ? mapped.website : null),
+    };
+    const references: ImportPlaceReference[] = places.map((place) => ({
+      id: place.id,
+      name: place.name,
+      addressLine: place.addressLine,
+      street: place.street,
+      buildingNumber: place.buildingNumber,
+      phone: place.phone,
+      website: place.website,
+      organizationId: place.organizationId,
+      primaryCategoryId: place.primaryCategoryId,
+    }));
+    const liveMatch = findLivePlaceMatch(values, references, organizationId);
+    const byId = new Map(places.map((place) => [place.id, place]));
+    const suggestions = liveMatch.candidates.map((candidateMatch) => ({ ...byId.get(candidateMatch.placeId)!, matchReasons: candidateMatch.reasons }));
+    return { allPlaces: places, suggestions, relatedCandidates: [], liveMatch };
+  }
   const address = normalizeAddress(candidate.proposedAddress);
   const scoredPlaces = places.map((place) => ({
     ...place,
+    matchReasons: undefined as string[] | undefined,
     score: similarity(candidate.proposedName, place.name) + (address && normalizeAddress(place.addressLine) === address ? 0.7 : 0) + (candidate.proposedPhone && place.phone === candidate.proposedPhone ? 0.4 : 0),
   })).filter((place) => place.score >= 0.55).sort((a, b) => b.score - a.score).slice(0, 5);
   const relatedCandidates = candidates.map((item) => ({
     ...item,
     score: similarity(candidate.proposedName, item.proposedName) + (address && normalizeAddress(item.proposedAddress) === address ? 0.7 : 0),
   })).filter((item) => item.score >= 0.65).sort((a, b) => b.score - a.score).slice(0, 5);
-  return { allPlaces: places, suggestions: scoredPlaces, relatedCandidates };
+  return { allPlaces: places, suggestions: scoredPlaces, relatedCandidates, liveMatch: undefined as LivePlaceMatch | undefined };
 }

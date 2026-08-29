@@ -2,6 +2,8 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { ImportBatchStatus, ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import { slugifyImportValue } from "./caritas-gdzie-parser.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
+import { findLivePlaceMatch, lockLivePlaceIdentity } from "./live-place-match.ts";
+import type { ImportPlaceReference } from "./matching.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "./organization-decisions.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -68,6 +70,7 @@ export type MaterializeCandidateTransaction = {
   };
   place: {
     findUnique(args: Prisma.PlaceFindUniqueArgs): Promise<{ id: string } | null>;
+    findMany(args: Prisma.PlaceFindManyArgs): Promise<ImportPlaceReference[]>;
     create(args: Prisma.PlaceCreateArgs): Promise<{ id: string }>;
   };
   auditLog: {
@@ -294,6 +297,22 @@ export async function materializeImportCandidate(
     const organizationId = effectiveOrganization.organizationId;
 
     const values = proposed.values;
+    await lockLivePlaceIdentity(
+      (key) => transaction.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`),
+      values,
+      organizationId,
+    );
+    const livePlaces = await transaction.place.findMany({
+      select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, latitude: true, longitude: true, publicationStatus: true },
+    });
+    const liveMatch = findLivePlaceMatch(values, livePlaces, organizationId);
+    if (liveMatch.classification === "EXACT_MATCH" || liveMatch.classification === "POSSIBLE_MATCH") {
+      const matchedPlaceId = liveMatch.classification === "EXACT_MATCH" && liveMatch.candidates.length === 1 ? liveMatch.candidates[0]?.placeId ?? null : null;
+      await transaction.importCandidate.update({ where: { id: candidate.id }, data: { status: ImportCandidateStatus.REQUIRES_REVIEW, queueStatus: "PENDING", matchedPlaceId } });
+      return liveMatch.classification === "EXACT_MATCH"
+        ? { status: "EXISTING_PLACE_REVIEW_REQUIRED" }
+        : { status: "PLACE_MATCH_REVIEW_REQUIRED" };
+    }
     const place = await transaction.place.create({
       data: {
         slug: await uniquePlaceSlug(transaction, values.name, candidate.id),

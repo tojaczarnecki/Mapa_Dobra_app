@@ -4,6 +4,7 @@ import type { Prisma } from "../src/generated/prisma/client.ts";
 import { ImportBatchStatus, ImportCandidateStatus } from "../src/generated/prisma/enums.ts";
 import type { ImportBatchStatus as ImportBatchStatusValue } from "../src/generated/prisma/enums.ts";
 import { materializeImportCandidate, type MaterializeCandidateDatabase, type MaterializeCandidateTransaction } from "../src/lib/imports/materialize-candidate.ts";
+import type { ImportPlaceReference } from "../src/lib/imports/matching.ts";
 
 const candidateId = "11111111-1111-4111-8111-111111111111";
 const secondCandidateId = "55555555-5555-4555-8555-555555555555";
@@ -73,6 +74,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
   forceSlugRace = false;
   private forcedSlugRace = false;
   failAudit = false;
+  livePlaces: ImportPlaceReference[] = [];
 
   constructor(slugs = new Set<string>()) {
     this.slugs = slugs;
@@ -81,7 +83,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
   private transaction(): MaterializeCandidateTransaction {
     return {
       $queryRaw: async <T>(query: Prisma.Sql) => {
-        this.lockQuery = query;
+        if (/FOR UPDATE/u.test(JSON.stringify(query))) this.lockQuery = query;
         return [{ id: this.candidate.id }] as T[];
       },
       importCandidate: {
@@ -99,6 +101,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
       },
       place: {
         findUnique: async (args) => this.slugs.has(String(args.where.slug)) ? { id: "existing-place" } : null,
+        findMany: async () => this.livePlaces,
         create: async (args) => {
           const slug = String(args.data.slug);
           if (this.forceSlugRace && !this.forcedSlugRace) {
@@ -161,6 +164,33 @@ test("returns ALREADY_CREATED without creating another place", async () => {
 
   assert.deepEqual(await materialize(db), { status: "ALREADY_CREATED", placeId: "existing-place" });
   assert.equal(db.createdPlaceData, null);
+});
+
+test("blocks a historical NEW candidate when the live matcher finds an exact place", async () => {
+  const db = new FakeDatabase();
+  db.livePlaces = [{ id: "live-place", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: "42 000 00 00", website: null, organizationId: null, primaryCategoryId: "category-1", latitude: null, longitude: null, publicationStatus: "DRAFT" }];
+  const before = JSON.stringify(db.candidate.proposedData);
+
+  assert.deepEqual(await materialize(db), { status: "EXISTING_PLACE_REVIEW_REQUIRED" });
+  assert.equal(db.createdPlaceData, null);
+  assert.deepEqual(db.candidateUpdate, { status: ImportCandidateStatus.REQUIRES_REVIEW, queueStatus: "PENDING", matchedPlaceId: "live-place" });
+  assert.equal(JSON.stringify(db.candidate.proposedData), before);
+});
+
+test("blocks a historical NEW candidate when the live matcher finds a possible place", async () => {
+  const db = new FakeDatabase();
+  db.livePlaces = [{ id: "possible-place", name: "Inna placówka", addressLine: "Piotrkowska 11, Łódź", phone: "42 000 00 00", website: null, organizationId: null, primaryCategoryId: "category-1", latitude: null, longitude: null, publicationStatus: "DRAFT" }];
+
+  assert.deepEqual(await materialize(db), { status: "PLACE_MATCH_REVIEW_REQUIRED" });
+  assert.equal(db.createdPlaceData, null);
+  assert.deepEqual(db.candidateUpdate, { status: ImportCandidateStatus.REQUIRES_REVIEW, queueStatus: "PENDING", matchedPlaceId: null });
+});
+
+test("does not treat a slug collision as a live domain match", async () => {
+  const db = new FakeDatabase(new Set(["punkt-pomocy"]));
+
+  assert.deepEqual(await materialize(db), { status: "CREATED", placeId: "place-1" });
+  assert.equal(db.createdPlaceData?.slug, "punkt-pomocy-111111");
 });
 
 test("blocks batches that are still processing or failed", async () => {
