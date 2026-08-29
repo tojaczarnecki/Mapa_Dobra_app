@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { PwaClient } from "@/components/app/pwa-client";
+import { LaunchSplash } from "@/components/app/launch-splash";
 import { SiteHeader } from "@/components/app/site-header";
 import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
@@ -24,13 +25,13 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: [{ url: "/icon.png", sizes: "256x256", type: "image/png" }],
+    icon: [{ url: "/icons/mapa-dobra-favicon.png", sizes: "734x734", type: "image/png" }],
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#13ad87",
+  themeColor: "#0f766e",
   colorScheme: "light",
 };
 
@@ -44,6 +45,7 @@ export default async function RootLayout({
   return (
     <html lang="pl">
       <body>
+        <LaunchSplash />
         <div className="min-h-screen bg-background text-foreground">
           <PrivacyConsent initialConsent={initialConsent}>
             <a className="skip-link" href="#main-content">

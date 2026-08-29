@@ -1,8 +1,11 @@
 const STATIC_CACHE_PREFIX = "mapa-dobra-static-";
-const STATIC_CACHE = `${STATIC_CACHE_PREFIX}v2`;
+const STATIC_CACHE = `${STATIC_CACHE_PREFIX}v3`;
 const PRECACHE = [
   "/offline",
-  "/brand/mapa-dobra-logo.svg",
+  "/brand/mapa-dobra-wordmark.svg",
+  "/brand/mapa-dobra-logo-header-new.svg",
+  "/brand/mapa-dobra-logo-footer.svg",
+  "/icons/mapa-dobra-favicon.png",
   "/icons/mapa-dobra-192.png",
   "/icons/mapa-dobra-512.png",
   "/icons/mapa-dobra-maskable-512.png",

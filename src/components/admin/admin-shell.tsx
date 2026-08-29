@@ -29,10 +29,10 @@ export function AdminShell({ displayName, role, permissions, children }: AdminSh
         <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-6 px-5 py-3 lg:px-8">
           <Link href="/admin" className="inline-flex rounded-md p-1" aria-label="Mapa Dobra - panel administratora">
             <Image
-              src="/brand/mapa-dobra-logo.svg"
+              src="/brand/mapa-dobra-logo-header-new.svg"
               alt="Mapa Dobra"
-              width={170}
-              height={40}
+              width={604}
+              height={120}
               priority
               className="h-9 w-auto"
             />

@@ -26,10 +26,10 @@ export function SiteHeader() {
           aria-label="Mapa Dobra - strona główna"
         >
           <Image
-            src="/brand/mapa-dobra-logo.svg"
+            src="/brand/mapa-dobra-logo-header-new.svg"
             alt="Mapa Dobra"
-            width={170}
-            height={40}
+            width={604}
+            height={120}
             priority
             className="site-header-logo"
           />
