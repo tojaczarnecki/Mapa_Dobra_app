@@ -18,6 +18,7 @@ const categoryFilters: Array<{
   { value: "medical", label: "Zdrowie" },
   { value: "legal", label: "Prawna" },
   { value: "psychological", label: "Psycholog" },
+  { value: "social", label: "Pomoc socjalna" },
   { value: "clothing", label: "Odzież" },
   { value: "other", label: "Inne" },
 ];

@@ -32,6 +32,7 @@ const publicCategoryByMapCategory: Partial<Record<MapCategoryFilter, string>> = 
   medical: "pomoc-medyczna",
   legal: "pomoc-prawna",
   psychological: "pomoc-psychologiczna",
+  social: "pomoc-socjalna",
   clothing: "odziez",
   other: "inne",
 };
@@ -44,6 +45,7 @@ const mapCategoryByPublicCategory: Record<string, MapCategoryFilter> = {
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
   "pomoc-psychologiczna": "psychological",
+  "pomoc-socjalna": "social",
   odziez: "clothing",
   inne: "other",
 };

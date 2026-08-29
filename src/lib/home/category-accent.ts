@@ -6,6 +6,7 @@ const namedCategoryAccents: Record<string, string> = {
   "pomoc-medyczna": "#DC2626",
   "pomoc-psychologiczna": "#8B5CF6",
   "pomoc-prawna": "#0F766E",
+  "pomoc-socjalna": "#B45309",
   prysznic: "#0284C7",
 };
 

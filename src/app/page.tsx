@@ -7,6 +7,7 @@ import {
   Clock3,
   Droplets,
   HeartPulse,
+  HandHeart,
   LocateFixed,
   Scale,
   Shirt,
@@ -36,6 +37,7 @@ const categoryIconMap = {
   "pomoc-medyczna": HeartPulse,
   "pomoc-psychologiczna": Brain,
   "pomoc-prawna": Scale,
+  "pomoc-socjalna": HandHeart,
   higiena: Droplets,
 } as const;
 

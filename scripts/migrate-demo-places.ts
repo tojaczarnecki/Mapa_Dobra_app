@@ -25,7 +25,6 @@ const categories = [
   ["pomoc-psychologiczna", "Pomoc psychologiczna"],
   ["pomoc-prawna", "Pomoc prawna"],
   ["pomoc-socjalna", "Pomoc socjalna"],
-  ["inne", "Inna pomoc"],
 ] as const;
 
 const categoryByHelpType: Record<string, string> = {

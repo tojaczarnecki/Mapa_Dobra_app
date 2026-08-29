@@ -11,6 +11,7 @@ export type MapCategory =
   | "medical"
   | "legal"
   | "psychological"
+  | "social"
   | "clothing"
   | "other";
 
@@ -55,6 +56,7 @@ const categoryBySlug: Partial<Record<string, MapCategory>> = {
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
   "pomoc-psychologiczna": "psychological",
+  "pomoc-socjalna": "social",
   odziez: "clothing",
 };
 

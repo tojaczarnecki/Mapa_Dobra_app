@@ -7,6 +7,7 @@ import {
   CircleEllipsis,
   Droplets,
   HeartPulse,
+  HandHeart,
   Scale,
   Shirt,
   Utensils,
@@ -25,6 +26,7 @@ const categoryIcon: Record<MapCategory, LucideIcon> = {
   medical: HeartPulse,
   legal: Scale,
   psychological: Brain,
+  social: HandHeart,
   clothing: Shirt,
   other: CircleEllipsis,
 };

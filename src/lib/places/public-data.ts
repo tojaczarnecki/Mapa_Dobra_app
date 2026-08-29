@@ -5,6 +5,7 @@ import {
   Brain,
   Droplets,
   HeartPulse,
+  HandHeart,
   Scale,
   Shirt,
   ShowerHead,
@@ -70,6 +71,7 @@ const iconMap: Record<string, LucideIcon> = {
   "pomoc-medyczna": HeartPulse,
   "pomoc-prawna": Scale,
   "pomoc-psychologiczna": Brain,
+  "pomoc-socjalna": HandHeart,
 };
 
 const weekdayRows = [

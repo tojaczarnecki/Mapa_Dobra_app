@@ -36,6 +36,7 @@ const validCategories = new Set<MapCategoryFilter>([
   "medical",
   "legal",
   "psychological",
+  "social",
   "clothing",
   "other",
 ]);
@@ -48,6 +49,7 @@ const categoryAliases: Record<string, MapCategoryFilter> = {
   "pomoc-medyczna": "medical",
   "pomoc-prawna": "legal",
   "pomoc-psychologiczna": "psychological",
+  "pomoc-socjalna": "social",
   odziez: "clothing",
   inne: "other",
 };

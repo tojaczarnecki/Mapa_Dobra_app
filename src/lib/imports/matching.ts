@@ -161,11 +161,16 @@ export function matchOrganization(values: CanonicalImportValues, references: Imp
 
 const categoryAliases: Record<string, string> = {
   "odziez": "odziez",
+  "prysznic": "higiena",
   "pomoc medyczna": "pomoc-medyczna",
   "pomoc psychologiczna": "pomoc-psychologiczna",
+  "psycholog": "pomoc-psychologiczna",
+  "wsparcie psychologiczne": "pomoc-psychologiczna",
   "pomoc prawna": "pomoc-prawna",
+  "porady prawne": "pomoc-prawna",
   "pomoc socjalna": "pomoc-socjalna",
-  "inna pomoc": "inne",
+  "praca socjalna": "pomoc-socjalna",
+  "wsparcie socjalne": "pomoc-socjalna",
 };
 
 function normalizeCategorySlug(value: string): string {
@@ -176,6 +181,7 @@ export function matchCategory(value: unknown, references: ImportCategoryReferenc
   const input = textValue(value);
   const normalizedName = normalizeMatchingText(input);
   if (!normalizedName) return { status: "UNRESOLVED", method: null, categoryId: null, categorySlug: null, reasons: ["UNRESOLVED_CATEGORY"], warnings: [] };
+  if (normalizedName === "inne" || normalizedName === "inna pomoc") return { status: "UNRESOLVED", method: null, categoryId: null, categorySlug: null, reasons: ["UNRESOLVED_CATEGORY"], warnings: [] };
   const bySlug = references.filter((category) => normalizeCategorySlug(category.slug) === normalizeCategorySlug(input));
   const byName = references.filter((category) => normalizeMatchingText(category.name) === normalizedName);
   const aliasSlug = categoryAliases[normalizedName];

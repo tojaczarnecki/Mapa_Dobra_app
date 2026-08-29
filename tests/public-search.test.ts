@@ -81,6 +81,11 @@ test("intent parser recognizes psychological support and clothing needs", () => 
   assert.equal(interpretSearchQuery("potrzebuję ciepłej kurtki i ubrań").filters.category, "odziez");
 });
 
+test("intent parser recognizes legal and social support", () => {
+  assert.equal(interpretSearchQuery("pomoc prawna").filters.category, "pomoc-prawna");
+  assert.equal(interpretSearchQuery("praca socjalna").filters.category, "pomoc-socjalna");
+});
+
 test("homepage autosuggest builds safe category and place routes", () => {
   const suggestions = getHomeSuggestions("prysznic", [{ label: "Prysznic", slug: "prysznic" }], places);
   assert.equal(suggestions[0]?.href, "/szukaj?kategoria=prysznic");

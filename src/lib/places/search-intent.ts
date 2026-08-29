@@ -44,12 +44,17 @@ const categoryMatchers = [
   {
     slug: "pomoc-prawna",
     label: "Pomoc prawna",
-    phrases: ["prawnik", "prawna", "prawny", "prawo", "porada prawna", "prawnicza"],
+    phrases: ["prawnik", "prawna", "prawny", "prawo", "porada prawna", "porady prawne", "prawnicza"],
   },
   {
     slug: "pomoc-psychologiczna",
     label: "Wsparcie psychologiczne",
     phrases: ["psycholog", "psychologiczna", "psychiczny", "kryzys psychiczny", "rozmowa z psychologiem"],
+  },
+  {
+    slug: "pomoc-socjalna",
+    label: "Pomoc socjalna",
+    phrases: ["pomoc socjalna", "praca socjalna", "wsparcie socjalne"],
   },
   {
     slug: "odziez",

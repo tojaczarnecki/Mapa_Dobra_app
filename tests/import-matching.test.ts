@@ -43,7 +43,11 @@ test("organization matching handles names, similar names, inactive and missing d
 test("category matching uses slug, name and known aliases only when target exists", () => {
   assert.equal(matchCategory("JEDZENIE", categories).method, "SLUG");
   assert.equal(matchCategory("  Odzież  ", categories).warnings[0], "INACTIVE_CATEGORY");
-  assert.equal(matchCategory("Inna pomoc", [{ id: "other", slug: "inne", name: "Other help", active: true }]).method, "ALIAS");
+  assert.equal(matchCategory("inne", [{ id: "other", slug: "inne", name: "Other help", active: true }]).status, "UNRESOLVED");
+  assert.equal(matchCategory("prysznic", [{ id: "hygiene", slug: "higiena", name: "Higiena", active: true }]).categorySlug, "higiena");
+  assert.equal(matchCategory("Pomoc psychologiczna", [{ id: "psych", slug: "pomoc-psychologiczna", name: "Pomoc psychologiczna", active: true }]).categorySlug, "pomoc-psychologiczna");
+  assert.equal(matchCategory("Pomoc prawna", [{ id: "legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: true }]).categorySlug, "pomoc-prawna");
+  assert.equal(matchCategory("Pomoc socjalna", [{ id: "social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true }]).categorySlug, "pomoc-socjalna");
   assert.equal(matchCategory("Pomoc medyczna", categories).status, "UNRESOLVED");
   assert.equal(matchCategory("nieznana", categories).status, "UNRESOLVED");
 });

@@ -34,6 +34,7 @@ const categoryAliases: Record<string, string[]> = {
   medical: ["pomoc-medyczna"],
   legal: ["pomoc-prawna"],
   psychological: ["pomoc-psychologiczna"],
+  social: ["pomoc-socjalna"],
   clothing: ["odziez"],
 };
 
