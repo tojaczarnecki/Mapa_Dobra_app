@@ -9,7 +9,9 @@ import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreads
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge } from "@/lib/imports/duplicate-decisions";
 import { DuplicateDecisionPanel } from "@/components/admin/imports/duplicate-decision-panel";
 import { OrganizationDecisionPanel } from "@/components/admin/imports/organization-decision-panel";
+import { CategoryResolutionPanel } from "@/components/admin/imports/category-resolution-panel";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
+import { resolveEffectiveCategory } from "@/lib/imports/category-decisions";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -32,6 +34,14 @@ function rowNumber(candidateKey: string): number | null {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 export default async function AdminImportBatchPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requirePermission("VIEW_IMPORTS");
   const { id } = await params;
@@ -48,6 +58,7 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
           matchedPlace: { select: { id: true, name: true, recordKind: true } },
           createdPlace: { select: { id: true, name: true, verificationQueueStatus: true, verificationStatus: true } },
           organizationDecision: { select: { decision: true, organizationId: true } },
+          categoryDecision: { select: { id: true, primaryCategoryId: true, resolvedAt: true, note: true, resolvedBy: { select: { displayName: true } }, categories: { orderBy: [{ sortOrder: "asc" }, { categoryId: "asc" }], select: { categoryId: true, sortOrder: true, category: { select: { id: true, name: true, slug: true, active: true } } } } } },
           sources: { include: { sourceEntry: true } },
           duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } },
           duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } },
@@ -61,7 +72,10 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { id: true, candidateKey: true, proposedData: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedOrganizationName: true, primaryCategorySlug: true, categorySlugs: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } }, duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } } } }),
   ]);
   const selectedOrganizationIds = batch.candidates.flatMap((candidate) => candidate.organizationDecision?.organizationId ? [candidate.organizationDecision.organizationId] : []);
-  const organizations = isSpreadsheetBatchMetadata(batch.metadata) ? await prisma.organization.findMany({ where: { OR: [{ active: true }, { id: { in: selectedOrganizationIds } }] }, select: { id: true, name: true, nip: true, regon: true, krs: true, active: true }, orderBy: { name: "asc" } }) : [];
+  const [organizations, categories] = isSpreadsheetBatchMetadata(batch.metadata) ? await Promise.all([
+    prisma.organization.findMany({ where: { OR: [{ active: true }, { id: { in: selectedOrganizationIds } }] }, select: { id: true, name: true, nip: true, regon: true, krs: true, active: true }, orderBy: { name: "asc" } }),
+    prisma.category.findMany({ where: { active: true }, select: { id: true, slug: true, name: true, active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+  ]) : [[], []];
   const rowNumberToCandidateId = new Map<number, string>();
   for (const candidate of allCandidates) {
     const sourceRow = rowNumber(candidate.candidateKey);
@@ -139,6 +153,32 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
             const candidateIds = Array.isArray(organizationAnalysis?.candidateIds) ? organizationAnalysis.candidateIds.filter((value): value is string => typeof value === "string") : [];
             return <OrganizationDecisionPanel candidateId={candidate.id} batchId={id} source={{ name: typeof mapped?.organizationName === "string" ? mapped.organizationName : null, nip: typeof mapped?.organizationNip === "string" ? mapped.organizationNip : null, regon: typeof mapped?.organizationRegon === "string" ? mapped.organizationRegon : null, krs: typeof mapped?.organizationKrs === "string" ? mapped.organizationKrs : null }} suggestedIds={candidateIds} organizations={organizations} currentDecision={candidate.organizationDecision} active={shouldEdit} />;
           })()}
+          {isSpreadsheetBatchMetadata(batch.metadata) ? (() => {
+            const root = objectRecord(candidate.proposedData);
+            const mapped = objectRecord(root?.mappedValues);
+            const analysis = objectRecord(root?.analysis);
+            const categoryAnalysis = objectRecord(analysis?.categories);
+            const legacyCategory = objectRecord(analysis?.category);
+            const sourceValue = typeof mapped?.primaryCategory === "string" ? mapped.primaryCategory : null;
+            const categoryIds = stringArray(categoryAnalysis?.matchedCategoryIds);
+            const legacySlug = typeof legacyCategory?.categorySlug === "string" ? legacyCategory.categorySlug : candidate.primaryCategorySlug;
+            const legacyCategoryId = categories.find((item) => item.slug === legacySlug)?.id;
+            const analysisState = { categoryIds: categoryIds.length ? categoryIds : legacyCategoryId ? [legacyCategoryId] : [], requiresReview: typeof categoryAnalysis?.requiresReview === "boolean" ? Boolean(categoryAnalysis.requiresReview) : legacyCategory?.status !== "MATCHED", unresolvedTokens: stringArray(categoryAnalysis?.unresolvedTokens), warnings: stringArray(categoryAnalysis?.warnings) };
+            const reanalysisRoot = objectRecord(objectRecord(root?.reanalysis)?.category);
+            const reanalysisResult = objectRecord(reanalysisRoot?.result);
+            const reanalysis = reanalysisResult ? { categoryIds: stringArray(reanalysisResult.matchedCategoryIds), requiresReview: Boolean(reanalysisResult.requiresReview), unresolvedTokens: stringArray(reanalysisResult.unresolvedTokens), warnings: stringArray(reanalysisResult.warnings) } : null;
+            const persistedDecision = candidate.categoryDecision ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories } : null;
+            const effective = resolveEffectiveCategory(analysisState, persistedDecision, categories, reanalysis);
+            const hasCategoryData = Boolean(candidate.categoryDecision || reanalysis || categoryAnalysis || candidate.categorySlugs.length || candidate.primaryCategorySlug);
+            if (!hasCategoryData) return null;
+            const matchedIds = stringArray(categoryAnalysis?.matchedCategoryIds);
+            const tokens = Array.isArray(categoryAnalysis?.tokens) ? categoryAnalysis.tokens.flatMap((value) => { const token = objectRecord(value); if (!token || typeof token.sourceToken !== "string") return []; const categoryId = typeof token.categoryId === "string" ? token.categoryId : null; const category = categories.find((item) => item.id === categoryId); return [{ sourceToken: token.sourceToken, categoryName: category?.name ?? null, categorySlug: category?.slug ?? (typeof token.categorySlug === "string" ? token.categorySlug : null), method: typeof token.method === "string" ? token.method : null, unresolved: token.status === "UNRESOLVED", warnings: stringArray(token.warnings) }]; }) : [];
+            const reanalysisView = reanalysisResult ? { status: typeof reanalysisResult.status === "string" ? reanalysisResult.status : "UNRESOLVED", matchedCategoryNames: stringArray(reanalysisResult.matchedCategoryIds).map((categoryId) => categories.find((item) => item.id === categoryId)?.name ?? categoryId), unresolvedTokens: stringArray(reanalysisResult.unresolvedTokens) } : null;
+            const decisionView = candidate.categoryDecision ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories.map((item) => ({ categoryId: item.categoryId, sortOrder: item.sortOrder, name: item.category.name })), resolvedBy: candidate.categoryDecision.resolvedBy.displayName, resolvedAt: candidate.categoryDecision.resolvedAt.toISOString(), note: candidate.categoryDecision.note } : null;
+            const effectiveIds = effective.status === "REQUIRES_REVIEW" ? matchedIds : effective.categoryIds;
+            const terminal = candidate.status === "IMPORTED" || candidate.status === "SKIPPED" || Boolean(candidate.createdPlaceId) || candidate.resolution === "SAME_PLACE";
+            return <CategoryResolutionPanel candidateId={candidate.id} sourceValue={sourceValue} tokens={tokens} reanalysis={reanalysisView} effectiveState={effective.status} effectiveCategoryIds={effectiveIds} activeCategories={categories} currentDecision={decisionView} canEdit={!terminal} />;
+          })() : null}
           {(() => {
             const sourceCandidate = allCandidates.find((item) => item.id === candidate.id);
             if (!sourceCandidate) return null;

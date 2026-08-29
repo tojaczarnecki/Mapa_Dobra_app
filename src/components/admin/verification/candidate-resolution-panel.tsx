@@ -9,12 +9,14 @@ type Category = { id: string; slug: string; name: string; active: boolean };
 type Organization = { id: string; name: string; active: boolean };
 type PlaceOption = { id: string; name: string; addressLine: string };
 
-export function CandidateResolutionPanel({ candidateId, initial, categories, organizations, places, spreadsheetPlaceReview = false }: {
+export function CandidateResolutionPanel({ candidateId, importBatchId, initial, categories, organizations, places, effectiveCategory = null, spreadsheetPlaceReview = false }: {
   candidateId: string;
+  importBatchId: string;
   initial: { name: string; address: string; categorySlugs: string[]; primaryCategorySlug: string; organizationId: string; matchedPlaceId: string };
   categories: Category[];
   organizations: Organization[];
   places: PlaceOption[];
+  effectiveCategory?: { primary: string | null; selected: string[]; review: boolean } | null;
   spreadsheetPlaceReview?: boolean;
 }) {
   const [selectedCategories, setSelectedCategories] = useState(initial.categorySlugs);
@@ -35,7 +37,7 @@ export function CandidateResolutionPanel({ candidateId, initial, categories, org
         {spreadsheetPlaceReview ? <form action={differentAction} className="rounded-lg border border-border p-3">
           <h3 className="flex items-center gap-2 font-bold"><GitPullRequest aria-hidden="true" size={19} />To inna placówka</h3><p className="mt-1 text-sm text-muted-foreground">Utworzy nowe miejsce jako szkic. Istniejące miejsce nie zostanie zmienione.</p>
           <label className="mt-3 block text-sm font-bold">Miejsce uznane za inne<select name="reviewedPlaceId" required defaultValue={initial.matchedPlaceId} className="mt-1 min-h-11 w-full rounded-lg border border-border bg-white px-3 font-normal"><option value="">Wybierz miejsce</option>{places.map((place) => <option key={place.id} value={place.id}>{place.name} — {place.addressLine}</option>)}</select></label>
-          <label className="mt-3 block text-sm font-bold">Kategoria miejsca<select name="primaryCategorySlug" required defaultValue={initial.primaryCategorySlug} className="mt-1 min-h-11 w-full rounded-lg border border-border bg-white px-3 font-normal"><option value="">Wybierz kategorię</option>{categories.filter((item) => item.active).map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}</select></label>
+          <div className="mt-3 rounded-md border border-border bg-[#faf9f5] p-3 text-sm"><p className="font-bold">Kategorie zostaną pobrane z decyzji importu</p>{effectiveCategory?.review ? <p className="mt-1 text-urgent">Kategoria wymaga rozstrzygnięcia w imporcie.</p> : <><p className="mt-1">Główna: {effectiveCategory?.primary ?? "—"}</p><p className="mt-1">Wybrane: {effectiveCategory?.selected.join(", ") || "—"}</p></>}<Link href={`/admin/importy/${importBatchId}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-brand-strong hover:underline">Rozstrzygnij kategorię w imporcie</Link></div>
           <label className="mt-2 block text-sm font-bold">Organizacja<select name="organizationId" defaultValue={initial.organizationId} className="mt-1 min-h-11 w-full rounded-lg border border-border bg-white px-3 font-normal"><option value="">Bez organizacji</option>{organizations.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="mt-3 block text-sm font-bold">Notatka <span className="font-normal text-muted-foreground">(opcjonalnie)</span><input name="note" maxLength={1000} className="mt-1 min-h-11 w-full rounded-lg border border-border px-3 font-normal" /></label>
           <button type="submit" disabled={differentPending} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white disabled:opacity-60">{differentPending ? "Tworzę szkic..." : "To inna placówka"}</button>{differentState.error ? <p className="mt-2 text-sm font-semibold text-urgent">{differentState.error}</p> : null}{differentState.success ? <p className="mt-2 text-sm font-semibold text-brand-strong">{differentState.success}</p> : null}

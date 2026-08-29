@@ -26,7 +26,8 @@ export type ImportIssueCode =
   | "INVALID_KRS"
   | "NEW_ORGANIZATION_CANDIDATE"
   | "MATCHED_BY_IDENTIFIER"
-  | "MULTIPLE_NAME_MATCHES";
+  | "MULTIPLE_NAME_MATCHES"
+  | "PRIMARY_CATEGORY_DECISION_REQUIRED";
 
 const labels: Record<ImportIssueCode, string> = {
   SOURCE_ROW_DUPLICATE: "Możliwy duplikat innego wiersza w tym pliku",
@@ -55,6 +56,7 @@ const labels: Record<ImportIssueCode, string> = {
   NEW_ORGANIZATION_CANDIDATE: "Organizacja wymaga ręcznego dopasowania",
   MATCHED_BY_IDENTIFIER: "Dopasowano po identyfikatorze organizacji",
   MULTIPLE_NAME_MATCHES: "Znaleziono wiele organizacji o tej samej nazwie",
+  PRIMARY_CATEGORY_DECISION_REQUIRED: "Wybierz kategorię główną",
 };
 
 export function importIssueLabel(code: string): string {
