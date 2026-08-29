@@ -10,6 +10,7 @@ import {
   requiresOperationalStatusOnRepublish,
   validatePlaceStatusCombination,
 } from "@/lib/places/publication-status";
+import { orderPrimaryCategorySlugs, requiredProfileCategory } from "@/lib/places/profile";
 import type {
   PlaceAdminPayload,
   PlaceFormActionState,
@@ -38,6 +39,7 @@ function placeScalarData(
     name: payload.name,
     organizationId,
     primaryCategoryId,
+    placeKind: payload.placeKind,
     typeLabel: payload.typeLabel || null,
     description: payload.description || null,
     street: payload.street || null,
@@ -184,7 +186,7 @@ export async function savePlace(
           })
         : null;
       if (payload.id && !existing) throw new Error("NOT_FOUND");
-      if (existing?.accommodation && !payload.isAccommodation) {
+      if (existing?.accommodation && payload.placeKind !== "ACCOMMODATION") {
         throw new Error("ACCOMMODATION_REMOVAL");
       }
 
@@ -194,11 +196,16 @@ export async function savePlace(
       });
       if (duplicateSlug) throw new Error("DUPLICATE_SLUG");
 
+      const requiredCategory = requiredProfileCategory(payload.placeKind);
+      const requestedCategorySlugs = requiredCategory && !payload.categorySlugs.includes(requiredCategory)
+        ? [requiredCategory, ...payload.categorySlugs]
+        : payload.categorySlugs;
+      const finalCategorySlugs = orderPrimaryCategorySlugs(requestedCategorySlugs, payload.primaryCategorySlug);
       const categoryRecords = await transaction.category.findMany({
-        where: { slug: { in: payload.categorySlugs } },
+        where: { slug: { in: finalCategorySlugs } },
         select: { id: true, slug: true, active: true },
       });
-      if (categoryRecords.length !== payload.categorySlugs.length) throw new Error("CATEGORY");
+      if (categoryRecords.length !== finalCategorySlugs.length) throw new Error("CATEGORY");
       const categoryIdBySlug = new Map(categoryRecords.map((item) => [item.slug, item.id]));
       const primaryCategoryId = categoryIdBySlug.get(payload.primaryCategorySlug);
       if (!primaryCategoryId) throw new Error("CATEGORY");
@@ -245,7 +252,7 @@ export async function savePlace(
       ]);
 
       await transaction.placeCategory.createMany({
-        data: payload.categorySlugs.map((slug, sortOrder) => ({
+        data: finalCategorySlugs.map((slug, sortOrder) => ({
           placeId: place.id,
           categoryId: categoryIdBySlug.get(slug)!,
           sortOrder,
@@ -254,9 +261,42 @@ export async function savePlace(
       await transaction.openingHours.createMany({
         data: [
           ...openingRows(payload.openingHours.operation, "OPERATION"),
-          ...(payload.isAccommodation ? openingRows(payload.openingHours.admission, "ADMISSION") : []),
+          ...(payload.placeKind === "ACCOMMODATION" ? openingRows(payload.openingHours.admission, "ADMISSION") : []),
         ].map((item) => ({ ...item, placeId: place.id })),
       });
+      if (payload.placeKind === "MOBILE_SERVICE") {
+        await transaction.mobileServiceStop.deleteMany({ where: { placeId: place.id } });
+        for (const [sortOrder, stop] of payload.mobileStops.entries()) {
+          await transaction.mobileServiceStop.create({
+            data: {
+              placeId: place.id,
+              name: stop.name,
+              addressLine: stop.addressLine,
+              latitude: stop.latitude,
+              longitude: stop.longitude,
+              note: stop.note || null,
+              sortOrder,
+              schedules: {
+                create: (stop.schedules ?? []).map((schedule, scheduleOrder) => ({
+                  weekday: schedule.weekday,
+                  allDay: schedule.allDay,
+                  opensAt: schedule.opensAt || null,
+                  closesAt: schedule.closesAt || null,
+                  note: schedule.note || null,
+                  sortOrder: scheduleOrder,
+                })),
+              },
+            },
+          });
+        }
+        if (payload.mobileSeason) {
+          await transaction.mobileServiceSeason.upsert({
+            where: { placeId: place.id },
+            create: { placeId: place.id, ...payload.mobileSeason },
+            update: payload.mobileSeason,
+          });
+        }
+      }
       await transaction.placeRequirement.createMany({
         data: payload.requirements.map((item, sortOrder) => ({
           placeId: place.id,
@@ -278,7 +318,7 @@ export async function savePlace(
         })),
       });
 
-      if (payload.isAccommodation && payload.accommodation) {
+      if (payload.placeKind === "ACCOMMODATION" && payload.accommodation) {
         const priorAccommodation = existing?.accommodation;
         const priorState = priorAccommodation?.availabilityState;
         const capacityChanged = payload.accommodation.capacityGroups.some((group) => {

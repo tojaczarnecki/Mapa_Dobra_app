@@ -22,8 +22,10 @@ import {
 } from "@/lib/places/constants";
 import { deriveTodayHoursLabel, validateOpeningSchedule } from "@/lib/places/opening-hours";
 import { addressFieldsFromSuggestion } from "@/lib/places/address-form";
+import { placeProfileDescriptions, placeProfileLabels, requiredProfileCategory } from "@/lib/places/profile";
 import type {
   AdminAccommodation,
+  AdminMobileStop,
   AdminOpeningDay,
   PlaceAdminPayload,
   PlaceFormActionState,
@@ -256,20 +258,21 @@ export function OpeningEditor({
         {days.map((day, dayIndex) => {
           const dayLabel = weekdayOptions.find((option) => option.value === day.weekday)?.label ?? day.weekday;
           return (
-            <div key={day.weekday} className="grid gap-2 p-3 lg:grid-cols-[130px_150px_minmax(0,1fr)] lg:items-start">
-              <span className="pt-2 text-sm font-bold">{dayLabel}</span>
+                <div key={day.weekday} className="grid gap-2 p-3 lg:grid-cols-[130px_150px_minmax(0,1fr)] lg:items-start">
+                  <span className="pt-2 text-sm font-bold">{dayLabel}</span>
               <select
                 className={fieldClass}
                 disabled={disabled}
                 value={day.status}
                 aria-label={`${label}, ${dayLabel}: status`}
-                onChange={(event) => {
-                  const status = event.target.value as AdminOpeningDay["status"];
-                  updateDay(dayIndex, {
-                    status,
-                    periods: status === "OPEN" ? day.periods.length ? day.periods : [{ opensAt: "", closesAt: "" }] : [],
-                  });
-                }}
+                  onChange={(event) => {
+                    const status = event.target.value as AdminOpeningDay["status"];
+                    updateDay(dayIndex, {
+                      status,
+                      allDay: false,
+                      periods: status === "OPEN" ? day.periods.length ? day.periods : [{ opensAt: "", closesAt: "" }] : [],
+                    });
+                  }}
               >
                 <option value="OPEN">Otwarte</option>
                 <option value="CLOSED">Zamknięte</option>
@@ -334,6 +337,7 @@ export function OpeningEditor({
                   />
                 )}
               </div>
+              {day.status === "OPEN" ? <label className="flex items-center gap-2 text-sm font-semibold lg:col-start-3"><input type="checkbox" checked={day.allDay === true} disabled={disabled} onChange={(event) => updateDay(dayIndex, { allDay: event.target.checked, periods: event.target.checked ? [] : day.periods.length ? day.periods : [{ opensAt: "", closesAt: "" }] })} /> Czynne / dostępne całą dobę</label> : null}
             </div>
           );
         })}
@@ -406,6 +410,22 @@ export function PlaceForm({
     }));
   }
 
+function updateMobileStop(index: number, changes: Partial<(typeof payload.mobileStops)[number]>) {
+    update({ mobileStops: payload.mobileStops.map((stop, stopIndex) => stopIndex === index ? { ...stop, ...changes } : stop) });
+  }
+
+  function updateMobileStopSchedule(
+    stopIndex: number,
+    scheduleIndex: number,
+    changes: Partial<(typeof payload.mobileStops)[number]["schedules"][number]>,
+  ) {
+    const stop = payload.mobileStops[stopIndex];
+    if (!stop) return;
+    updateMobileStop(stopIndex, {
+      schedules: stop.schedules.map((schedule, index) => index === scheduleIndex ? { ...schedule, ...changes } : schedule),
+    });
+  }
+
   return (
     <form
       action={formAction}
@@ -446,6 +466,24 @@ export function PlaceForm({
             ) : null}
           </div>
           <Field label="Typ miejsca" value={payload.typeLabel} onChange={(typeLabel) => update({ typeLabel })} />
+          <label className="block text-sm font-bold">
+            <span className="mb-1.5 block">Profil miejsca *</span>
+            <select
+              className={fieldClass}
+              value={payload.placeKind}
+              onChange={(event) => {
+                const placeKind = event.target.value as PlaceAdminPayload["placeKind"];
+                const required = requiredProfileCategory(placeKind);
+                const categorySlugs = required && !payload.categorySlugs.includes(required)
+                  ? [required, ...payload.categorySlugs]
+                  : payload.categorySlugs;
+                update({ placeKind, categorySlugs, isAccommodation: placeKind === "ACCOMMODATION" });
+              }}
+            >
+              {Object.entries(placeProfileLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">{placeProfileDescriptions[payload.placeKind]}</span>
+          </label>
           <div className="sm:col-span-2">
             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-bold">Organizacja</span>
@@ -569,7 +607,7 @@ export function PlaceForm({
       <FormSection id="godziny" title="Godziny" description="Każdy dzień może mieć kilka przedziałów. Brak danych pozostaje osobnym stanem.">
         <div className="space-y-5">
           <OpeningEditor label="Godziny działania" days={payload.openingHours.operation} onChange={(operation) => update({ openingHours: { ...payload.openingHours, operation } })} />
-          {payload.isAccommodation ? (
+          {payload.placeKind === "ACCOMMODATION" ? (
             <OpeningEditor label="Godziny przyjęć" days={payload.openingHours.admission} onChange={(admission) => update({ openingHours: { ...payload.openingHours, admission } })} />
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -582,7 +620,45 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection id="warunki" title="Warunki pomocy" description="Tak oznacza, że warunek jest wymagany. Nie oznacza, że nie jest wymagany.">
+      {payload.placeKind === "MOBILE_SERVICE" ? (
+        <FormSection id="przystanki" title="Przystanki i sezon">
+          <p className="text-sm leading-6 text-muted-foreground">Mobilna usługa jest jednym miejscem. Dodaj jej rzeczywiste lokalizacje, zamiast tworzyć osobne miejsca.</p>
+          <div className="mt-4 space-y-3">
+            {payload.mobileStops.map((stop, index) => (
+              <div key={stop.id ?? index} className="rounded-lg border border-border bg-surface-muted p-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label={`Nazwa przystanku ${index + 1}`} value={stop.name} required onChange={(name) => updateMobileStop(index, { name })} />
+                  <Field label="Lokalizacja / adres" value={stop.addressLine} required onChange={(addressLine) => updateMobileStop(index, { addressLine })} />
+                  <Field label="Szerokość geograficzna" type="number" value={stop.latitude ?? ""} onChange={(value) => updateMobileStop(index, { latitude: value ? Number(value) : null })} />
+                  <Field label="Długość geograficzna" type="number" value={stop.longitude ?? ""} onChange={(value) => updateMobileStop(index, { longitude: value ? Number(value) : null })} />
+                  <Field label="Uwaga" value={stop.note} onChange={(note) => updateMobileStop(index, { note })} />
+                  <div className="flex items-end"><button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#8c2d0c] hover:bg-urgent-soft" onClick={() => update({ mobileStops: payload.mobileStops.filter((_, stopIndex) => stopIndex !== index) })}><Trash2 aria-hidden="true" size={17} /> Usuń przystanek</button></div>
+                </div>
+                <div className="mt-4 border-t border-border pt-3">
+                  <h4 className="text-sm font-extrabold">Godziny na przystanku</h4>
+                  <div className="mt-2 space-y-2">
+                    {stop.schedules.map((schedule, scheduleIndex) => (
+                      <div key={`${schedule.weekday}-${scheduleIndex}`} className="grid gap-2 sm:grid-cols-[minmax(150px,1fr)_120px_120px_auto] sm:items-end">
+                        <label className="block text-sm font-bold"><span className="mb-1 block">Dzień</span><select className={fieldClass} value={schedule.weekday} onChange={(event) => updateMobileStopSchedule(index, scheduleIndex, { weekday: event.target.value as AdminMobileStop["schedules"][number]["weekday"] })}>{weekdayOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                        {schedule.allDay ? null : <><label className="block text-sm font-bold"><span className="mb-1 block">Od</span><input className={fieldClass} type="time" value={schedule.opensAt} onChange={(event) => updateMobileStopSchedule(index, scheduleIndex, { opensAt: event.target.value })} /></label><label className="block text-sm font-bold"><span className="mb-1 block">Do</span><input className={fieldClass} type="time" value={schedule.closesAt} onChange={(event) => updateMobileStopSchedule(index, scheduleIndex, { closesAt: event.target.value })} /></label></>}
+                        <div className="flex flex-wrap items-center gap-2 sm:pb-1"><label className="inline-flex min-h-11 items-center gap-2 text-sm font-bold"><input type="checkbox" checked={schedule.allDay} onChange={(event) => updateMobileStopSchedule(index, scheduleIndex, { allDay: event.target.checked, opensAt: "", closesAt: "" })} /> Całodobowo</label><button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#8c2d0c] hover:bg-urgent-soft" onClick={() => updateMobileStop(index, { schedules: stop.schedules.filter((_, currentIndex) => currentIndex !== scheduleIndex) })}><Trash2 aria-hidden="true" size={16} /> Usuń</button></div>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => updateMobileStop(index, { schedules: [...stop.schedules, { weekday: "MONDAY", allDay: false, opensAt: "", closesAt: "", note: "" }] })}><Plus aria-hidden="true" size={16} /> Dodaj godziny</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => update({ mobileStops: [...payload.mobileStops, { name: "", addressLine: "", latitude: null, longitude: null, note: "", sortOrder: payload.mobileStops.length, schedules: [] }] })}><Plus aria-hidden="true" size={17} /> Dodaj przystanek</button>
+          <div className="mt-5 grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
+            <label className="flex min-h-11 items-center gap-3 text-sm font-bold sm:col-span-2"><input type="checkbox" checked={payload.mobileSeason?.active ?? false} onChange={(event) => update({ mobileSeason: { active: event.target.checked, startMonth: payload.mobileSeason?.startMonth ?? 11, startDay: payload.mobileSeason?.startDay ?? 1, endMonth: payload.mobileSeason?.endMonth ?? 3, endDay: payload.mobileSeason?.endDay ?? 31, label: payload.mobileSeason?.label ?? "" } })} /> Usługa działa sezonowo</label>
+            {payload.mobileSeason?.active ? <><Field label="Początek, miesiąc" type="number" value={payload.mobileSeason.startMonth} onChange={(value) => update({ mobileSeason: { ...payload.mobileSeason!, startMonth: Number(value) } })} /><Field label="Początek, dzień" type="number" value={payload.mobileSeason.startDay} onChange={(value) => update({ mobileSeason: { ...payload.mobileSeason!, startDay: Number(value) } })} /><Field label="Koniec, miesiąc" type="number" value={payload.mobileSeason.endMonth} onChange={(value) => update({ mobileSeason: { ...payload.mobileSeason!, endMonth: Number(value) } })} /><Field label="Koniec, dzień" type="number" value={payload.mobileSeason.endDay} onChange={(value) => update({ mobileSeason: { ...payload.mobileSeason!, endDay: Number(value) } })} /><Field label="Opis sezonu" value={payload.mobileSeason.label} onChange={(label) => update({ mobileSeason: { ...payload.mobileSeason!, label } })} /></> : null}
+          </div>
+        </FormSection>
+      ) : null}
+
+      {payload.placeKind === "FOOD_SHARING" ? null : <FormSection id="warunki" title="Warunki pomocy" description="Tak oznacza, że warunek jest wymagany. Nie oznacza, że nie jest wymagany.">
         <div className="divide-y divide-border">
           {payload.requirements.map((item, index) => (
             <div key={`${item.kind}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
@@ -601,9 +677,9 @@ export function PlaceForm({
         >
           <Plus aria-hidden="true" size={17} /> Dodaj inny warunek
         </button>
-      </FormSection>
+      </FormSection>}
 
-      <FormSection id="dostepnosc" title="Dostępność">
+      {payload.placeKind === "FOOD_SHARING" ? null : <FormSection id="dostepnosc" title="Dostępność">
         <div className="divide-y divide-border">
           {payload.accessibility.map((item, index) => (
             <div key={`${item.feature}-${index}`} className="grid gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_170px_minmax(180px,.8fr)] lg:items-center">
@@ -616,18 +692,10 @@ export function PlaceForm({
           ))}
         </div>
         <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft" onClick={() => update({ accessibility: [...payload.accessibility, { feature: "OTHER", state: "UNKNOWN", label: "", note: "" }] })}><Plus aria-hidden="true" size={17} /> Dodaj inną cechę</button>
-      </FormSection>
+      </FormSection>}
 
-      <FormSection id="nocleg" title="Nocleg" description="Włącz tylko dla schroniska, noclegowni, hostelu, ogrzewalni lub podobnej placówki.">
-        <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
-          <input
-            type="checkbox"
-            checked={payload.isAccommodation}
-            onChange={(event) => update({ isAccommodation: event.target.checked, accommodation: event.target.checked ? accommodation : payload.accommodation })}
-          />
-          To miejsce oferuje nocleg
-        </label>
-        {payload.isAccommodation ? (
+      <FormSection id="nocleg" title="Nocleg" description="Profil noclegowy automatycznie obejmuje kategorię nocleg.">
+        {payload.placeKind === "ACCOMMODATION" ? (
           <div className="mt-4 space-y-5 border-t border-border pt-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-bold">

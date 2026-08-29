@@ -7,6 +7,7 @@ export type PlacePublicationStatusValue =
   | "ARCHIVED";
 export type PlaceOperationalStatusValue = "OPEN" | "CLOSED" | "OPEN_TODAY" | "UNKNOWN";
 export type PlaceRecordKindValue = "PRODUCTION" | "DEMO" | "TEST";
+export type PlaceProfileKindValue = "SUPPORT" | "ACCOMMODATION" | "FOOD_SHARING" | "MOBILE_SERVICE";
 export type WeekdayValue =
   | "MONDAY"
   | "TUESDAY"
@@ -74,8 +75,35 @@ export type VerificationSourceValue =
 export type AdminOpeningDay = {
   weekday: WeekdayValue;
   status: OpeningStatusValue;
+  allDay?: boolean;
   periods: Array<{ opensAt: string; closesAt: string }>;
   note: string;
+};
+
+export type AdminMobileStop = {
+  id?: string;
+  name: string;
+  addressLine: string;
+  latitude: number | null;
+  longitude: number | null;
+  note: string;
+  sortOrder: number;
+  schedules: Array<{
+    weekday: WeekdayValue;
+    allDay: boolean;
+    opensAt: string;
+    closesAt: string;
+    note: string;
+  }>;
+};
+
+export type AdminMobileSeason = {
+  active: boolean;
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+  label: string;
 };
 
 export type AdminRequirement = {
@@ -132,6 +160,7 @@ export type AdminAccommodation = {
 
 export type PlaceAdminPayload = {
   id?: string;
+  placeKind: PlaceProfileKindValue;
   name: string;
   slug: string;
   organizationId: string;
@@ -160,6 +189,8 @@ export type PlaceAdminPayload = {
     operation: AdminOpeningDay[];
     admission: AdminOpeningDay[];
   };
+  mobileStops: AdminMobileStop[];
+  mobileSeason?: AdminMobileSeason;
   requirements: AdminRequirement[];
   accessibility: AdminAccessibility[];
   isAccommodation: boolean;

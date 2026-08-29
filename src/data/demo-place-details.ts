@@ -13,6 +13,7 @@ export type OpeningDay = {
   periods?: string[];
   isToday?: boolean;
   status: "open" | "closed" | "unknown";
+  allDay?: boolean;
   note?: string;
 };
 
@@ -79,6 +80,8 @@ export type PlaceDetail = {
   categorySlug: string;
   slug: string;
   variant: "standard" | "accommodation";
+  profileKind?: "SUPPORT" | "ACCOMMODATION" | "FOOD_SHARING" | "MOBILE_SERVICE";
+  profileLabel?: string;
   name: string;
   typeLabel: string;
   helpTypes: string[];
@@ -97,6 +100,10 @@ export type PlaceDetail = {
   openingHours: OpeningDay[];
   verification: VerificationDetails;
   accommodation?: AccommodationDetails;
+  mobile?: {
+    season?: { active: boolean; label: string; start: string; end: string; isActiveNow: boolean };
+    stops: Array<{ name: string; address: string; latitude?: number; longitude?: number; note?: string; schedules: string[] }>;
+  };
 };
 
 const sharedWeek: OpeningDay[] = [

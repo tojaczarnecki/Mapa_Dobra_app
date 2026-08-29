@@ -31,6 +31,7 @@ export function emptyOpeningSchedule(): AdminOpeningDay[] {
   return orderedWeekdays.map((weekday) => ({
     weekday,
     status: "UNKNOWN",
+    allDay: false,
     periods: [],
     note: "",
   }));
@@ -57,6 +58,7 @@ export function validateOpeningSchedule(value: unknown): OpeningHoursValidation 
     seen.add(weekday);
     const label = weekdayLabels[weekday];
     const status = day.status;
+    const allDay = day.allDay === true;
     const note = typeof day.note === "string" && day.note.trim().length <= 240 ? day.note.trim() : null;
     if (!(["OPEN", "CLOSED", "UNKNOWN"] as const).includes(status as "OPEN") || note === null || !Array.isArray(day.periods)) {
       return { ok: false, error: `${label}: nieprawidłowy status lub notatka.`, weekday };
@@ -65,6 +67,7 @@ export function validateOpeningSchedule(value: unknown): OpeningHoursValidation 
       return { ok: false, error: `${label}: można podać maksymalnie 8 przedziałów.`, weekday };
     }
     if (status !== "OPEN") {
+      if (allDay) return { ok: false, error: `${label}: całodobowo można ustawić tylko dla dnia otwartego.`, weekday };
       if (day.periods.length > 0) {
         return {
           ok: false,
@@ -72,7 +75,12 @@ export function validateOpeningSchedule(value: unknown): OpeningHoursValidation 
           weekday,
         };
       }
-      parsed.push({ weekday, status: status as "CLOSED" | "UNKNOWN", periods: [], note });
+      parsed.push({ weekday, status: status as "CLOSED" | "UNKNOWN", allDay: false, periods: [], note });
+      continue;
+    }
+    if (allDay) {
+      if (day.periods.length > 0) return { ok: false, error: `${label}: dzień całodobowy nie może zawierać przedziałów.`, weekday };
+      parsed.push({ weekday, status: "OPEN", allDay: true, periods: [], note });
       continue;
     }
     if (day.periods.length === 0) {
@@ -106,7 +114,7 @@ export function validateOpeningSchedule(value: unknown): OpeningHoursValidation 
         return { ok: false, error: `${label}: przedziały ${previous.opensAt}-${previous.closesAt} i ${current.opensAt}-${current.closesAt} nakładają się.`, weekday };
       }
     }
-    parsed.push({ weekday, status: "OPEN", periods, note });
+    parsed.push({ weekday, status: "OPEN", allDay: false, periods, note });
   }
 
   parsed.sort((left, right) => orderedWeekdays.indexOf(left.weekday) - orderedWeekdays.indexOf(right.weekday));
@@ -116,6 +124,7 @@ export function validateOpeningSchedule(value: unknown): OpeningHoursValidation 
 export function formatOpeningDay(day: AdminOpeningDay) {
   if (day.status === "CLOSED") return "Zamknięte";
   if (day.status === "UNKNOWN") return day.note || "Brak potwierdzonych godzin";
+  if (day.allDay) return "Całodobowo";
   return day.periods.map((period) => `${period.opensAt}-${period.closesAt}`).join(", ");
 }
 
@@ -137,6 +146,7 @@ export function openingRows(
     kind: "OPERATION" | "ADMISSION";
     weekday: WeekdayValue;
     status: "OPEN" | "CLOSED" | "UNKNOWN";
+    allDay: boolean;
     opensAt: string | null;
     closesAt: string | null;
     note: string | null;
@@ -149,6 +159,7 @@ export function openingRows(
         kind,
         weekday: day.weekday,
         status: day.status,
+        allDay: false,
         opensAt: null,
         closesAt: null,
         note: day.note || null,
@@ -156,10 +167,15 @@ export function openingRows(
       });
       continue;
     }
+    if (day.allDay) {
+      rows.push({ kind, weekday: day.weekday, status: "OPEN", allDay: true, opensAt: null, closesAt: null, note: day.note || null, sortOrder: 0 });
+      continue;
+    }
     day.periods.forEach((period, sortOrder) => rows.push({
         kind,
         weekday: day.weekday,
         status: "OPEN",
+        allDay: false,
         opensAt: period.opensAt,
         closesAt: period.closesAt,
         note: day.note || null,
@@ -173,6 +189,7 @@ export function scheduleFromRows(rows: Array<{
   kind: "OPERATION" | "ADMISSION";
   weekday: WeekdayValue;
   status: "OPEN" | "CLOSED" | "UNKNOWN";
+  allDay: boolean;
   opensAt: string | null;
   closesAt: string | null;
   note: string | null;
@@ -183,11 +200,13 @@ export function scheduleFromRows(rows: Array<{
       .filter((row) => row.kind === kind && row.weekday === weekday)
       .sort((left, right) => left.sortOrder - right.sortOrder);
     const first = matches[0];
-    if (!first) return { weekday, status: "UNKNOWN", periods: [], note: "" };
-    if (first.status !== "OPEN") return { weekday, status: first.status, periods: [], note: first.note ?? "" };
+    if (!first) return { weekday, status: "UNKNOWN", allDay: false, periods: [], note: "" };
+    if (first.status !== "OPEN") return { weekday, status: first.status, allDay: false, periods: [], note: first.note ?? "" };
+    if (first.allDay) return { weekday, status: "OPEN", allDay: true, periods: [], note: first.note ?? "" };
     return {
       weekday,
       status: "OPEN",
+      allDay: false,
       periods: matches.map((row) => ({ opensAt: row.opensAt ?? "", closesAt: row.closesAt ?? "" })),
       note: first.note ?? "",
     };

@@ -33,6 +33,7 @@ import {
   placeVerificationNote,
 } from "@/lib/places/verification-freshness";
 import { prisma } from "@/lib/prisma";
+import { placeProfileLabel } from "@/lib/places/profile";
 
 const publicPlaceInclude = {
   organization: true,
@@ -47,6 +48,8 @@ const publicPlaceInclude = {
       availabilityHistory: { orderBy: { reportedAt: "desc" as const }, take: 1 },
     },
   },
+  mobileStops: { include: { schedules: { orderBy: [{ weekday: "asc" }, { sortOrder: "asc" }] } }, orderBy: { sortOrder: "asc" } },
+  mobileSeason: true,
 } satisfies Prisma.PlaceInclude;
 
 type PublicPlaceRecord = Prisma.PlaceGetPayload<{ include: typeof publicPlaceInclude }>;
@@ -171,6 +174,7 @@ function accessibilityTone(state: "YES" | "NO" | "UNKNOWN"): DetailListItem["sta
 
 function formatPeriods(rows: PublicPlaceRecord["openingHours"]) {
   return rows.map((row) => {
+    if (row.allDay) return "Całodobowo";
     if (row.opensAt && row.closesAt) return `${row.opensAt}-${row.closesAt}`;
     if (row.opensAt) return `od ${row.opensAt}`;
     if (row.closesAt) return `do ${row.closesAt}`;
@@ -187,7 +191,7 @@ function openingDays(place: PublicPlaceRecord): OpeningDay[] {
     const first = rows[0];
     if (first.status === "CLOSED") return { day, status: "closed" as const, isToday: weekday === current.weekday };
     if (first.status === "UNKNOWN") return { day, status: "unknown" as const, note: first.note ?? "Brak potwierdzonych godzin", isToday: weekday === current.weekday };
-    return { day, status: "open" as const, periods: formatPeriods(rows), isToday: weekday === current.weekday };
+    return { day, status: "open" as const, allDay: first.allDay, periods: formatPeriods(rows), isToday: weekday === current.weekday };
   });
 }
 
@@ -260,6 +264,23 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     ].filter((row): row is [string, string] => Boolean(row[1])).map(([label, value]) => ({ label, value })),
     importantNote: accommodation.importantNote ?? "Informacja o wolnych miejscach nie jest gwarancją przyjęcia.",
   } : undefined;
+  const mobile = place.placeKind === "MOBILE_SERVICE" ? {
+    season: place.mobileSeason ? {
+      active: place.mobileSeason.active,
+      label: place.mobileSeason.label ?? "",
+      start: `${place.mobileSeason.startDay}.${place.mobileSeason.startMonth}.`,
+      end: `${place.mobileSeason.endDay}.${place.mobileSeason.endMonth}.`,
+      isActiveNow: isAnnualDateInRange(new Date(), place.mobileSeason.startMonth, place.mobileSeason.startDay, place.mobileSeason.endMonth, place.mobileSeason.endDay),
+    } : undefined,
+    stops: place.mobileStops.map((stop) => ({
+      name: stop.name,
+      address: stop.addressLine,
+      latitude: stop.latitude === null ? undefined : Number(stop.latitude),
+      longitude: stop.longitude === null ? undefined : Number(stop.longitude),
+      note: stop.note ?? undefined,
+      schedules: stop.schedules.map((schedule) => schedule.allDay ? `${schedule.weekday}: Całodobowo` : `${schedule.weekday}: ${schedule.opensAt ?? ""}-${schedule.closesAt ?? ""}`),
+    })),
+  } : undefined;
 
   return {
     id: place.legacyId ?? place.id,
@@ -267,6 +288,8 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     categorySlug: place.primaryCategory.slug,
     slug: place.slug,
     variant: accommodation ? "accommodation" : "standard",
+    profileKind: place.placeKind,
+    profileLabel: placeProfileLabel(place.placeKind),
     name: place.name,
     typeLabel: place.typeLabel ?? place.primaryCategory.name,
     helpTypes: place.categories.map((item) => item.category.name),
@@ -285,7 +308,15 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     openingHours: openingDays(place),
     verification: verificationPresentation(place),
     accommodation: detailAccommodation,
+    mobile,
   };
+}
+
+function isAnnualDateInRange(date: Date, startMonth: number, startDay: number, endMonth: number, endDay: number) {
+  const value = (date.getMonth() + 1) * 100 + date.getDate();
+  const start = startMonth * 100 + startDay;
+  const end = endMonth * 100 + endDay;
+  return start <= end ? value >= start && value <= end : value >= start || value <= end;
 }
 
 function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {

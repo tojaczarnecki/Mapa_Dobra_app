@@ -231,6 +231,13 @@ enum PlaceRecordKind {
   TEST
 }
 
+enum PlaceProfileKind {
+  SUPPORT
+  ACCOMMODATION
+  FOOD_SHARING
+  MOBILE_SERVICE
+}
+
 enum Weekday {
   MONDAY
   TUESDAY
@@ -623,6 +630,7 @@ model Place {
   services                String[]
   distanceLabel           String?                   @db.VarChar(80)
   recordKind              PlaceRecordKind           @default(PRODUCTION)
+  placeKind               PlaceProfileKind          @default(SUPPORT)
   verificationQueueStatus VerificationQueueStatus?
   isDemo                  Boolean                   @default(false)
   lastEditedByAdminUserId String?                   @db.Uuid
@@ -645,6 +653,8 @@ model Place {
   importMatchCandidates   ImportCandidate[]         @relation("MatchedImportPlace")
   verificationContact     PlaceVerificationContact?
   userAccesses            UserPlaceAccess[]
+  mobileStops             MobileServiceStop[]
+  mobileSeason            MobileServiceSeason?
 
   @@index([recordKind, publicationStatus, city])
   @@index([verificationQueueStatus, recordKind, publicationStatus])
@@ -876,6 +886,7 @@ model OpeningHours {
   kind      OpeningHoursKind   @default(OPERATION)
   weekday   Weekday
   status    OpeningHoursStatus
+  allDay    Boolean            @default(false)
   opensAt   String?            @db.VarChar(5)
   closesAt  String?            @db.VarChar(5)
   note      String?            @db.VarChar(240)
@@ -885,6 +896,52 @@ model OpeningHours {
   @@unique([placeId, kind, weekday, sortOrder])
   @@index([placeId, kind, weekday])
   @@map("opening_hours")
+}
+
+model MobileServiceStop {
+  id          String                      @id @default(uuid()) @db.Uuid
+  placeId     String                      @db.Uuid
+  name        String                      @db.VarChar(240)
+  addressLine String                      @db.VarChar(400)
+  latitude    Decimal?                    @db.Decimal(9, 6)
+  longitude   Decimal?                    @db.Decimal(9, 6)
+  note        String?                     @db.VarChar(500)
+  sortOrder   Int                         @default(0)
+  place       Place                       @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  schedules   MobileServiceStopSchedule[]
+
+  @@index([placeId, sortOrder])
+  @@map("mobile_service_stops")
+}
+
+model MobileServiceStopSchedule {
+  id        String            @id @default(uuid()) @db.Uuid
+  stopId    String            @db.Uuid
+  weekday   Weekday
+  allDay    Boolean           @default(false)
+  opensAt   String?           @db.VarChar(5)
+  closesAt  String?           @db.VarChar(5)
+  note      String?           @db.VarChar(240)
+  sortOrder Int               @default(0)
+  stop      MobileServiceStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@unique([stopId, weekday, sortOrder])
+  @@index([stopId, weekday])
+  @@map("mobile_service_stop_schedules")
+}
+
+model MobileServiceSeason {
+  id         String  @id @default(uuid()) @db.Uuid
+  placeId    String  @unique @db.Uuid
+  active     Boolean @default(false)
+  startMonth Int
+  startDay   Int
+  endMonth   Int
+  endDay     Int
+  label      String? @db.VarChar(240)
+  place      Place   @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@map("mobile_service_seasons")
 }
 
 model PlaceRequirement {

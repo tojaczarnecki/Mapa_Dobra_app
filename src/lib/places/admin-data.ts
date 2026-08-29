@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { orderPrimaryCategorySlugs } from "./profile";
 import {
   accessibilityOptions,
   requirementOptions,
@@ -37,6 +38,11 @@ export const adminPlaceInclude = {
       },
     },
   },
+  mobileStops: {
+    include: { schedules: { orderBy: [{ weekday: "asc" }, { sortOrder: "asc" }] } },
+    orderBy: { sortOrder: "asc" },
+  },
+  mobileSeason: true,
   lastEditedBy: { select: { displayName: true } },
   verifiedBy: { select: { displayName: true } },
   createdFromImport: {
@@ -105,6 +111,7 @@ function openingDays(
     kind: string;
     weekday: AdminOpeningDay["weekday"];
     status: AdminOpeningDay["status"];
+    allDay: boolean;
     opensAt: string | null;
     closesAt: string | null;
     note: string | null;
@@ -118,6 +125,7 @@ function openingDays(
     return {
       weekday: day.weekday,
       status: first.status,
+      allDay: first.allDay,
       periods:
         first.status === "OPEN"
           ? rows.map((row) => ({ opensAt: row.opensAt ?? "", closesAt: row.closesAt ?? "" }))
@@ -129,6 +137,7 @@ function openingDays(
 
 export function emptyPlaceAdminPayload(primaryCategorySlug = "jedzenie"): PlaceAdminPayload {
   return {
+    placeKind: "SUPPORT",
     name: "",
     slug: "",
     organizationId: "",
@@ -157,6 +166,7 @@ export function emptyPlaceAdminPayload(primaryCategorySlug = "jedzenie"): PlaceA
       operation: defaultOpeningDays(),
       admission: defaultOpeningDays(),
     },
+    mobileStops: [],
     requirements: requirementOptions.map((option) => ({
       kind: option.kind,
       state: "UNKNOWN",
@@ -223,11 +233,12 @@ export function toPlaceAdminPayload(
   const existingAccessibility = new Set(place.accessibility.map((item) => item.feature));
   return {
     id: place.id,
+    placeKind: place.placeKind,
     name: place.name,
     slug: place.slug,
     organizationId: place.organizationId ?? "",
     primaryCategorySlug: place.primaryCategory.slug,
-    categorySlugs: place.categories.map((item) => item.category.slug),
+    categorySlugs: orderPrimaryCategorySlugs(place.categories.map((item) => item.category.slug), place.primaryCategory.slug),
     typeLabel: place.typeLabel ?? "",
     description: place.description ?? "",
     street: place.street ?? "",
@@ -251,6 +262,17 @@ export function toPlaceAdminPayload(
       operation: openingDays(place.openingHours, "OPERATION"),
       admission: openingDays(place.openingHours, "ADMISSION"),
     },
+    mobileStops: place.mobileStops.map((stop) => ({
+      id: stop.id,
+      name: stop.name,
+      addressLine: stop.addressLine,
+      latitude: stop.latitude === null ? null : Number(stop.latitude),
+      longitude: stop.longitude === null ? null : Number(stop.longitude),
+      note: stop.note ?? "",
+      sortOrder: stop.sortOrder,
+      schedules: stop.schedules.map((schedule) => ({ weekday: schedule.weekday, allDay: schedule.allDay, opensAt: schedule.opensAt ?? "", closesAt: schedule.closesAt ?? "", note: schedule.note ?? "" })),
+    })),
+    mobileSeason: place.mobileSeason ? { active: place.mobileSeason.active, startMonth: place.mobileSeason.startMonth, startDay: place.mobileSeason.startDay, endMonth: place.mobileSeason.endMonth, endDay: place.mobileSeason.endDay, label: place.mobileSeason.label ?? "" } : undefined,
     requirements: [
       ...place.requirements.map((item) => ({
         kind: item.kind,
@@ -273,7 +295,7 @@ export function toPlaceAdminPayload(
         .filter((option) => !existingAccessibility.has(option.feature))
         .map((option) => ({ feature: option.feature, state: "UNKNOWN" as const, label: option.label, note: "" })),
     ],
-    isAccommodation: Boolean(place.accommodation),
+    isAccommodation: place.placeKind === "ACCOMMODATION",
     accommodation: accommodationPayload(place.accommodation),
     markVerified: false,
     verificationSource: place.verificationSource ?? undefined,

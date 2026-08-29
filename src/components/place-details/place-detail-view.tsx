@@ -79,41 +79,63 @@ function mergeUniqueRequirements(items: DetailListItem[]) {
 }
 
 function StandardPlaceSections({ place }: { place: PlaceDetail }) {
+  const isFoodSharing = place.profileKind === "FOOD_SHARING";
+  if (isFoodSharing) {
+    return <>
+      <DetailSection title="Godziny dostępu"><OpeningHours days={place.openingHours} /></DetailSection>
+      {place.description.length ? <DetailSection title="Informacje o dostępie"><Description paragraphs={place.description} /></DetailSection> : null}
+    </>;
+  }
   return (
     <>
-      <DetailSection title="Czy mogę skorzystać z pomocy?">
+      {place.requirements.length ? <DetailSection title="Czy mogę skorzystać z pomocy?">
         <RequirementList items={place.requirements} />
         <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
-      </DetailSection>
+      </DetailSection> : null}
 
       <DetailSection title="Godziny działania">
         <OpeningHours days={place.openingHours} />
       </DetailSection>
 
-      <DetailSection title="Dla kogo">
+      {place.audience.length ? <DetailSection title="Dla kogo">
         <TagList items={place.audience} />
-      </DetailSection>
+      </DetailSection> : null}
 
-      <DetailSection title="Na miejscu">
+      {place.services.length ? <DetailSection title="Na miejscu">
         <TagList items={place.services} />
-      </DetailSection>
+      </DetailSection> : null}
 
-      <DetailSection title="Dostępność">
+      {place.accessibility.length ? <DetailSection title="Dostępność">
         <AccessibilityList items={place.accessibility} />
-      </DetailSection>
+      </DetailSection> : null}
 
-      <DetailSection title="O miejscu">
+      {place.description.length ? <DetailSection title="O miejscu">
         <Description paragraphs={place.description} />
-      </DetailSection>
+      </DetailSection> : null}
     </>
   );
+}
+
+function MobilePlaceSections({ place }: { place: PlaceDetail }) {
+  if (!place.mobile) return null;
+  return <>
+    {place.mobile.season ? <DetailSection title="Sezon działania"><p className="text-sm font-semibold leading-6">{place.mobile.season.active ? `Kursuje: ${place.mobile.season.start} – ${place.mobile.season.end}${place.mobile.season.isActiveNow ? " · trwa teraz" : " · poza sezonem"}` : "Brak potwierdzonego sezonu"}</p></DetailSection> : null}
+    <DetailSection title="Przystanki"><div className="space-y-3">{place.mobile.stops.map((stop) => <article key={`${stop.name}-${stop.address}`} className="rounded-lg border border-border bg-surface-muted p-3"><h3 className="font-extrabold">{stop.name}</h3><p className="mt-1 text-sm font-semibold">{stop.address}</p>{stop.schedules.length ? <p className="mt-2 whitespace-pre-wrap text-sm font-semibold text-muted-foreground">{stop.schedules.join("\n")}</p> : null}{stop.note ? <p className="mt-2 text-sm text-muted-foreground">{stop.note}</p> : null}</article>)}</div></DetailSection>
+  </>;
 }
 
 function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
   const accommodation = place.accommodation;
 
   if (!accommodation) {
-    return null;
+    return (
+      <>
+        <DetailSection title="Informacje o noclegu">
+          <p className="text-sm leading-6 text-muted-foreground">Szczegółowe warunki przyjęcia wymagają potwierdzenia.</p>
+        </DetailSection>
+        <StandardPlaceSections place={place} />
+      </>
+    );
   }
 
   const admissionItems = mergeUniqueRequirements([
@@ -191,9 +213,8 @@ function SideColumn({ place }: { place: PlaceDetail }) {
 }
 
 export function PlaceDetailView({ place }: PlaceDetailViewProps) {
-  const accommodation =
-    place.variant === "accommodation" ? place.accommodation : undefined;
-  const isAccommodation = Boolean(accommodation);
+  const accommodation = place.profileKind === "ACCOMMODATION" ? place.accommodation : undefined;
+  const isAccommodation = place.profileKind === "ACCOMMODATION";
   const backHref = isAccommodation ? "/znajdz-nocleg" : "/szukaj";
   const reportHref = `/zglos-zmiane?place=${encodeURIComponent(place.id)}`;
 
@@ -224,7 +245,7 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
             showStatus={!isAccommodation}
           />
 
-          {isAccommodation ? (
+          {place.profileKind === "MOBILE_SERVICE" ? <MobilePlaceSections place={place} /> : isAccommodation ? (
             <AccommodationPlaceSections place={place} />
           ) : (
             <StandardPlaceSections place={place} />

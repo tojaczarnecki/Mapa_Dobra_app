@@ -13,6 +13,7 @@ export type PublicOpeningRow = {
   kind: "OPERATION" | "ADMISSION";
   weekday: PublicWeekday;
   status: "OPEN" | "CLOSED" | "UNKNOWN";
+  allDay?: boolean;
   opensAt: string | null;
   closesAt: string | null;
   note?: string | null;
@@ -161,6 +162,16 @@ export function evaluateCurrentOpening(
       label: nextOpening ? `Dzisiaj zamknięte · ${nextOpening.label.toLocaleLowerCase("pl-PL")}` : "Dzisiaj zamknięte",
       periods: [],
       nextOpeningLabel: nextOpening?.label,
+    };
+  }
+
+  if (first.allDay) {
+    return {
+      status: "OPEN",
+      weekday: current.weekday,
+      isOpenNow: true,
+      label: "Całodobowo",
+      periods: ["Całodobowo"],
     };
   }
 

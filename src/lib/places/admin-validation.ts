@@ -4,9 +4,11 @@ import type {
   AccommodationTypeValue,
   AdminAccessibility,
   AdminAccommodation,
+  AdminMobileStop,
   AdminRequirement,
   PetPolicyValue,
   PlaceAdminPayload,
+  PlaceProfileKindValue,
   PlacePublicationStatusValue,
   PlaceOperationalStatusValue,
   RequirementKindValue,
@@ -94,9 +96,11 @@ const verificationSources: VerificationSourceValue[] = [
   "SOCIAL_MEDIA",
   "OTHER",
 ];
+const profileKinds: PlaceProfileKindValue[] = ["SUPPORT", "ACCOMMODATION", "FOOD_SHARING", "MOBILE_SERVICE"];
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/u;
 
 export type PlaceValidationResult =
   | { ok: true; data: PlaceAdminPayload }
@@ -159,6 +163,38 @@ function accessibility(value: unknown) {
     parsed.push({ feature, state, label, note });
   }
   return parsed;
+}
+
+function mobileStops(value: unknown): AdminMobileStop[] | null {
+  if (!Array.isArray(value) || value.length > 100) return null;
+  const parsedStops: AdminMobileStop[] = [];
+  for (const [sortOrder, item] of value.entries()) {
+    if (!isRecord(item)) return null;
+    const name = text(item.name, 240, true);
+    const addressLine = text(item.addressLine, 400, true);
+    const latitude = optionalNumber(item.latitude, -90, 90);
+    const longitude = optionalNumber(item.longitude, -180, 180);
+    const note = text(item.note, 500);
+    if (!name || !addressLine || latitude === undefined || longitude === undefined || note === null) return null;
+    const rawSchedules = Array.isArray(item.schedules) ? item.schedules : [];
+    const schedules = rawSchedules.map((schedule) => {
+      if (!isRecord(schedule)) return null;
+      const weekday = enumValue(schedule.weekday, ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const);
+      const opensAt = text(schedule.opensAt, 5);
+      const closesAt = text(schedule.closesAt, 5);
+      const scheduleNote = text(schedule.note, 240);
+      if (!weekday || opensAt === null || closesAt === null || scheduleNote === null) return null;
+      const allDay = schedule.allDay === true;
+      if (allDay && (opensAt || closesAt)) return null;
+      if (!allDay && (!timePattern.test(opensAt) || !timePattern.test(closesAt) || opensAt >= closesAt)) return null;
+      return { weekday, allDay, opensAt: allDay ? "" : opensAt, closesAt: allDay ? "" : closesAt, note: scheduleNote };
+    });
+    if (schedules.some((schedule) => schedule === null)) return null;
+    const weekdays = schedules.filter((schedule): schedule is NonNullable<typeof schedule> => schedule !== null).map((schedule) => schedule.weekday);
+    if (new Set(weekdays).size !== weekdays.length) return null;
+    parsedStops.push({ id: text(item.id, 36) || undefined, name, addressLine, latitude, longitude, note, sortOrder, schedules: schedules as AdminMobileStop["schedules"] });
+  }
+  return parsedStops;
 }
 
 function accommodation(value: unknown) {
@@ -270,6 +306,7 @@ function accommodation(value: unknown) {
 export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult {
   if (!isRecord(value)) return { ok: false, reason: "invalid-body" };
   const id = text(value.id, 36);
+  const placeKind = enumValue(value.placeKind, profileKinds) ?? "SUPPORT";
   const name = text(value.name, 250, true);
   const slug = text(value.slug, 200, true);
   const organizationId = text(value.organizationId, 36);
@@ -309,6 +346,8 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
   const admission = admissionResult?.ok ? admissionResult.days : null;
   const parsedRequirements = requirements(value.requirements);
   const parsedAccessibility = accessibility(value.accessibility);
+  const parsedMobileStops = mobileStops(value.mobileStops ?? []);
+  const mobileSeason = isRecord(value.mobileSeason) ? value.mobileSeason : undefined;
 
   if (
     (id && !uuidPattern.test(id)) ||
@@ -350,6 +389,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
     internalNote === null ||
     (value.markVerified === true && !verificationSource) ||
     (isAccommodation && !parsedAccommodation)
+    || !parsedMobileStops
   ) {
     return { ok: false, reason: "invalid-fields" };
   }
@@ -373,6 +413,7 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
     ok: true,
     data: {
       id: id || undefined,
+      placeKind,
       name,
       slug,
       organizationId,
@@ -398,6 +439,8 @@ export function validatePlaceAdminPayload(value: unknown): PlaceValidationResult
       audience,
       services,
       openingHours: { operation, admission },
+      mobileStops: parsedMobileStops,
+      mobileSeason: mobileSeason as PlaceAdminPayload["mobileSeason"],
       requirements: parsedRequirements,
       accessibility: parsedAccessibility,
       isAccommodation,

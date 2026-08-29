@@ -6,6 +6,7 @@ import { findLivePlaceMatch, lockLivePlaceIdentity } from "./live-place-match.ts
 import type { ImportPlaceReference } from "./matching.ts";
 import { parseCategoryReanalysis, resolveEffectiveCategory, type CategoryAnalysisState, type PersistedCategoryDecision } from "./category-decisions.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "./organization-decisions.ts";
+import { inferPlaceProfileKind } from "../places/profile.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_SLUG_COLLISION_RETRIES = 2;
@@ -47,6 +48,7 @@ type CandidateSnapshot = {
   proposedPhone: string | null;
   proposedEmail: string | null;
   proposedWebsite: string | null;
+  categorySlugs?: string[];
   proposedData: Prisma.JsonValue;
   importBatch: { id: string; key: string; status: ImportBatchStatus };
   sources: Array<{ sourceEntry: { id: string; parsedData: Prisma.JsonValue | null } }>;
@@ -256,6 +258,7 @@ export async function materializeImportCandidate(
         proposedPhone: true,
         proposedEmail: true,
         proposedWebsite: true,
+        categorySlugs: true,
         proposedData: true,
         importBatch: { select: { id: true, key: true, status: true } },
         sources: { select: { sourceEntry: { select: { id: true, parsedData: true } } } },
@@ -374,6 +377,13 @@ export async function materializeImportCandidate(
         audience: values.audience,
         services: values.services,
         recordKind: "PRODUCTION",
+        placeKind: inferPlaceProfileKind({
+          name: values.name,
+          description: values.description,
+          categorySlugs: candidate.categorySlugs ?? [],
+          services: values.services,
+          hasAccommodationDetails: Boolean(record(candidate.proposedData)?.accommodation),
+        }),
         isDemo: false,
         lastEditedByAdminUserId: input.adminUserId,
         categories: { create: effectiveCategory.categoryIds.map((categoryId, sortOrder) => ({ categoryId, sortOrder })) },
