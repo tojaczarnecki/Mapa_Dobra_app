@@ -134,7 +134,9 @@ export async function saveImportCandidateOrganizationDecision(
     const disposition = duplicateDisposition(candidate);
     const effective = resolveEffectiveOrganization(analysis, decision, currentOrganization);
     const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION");
-    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
+    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) {
+      await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
+    }
 
     const changed = previous?.decision !== decision.decision || previous.organizationId !== decision.organizationId;
     if (changed) {

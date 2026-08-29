@@ -73,6 +73,7 @@ export function activeImportIssueCodesForCandidate(
   proposedData: unknown,
   reviewReasons: readonly string[],
   duplicateDisposition: DuplicateDisposition,
+  organizationResolved = false,
 ): string[] {
   const root = analysisRecord(proposedData);
   const analysis = analysisRecord(root?.analysis);
@@ -86,6 +87,7 @@ export function activeImportIssueCodesForCandidate(
   const placeReasons = new Set(stringCodes(place?.reasons));
   return reviewReasons.filter((code) => {
     if (code === "MATCHED_BY_SLUG") return false;
+    if (organizationResolved && ["NEW_ORGANIZATION_CANDIDATE", "INACTIVE_ORGANIZATION", "CONFLICTING_IDENTIFIERS", "MULTIPLE_NAME_MATCHES", "MATCHED_BY_IDENTIFIER", "MATCHED_BY_NIP", "MATCHED_BY_REGON", "MATCHED_BY_KRS", "MATCHED_BY_NAME"].includes(code)) return false;
     if (duplicateDisposition !== "KEPT" && duplicateDisposition !== "RESOLVED_DIFFERENT" && duplicateDisposition !== "LOSER") return true;
     if (code === "SOURCE_ROW_DUPLICATE") return false;
     return !duplicateReasons.has(code) || placeReasons.has(code);

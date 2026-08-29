@@ -8,6 +8,8 @@ import { MaterializeCandidateButton } from "@/components/admin/imports/materiali
 import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge } from "@/lib/imports/duplicate-decisions";
 import { DuplicateDecisionPanel } from "@/components/admin/imports/duplicate-decision-panel";
+import { OrganizationDecisionPanel } from "@/components/admin/imports/organization-decision-panel";
+import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -45,6 +47,7 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
         include: {
           matchedPlace: { select: { id: true, name: true, recordKind: true } },
           createdPlace: { select: { id: true, name: true, verificationQueueStatus: true, verificationStatus: true } },
+          organizationDecision: { select: { decision: true, organizationId: true } },
           sources: { include: { sourceEntry: true } },
           duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } },
           duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } },
@@ -57,6 +60,8 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { status: true, queueStatus: true, resolution: true, reviewReasons: true, createdPlace: { select: { verificationQueueStatus: true, verificationStatus: true } } } }),
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { id: true, candidateKey: true, proposedData: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedOrganizationName: true, primaryCategorySlug: true, categorySlugs: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } }, duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } } } }),
   ]);
+  const selectedOrganizationIds = batch.candidates.flatMap((candidate) => candidate.organizationDecision?.organizationId ? [candidate.organizationDecision.organizationId] : []);
+  const organizations = isSpreadsheetBatchMetadata(batch.metadata) ? await prisma.organization.findMany({ where: { OR: [{ active: true }, { id: { in: selectedOrganizationIds } }] }, select: { id: true, name: true, nip: true, regon: true, krs: true, active: true }, orderBy: { name: "asc" } }) : [];
   const rowNumberToCandidateId = new Map<number, string>();
   for (const candidate of allCandidates) {
     const sourceRow = rowNumber(candidate.candidateKey);
@@ -67,7 +72,20 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     ...candidate.duplicateDecisionsAsB.map((decision) => ({ candidateAId: decision.candidateAId, candidateBId: candidate.id, decision: decision.decision as "KEEP_A" | "KEEP_B" | "DIFFERENT_RECORDS" })),
   ]);
   const dispositionFor = (candidate: { id: string; proposedData: unknown }) => getDuplicateDisposition(getDuplicateDecisionState(candidate.id, duplicateRowNumbers(candidate.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, duplicateDecisions));
-  const activeIssuesFor = (candidate: { reviewReasons: readonly string[]; id: string; proposedData: unknown }) => activeImportIssueCodesForCandidate(candidate.proposedData, candidate.reviewReasons, dispositionFor(candidate));
+  const organizationResolvedFor = (candidate: { proposedData: unknown; organizationDecision?: { decision: string; organizationId: string | null } | null }) => {
+    const root = candidate.proposedData && typeof candidate.proposedData === "object" && !Array.isArray(candidate.proposedData) ? candidate.proposedData as Record<string, unknown> : null;
+    const analysis = root?.analysis && typeof root.analysis === "object" && !Array.isArray(root.analysis) ? root.analysis as Record<string, unknown> : null;
+    const organization = analysis?.organization && typeof analysis.organization === "object" && !Array.isArray(analysis.organization) ? analysis.organization as Record<string, unknown> : null;
+    const organizationStatus = organization?.status;
+    if (typeof organizationStatus !== "string" || !["NONE", "MATCHED", "POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus)) return false;
+    const organizationId = typeof organization?.organizationId === "string" ? organization.organizationId : null;
+    const decision = parseOrganizationDecision(candidate.organizationDecision);
+    const lookupId = decision?.decision === "SELECTED_ORGANIZATION" ? decision.organizationId : organizationStatus === "MATCHED" ? organizationId : null;
+    const current = lookupId ? organizations.find((item) => item.id === lookupId) ?? null : null;
+    const effective = resolveEffectiveOrganization({ status: organizationStatus as "NONE" | "MATCHED" | "POSSIBLE" | "CONFLICT" | "NEW_CANDIDATE", organizationId }, decision, current);
+    return effective.status !== "UNRESOLVED" && effective.status !== "BLOCKED_INACTIVE_MATCH";
+  };
+  const activeIssuesFor = (candidate: { reviewReasons: readonly string[]; id: string; proposedData: unknown; organizationDecision?: { decision: string; organizationId: string | null } | null }) => activeImportIssueCodesForCandidate(candidate.proposedData, candidate.reviewReasons, dispositionFor(candidate), organizationResolvedFor(candidate));
   const effectiveStatus = (candidate: { status: string; id: string; proposedData: unknown }): Status => dispositionFor(candidate) === "LOSER" ? "SKIPPED" : candidate.status as Status;
   const count = (value: Status) => allCandidates.filter((candidate) => effectiveStatus(candidate) === value).length;
   const importedPlaces = progressCandidates.filter((item) => item.createdPlace).length;
@@ -105,6 +123,22 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
             {dispositionFor(candidate) === "LOSER" ? <p className="mt-2 text-sm text-muted-foreground">Ten wpis nie będzie importowany — zachowano inny rekord z tego pliku.</p> : null}
           </div>
           {activeIssuesFor(candidate).length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{activeIssuesFor(candidate).map((reason) => <li key={reason}>• {importIssueLabel(reason)}</li>)}</ul> : null}
+          {(() => {
+            const root = candidate.proposedData && typeof candidate.proposedData === "object" && !Array.isArray(candidate.proposedData) ? candidate.proposedData as Record<string, unknown> : null;
+            const mapped = root?.mappedValues && typeof root.mappedValues === "object" && !Array.isArray(root.mappedValues) ? root.mappedValues as Record<string, unknown> : null;
+            const analysis = root?.analysis && typeof root.analysis === "object" && !Array.isArray(root.analysis) ? root.analysis as Record<string, unknown> : null;
+            const organizationAnalysis = analysis?.organization && typeof analysis.organization === "object" && !Array.isArray(analysis.organization) ? analysis.organization as Record<string, unknown> : null;
+            const status = organizationAnalysis?.status;
+            const relevant = status === "NEW_CANDIDATE" || status === "POSSIBLE" || status === "CONFLICT" || status === "MATCHED" || candidate.organizationDecision;
+            const terminal = candidate.status === "IMPORTED" || candidate.status === "SKIPPED" || Boolean(candidate.createdPlaceId) || candidate.resolution === "SAME_PLACE";
+            if (!isSpreadsheetBatchMetadata(batch.metadata) || !relevant) return null;
+            const matchedOrganizationId = typeof organizationAnalysis?.organizationId === "string" ? organizationAnalysis.organizationId : null;
+            const matchedOrganization = matchedOrganizationId ? organizations.find((item) => item.id === matchedOrganizationId) : null;
+            const unresolvedMatched = status === "MATCHED" && !matchedOrganization?.active;
+            const shouldEdit = !terminal && (status !== "MATCHED" || unresolvedMatched || Boolean(candidate.organizationDecision));
+            const candidateIds = Array.isArray(organizationAnalysis?.candidateIds) ? organizationAnalysis.candidateIds.filter((value): value is string => typeof value === "string") : [];
+            return <OrganizationDecisionPanel candidateId={candidate.id} batchId={id} source={{ name: typeof mapped?.organizationName === "string" ? mapped.organizationName : null, nip: typeof mapped?.organizationNip === "string" ? mapped.organizationNip : null, regon: typeof mapped?.organizationRegon === "string" ? mapped.organizationRegon : null, krs: typeof mapped?.organizationKrs === "string" ? mapped.organizationKrs : null }} suggestedIds={candidateIds} organizations={organizations} currentDecision={candidate.organizationDecision} active={shouldEdit} />;
+          })()}
           {(() => {
             const sourceCandidate = allCandidates.find((item) => item.id === candidate.id);
             if (!sourceCandidate) return null;

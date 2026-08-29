@@ -155,3 +155,10 @@ test("a place reason is retained when the same code also appears in duplicate pr
   const proposedData = { analysis: { place: { classification: "EXACT_MATCH", reasons: ["SAME_ADDRESS_AND_PHONE"] }, inFileDuplicates: [{ reasons: ["SAME_ADDRESS_AND_PHONE"] }] } };
   assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, ["SAME_ADDRESS_AND_PHONE"], "RESOLVED_DIFFERENT"), ["SAME_ADDRESS_AND_PHONE"]);
 });
+
+test("resolved organization blockers are hidden without changing provenance", () => {
+  const proposedData = { analysis: { place: { classification: "NEW", reasons: [] }, inFileDuplicates: [] } };
+  const reasons = ["NEW_ORGANIZATION_CANDIDATE", "MATCHED_BY_IDENTIFIER", "UNRESOLVED_CATEGORY"];
+  assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, reasons, "NONE", true), ["UNRESOLVED_CATEGORY"]);
+  assert.deepEqual(reasons, ["NEW_ORGANIZATION_CANDIDATE", "MATCHED_BY_IDENTIFIER", "UNRESOLVED_CATEGORY"]);
+});

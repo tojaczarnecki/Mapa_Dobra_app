@@ -111,6 +111,41 @@ test("selected active organization resolves NEW_CANDIDATE and POSSIBLE", async (
   }
 });
 
+test("resolved duplicate edges plus selected organization become ready", async () => {
+  const db = new FakeDatabase(candidate({ proposedData: proposed({ inFileDuplicates: [{ rowNumber: 87 }, { rowNumber: 88 }] }) }));
+  db.batchCandidates.push(candidate({ id: "candidate-87", candidateKey: "row-87" }), candidate({ id: "candidate-88", candidateKey: "row-88" }));
+  db.duplicateDecisions = [
+    { candidateAId: "candidate-1", candidateBId: "candidate-87", decision: "DIFFERENT_RECORDS" },
+    { candidateAId: "candidate-1", candidateBId: "candidate-88", decision: "DIFFERENT_RECORDS" },
+  ];
+  db.organization = { id: "org-selected", active: true };
+
+  const result = await saveImportCandidateOrganizationDecision(db, input({ decision: "SELECTED_ORGANIZATION", organizationId: "org-selected" }));
+  assert.deepEqual(result, { status: "SAVED", changed: true, candidateStatus: "IMPORT_READY", queueStatus: null });
+  assert.equal(db.current.status, ImportCandidateStatus.IMPORT_READY);
+});
+
+test("the persisted Caritas-shaped analysis ignores resolved duplicate and organization provenance", async () => {
+  const db = new FakeDatabase(candidate({ proposedData: proposed({
+    status: "REVIEW",
+    warnings: ["SOURCE_ROW_DUPLICATE"],
+    organization: { method: null, status: "NEW_CANDIDATE", reasons: ["NEW_ORGANIZATION_CANDIDATE"], warnings: [], candidateIds: [], organizationId: null },
+    category: { method: "SLUG", status: "MATCHED", reasons: ["MATCHED_BY_SLUG"], warnings: [], categorySlug: "jedzenie" },
+    place: { reasons: [], conflict: false, candidates: [], classification: "NEW" },
+    inFileDuplicates: [{ reasons: ["SAME_ADDRESS_AND_PHONE"], rowNumber: 87 }, { reasons: ["SAME_ADDRESS_AND_PHONE"], rowNumber: 88 }],
+  }) }));
+  db.batchCandidates.push(candidate({ id: "candidate-87", candidateKey: "row-87" }), candidate({ id: "candidate-88", candidateKey: "row-88" }));
+  db.duplicateDecisions = [
+    { candidateAId: "candidate-1", candidateBId: "candidate-87", decision: "DIFFERENT_RECORDS" },
+    { candidateAId: "candidate-1", candidateBId: "candidate-88", decision: "DIFFERENT_RECORDS" },
+  ];
+  db.organization = { id: "org-selected", active: true };
+
+  const result = await saveImportCandidateOrganizationDecision(db, input({ decision: "SELECTED_ORGANIZATION", organizationId: "org-selected" }));
+  assert.deepEqual(result, { status: "SAVED", changed: true, candidateStatus: "IMPORT_READY", queueStatus: null });
+  assert.equal(db.current.status, ImportCandidateStatus.IMPORT_READY);
+});
+
 test("inactive selected organization is rejected server-side", async () => {
   const db = new FakeDatabase();
   db.organization = { id: "org-1", active: false };
