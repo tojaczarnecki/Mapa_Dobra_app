@@ -4,7 +4,7 @@ import { slugifyImportValue } from "./caritas-gdzie-parser.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 import { findLivePlaceMatch, lockLivePlaceIdentity } from "./live-place-match.ts";
 import type { ImportPlaceReference } from "./matching.ts";
-import { resolveEffectiveCategory, type CategoryAnalysisState, type PersistedCategoryDecision } from "./category-decisions.ts";
+import { parseCategoryReanalysis, resolveEffectiveCategory, type CategoryAnalysisState, type PersistedCategoryDecision } from "./category-decisions.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "./organization-decisions.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -301,6 +301,9 @@ export async function materializeImportCandidate(
       ? await transaction.category.findFirst({ where: { slug: proposed.analysis.categorySlug }, select: { id: true, slug: true, active: true } })
       : null;
     const analysis = categoryAnalysis(candidate.proposedData, legacyCategory?.id ?? null);
+    const proposedRecord = record(candidate.proposedData);
+    const analysisRecord = record(proposedRecord?.analysis);
+    const reanalysis = parseCategoryReanalysis(record(analysisRecord?.reanalysis)?.category);
     const persistedDecision: PersistedCategoryDecision | null = candidate.categoryDecision
       ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories }
       : null;
@@ -308,7 +311,7 @@ export async function materializeImportCandidate(
     const categorySnapshots = transaction.category.findMany
       ? await transaction.category.findMany({ where: { id: { in: selectedIds } }, select: { id: true, active: true } })
       : legacyCategory ? [{ id: legacyCategory.id, active: legacyCategory.active }] : [];
-    const effectiveCategory = resolveEffectiveCategory(analysis, persistedDecision, categorySnapshots);
+    const effectiveCategory = resolveEffectiveCategory(analysis, persistedDecision, categorySnapshots, reanalysis);
     if (effectiveCategory.status === "REQUIRES_REVIEW") return { status: "CATEGORY_REVIEW_REQUIRED" };
 
     const organizationDecision = parseOrganizationDecision(candidate.organizationDecision);
