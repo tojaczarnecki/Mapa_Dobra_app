@@ -59,6 +59,9 @@ function snapshot(overrides: Partial<{
   status: ImportCandidateStatus;
   createdPlaceId: string | null;
   matchedPlaceId: string | null;
+  proposedPhone: string | null;
+  proposedEmail: string | null;
+  proposedWebsite: string | null;
   proposedData: Prisma.JsonValue;
   organizationDecision?: { decision: string; organizationId: string | null } | null;
 }> = {}) {
@@ -108,6 +111,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
         if (/FOR UPDATE/u.test(JSON.stringify(query))) this.lockQuery = query;
         return [{ id: this.candidate.id }] as T[];
       },
+      $executeRaw: async () => 1,
       importCandidate: {
         findUnique: async () => ({ ...this.candidate, categoryDecision: this.categoryDecision }),
         update: async (args) => {
@@ -174,6 +178,16 @@ test("materializes only a NEW candidate as an unpublished draft", async () => {
   assert.equal(db.candidateUpdate?.createdPlaceId, "place-1");
   assert.equal(db.auditData?.action, "PLACE_IMPORTED");
   assert.equal(db.auditData?.entityType, "PLACE");
+});
+
+test("bounds legacy proposed contact values to Place column limits", async () => {
+  const db = new FakeDatabase();
+  db.candidate = snapshot({ proposedPhone: "9".repeat(341), proposedEmail: "a".repeat(501) + "@example.pl", proposedWebsite: "https://example.pl/" + "x".repeat(2100) });
+  const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
+  assert.equal(result.status, "CREATED");
+  assert.equal((db.createdPlaceData as { phone?: string }).phone?.length, 50);
+  assert.equal((db.createdPlaceData as { email?: string }).email?.length, 320);
+  assert.equal((db.createdPlaceData as { website?: string }).website?.length, 2048);
 });
 
 test("locks the candidate row before re-reading it", async () => {
@@ -262,6 +276,41 @@ test("accepts the new persisted singleton category shape", async () => {
   const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
 
   assert.notEqual(result.status, "INVALID_CANDIDATE");
+});
+
+test("uses the top-level accepted category reanalysis snapshot", async () => {
+  const db = new FakeDatabase();
+  db.candidate = snapshot({
+    proposedData: proposedData({
+      analysis: {
+        category: { status: "ERROR", categorySlug: null },
+        organization: { status: "NONE", organizationId: null },
+        place: { classification: "NEW", candidates: [] },
+        inFileDuplicates: [],
+      },
+      reanalysis: {
+        category: {
+          version: 1,
+          sourceValue: "historyczna wartość",
+          analyzedAt: "2026-01-01T00:00:00.000Z",
+          analyzedByAdminUserId: adminUserId,
+          result: {
+            sourceValue: "historyczna wartość",
+            tokens: [],
+            matchedCategoryIds: ["category-1"],
+            matchedCategorySlugs: ["jedzenie"],
+            unresolvedTokens: [],
+            warnings: [],
+            status: "FULLY_MATCHED",
+            requiresReview: false,
+          },
+        },
+      },
+    }),
+  });
+  const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
+  assert.equal(result.status, "CREATED");
+  assert.equal((db.createdPlaceData as { primaryCategoryId?: string }).primaryCategoryId, "category-1");
 });
 
 test("uses an admin category decision for the primary and complete selected set", async () => {

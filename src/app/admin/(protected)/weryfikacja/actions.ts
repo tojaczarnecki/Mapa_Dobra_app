@@ -763,7 +763,7 @@ export async function resolveCandidateDifferentPlace(
           website: candidate.proposedWebsite ?? (typeof proposedRecord.website === "string" ? proposedRecord.website : null),
         };
         await lockLivePlaceIdentity(
-          (key) => transaction.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`),
+          (key) => transaction.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`),
           liveValues,
           organizationId || null,
         );

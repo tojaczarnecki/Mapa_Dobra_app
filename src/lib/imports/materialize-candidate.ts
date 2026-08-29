@@ -56,6 +56,7 @@ type CandidateSnapshot = {
 
 export type MaterializeCandidateTransaction = {
   $queryRaw<T>(query: Prisma.Sql): Promise<T[]>;
+  $executeRaw(query: Prisma.Sql): Promise<number>;
   importCandidate: {
     findUnique(args: Prisma.ImportCandidateFindUniqueArgs): Promise<CandidateSnapshot | null>;
     findMany?(args: Prisma.ImportCandidateFindManyArgs): Promise<Array<{ id: string; candidateKey: string; proposedData: Prisma.JsonValue }>>;
@@ -302,8 +303,7 @@ export async function materializeImportCandidate(
       : null;
     const analysis = categoryAnalysis(candidate.proposedData, legacyCategory?.id ?? null);
     const proposedRecord = record(candidate.proposedData);
-    const analysisRecord = record(proposedRecord?.analysis);
-    const reanalysis = parseCategoryReanalysis(record(analysisRecord?.reanalysis)?.category);
+    const reanalysis = parseCategoryReanalysis(record(record(proposedRecord?.reanalysis)?.category));
     const persistedDecision: PersistedCategoryDecision | null = candidate.categoryDecision
       ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories }
       : null;
@@ -331,7 +331,7 @@ export async function materializeImportCandidate(
 
     const values = proposed.values;
     await lockLivePlaceIdentity(
-      (key) => transaction.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`),
+      (key) => transaction.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`),
       values,
       organizationId,
     );
@@ -362,9 +362,9 @@ export async function materializeImportCandidate(
         district: values.district,
         latitude: null,
         longitude: null,
-        phone: candidate.proposedPhone ?? values.phone,
-        email: candidate.proposedEmail ?? values.email,
-        website: candidate.proposedWebsite ?? values.website,
+        phone: candidate.proposedPhone?.slice(0, 50) ?? values.phone,
+        email: candidate.proposedEmail?.slice(0, 320) ?? values.email,
+        website: candidate.proposedWebsite?.slice(0, 2048) ?? values.website,
         publicationStatus: "DRAFT",
         verificationStatus: "NEEDS_CONFIRMATION",
         operationalStatus: "UNKNOWN",
