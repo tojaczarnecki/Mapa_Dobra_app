@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "import_candidate_duplicate_decisions_candidateAId_candidateBId_" RENAME TO "import_candidate_duplicate_decisions_candidateAId_candidate_key";

@@ -350,6 +350,12 @@ enum ImportCandidateResolution {
   SKIPPED
 }
 
+enum ImportCandidateDuplicateDecisionType {
+  KEEP_A
+  KEEP_B
+  DIFFERENT_RECORDS
+}
+
 enum PlaceLocationSource {
   GEOCODER
   MANUAL
@@ -408,6 +414,7 @@ model AdminUser {
   createdDrafts                 SubmissionDraft[]                  @relation("DraftCreator")
   updatedDrafts                 SubmissionDraft[]                  @relation("DraftUpdater")
   resolvedImportCandidates      ImportCandidate[]                  @relation("ImportCandidateResolver")
+  resolvedDuplicateDecisions    ImportCandidateDuplicateDecision[]  @relation("DuplicateDecisionResolver")
   requiredVerificationContacts  PlaceVerificationContact[]         @relation("VerificationContactRequiredBy")
   completedVerificationContacts PlaceVerificationContact[]         @relation("VerificationContactCompletedBy")
   permissionOverrides           AdminUserPermission[]
@@ -738,12 +745,33 @@ model ImportCandidate {
   createdPlace             Place?                     @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
   resolvedBy               AdminUser?                 @relation("ImportCandidateResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: SetNull)
   sources                  ImportCandidateSource[]
+  duplicateDecisionsAsA   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateA")
+  duplicateDecisionsAsB   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateB")
 
   @@unique([importBatchId, candidateKey])
   @@index([importBatchId, status])
   @@index([matchedPlaceId])
   @@index([queueStatus, status])
   @@map("import_candidates")
+}
+
+model ImportCandidateDuplicateDecision {
+  id                    String                              @id @default(uuid()) @db.Uuid
+  candidateAId          String                              @db.Uuid
+  candidateBId          String                              @db.Uuid
+  decision              ImportCandidateDuplicateDecisionType
+  resolvedByAdminUserId String                              @db.Uuid
+  resolvedAt            DateTime                            @default(now()) @db.Timestamptz(3)
+  note                  String?                             @db.VarChar(1000)
+  candidateA            ImportCandidate                     @relation("DuplicateDecisionCandidateA", fields: [candidateAId], references: [id], onDelete: Cascade)
+  candidateB            ImportCandidate                     @relation("DuplicateDecisionCandidateB", fields: [candidateBId], references: [id], onDelete: Cascade)
+  resolvedBy            AdminUser                           @relation("DuplicateDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict)
+
+  @@unique([candidateAId, candidateBId])
+  @@index([candidateAId])
+  @@index([candidateBId])
+  @@index([resolvedByAdminUserId])
+  @@map("import_candidate_duplicate_decisions")
 }
 
 model GeocodingCache {
