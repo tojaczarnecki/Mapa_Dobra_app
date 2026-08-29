@@ -14,6 +14,7 @@ import { materializeImportCandidate, type MaterializeCandidateDatabase, type Mat
 import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type DuplicateDecision, type DuplicateDecisionInput, type StoredDuplicateDecision } from "@/lib/imports/duplicate-decisions";
 import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-review";
 import { saveImportCandidateOrganizationDecision, type OrganizationDecisionPersistenceTransaction, type SaveOrganizationDecisionInput } from "@/lib/imports/organization-decision-persistence";
+import { saveImportCandidateCategoryDecision, type SaveCategoryDecisionInput } from "@/lib/imports/category-decision-persistence";
 import type { OrganizationDecision } from "@/lib/imports/organization-decisions";
 
 const PREVIEW_LIMIT = 100;
@@ -396,4 +397,50 @@ export async function saveOrganizationDecision(formData: FormData): Promise<Orga
     return { ok: true, message: result.changed ? "Decyzja organizacyjna zapisana." : "Stan kandydata został ponownie przeliczony." };
   }
   return { ok: false, message: organizationDecisionMessage(result.status) };
+}
+
+export type CategoryDecisionActionState = { ok: true; message: string } | { ok: false; message: string };
+
+function parseCategoryIds(value: FormDataEntryValue | null): string[] | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCategoryDecision(formData: FormData): Promise<CategoryDecisionActionState> {
+  const session = await requirePermission("MANAGE_IMPORTS");
+  const candidateId = formData.get("candidateId");
+  const primaryCategoryId = formData.get("primaryCategoryId");
+  const selectedCategoryIds = parseCategoryIds(formData.get("selectedCategoryIds"));
+  if (typeof candidateId !== "string" || typeof primaryCategoryId !== "string" || !selectedCategoryIds) return { ok: false, message: "Nieprawidłowa decyzja kategorii." };
+  const input: SaveCategoryDecisionInput = {
+    candidateId,
+    primaryCategoryId,
+    selectedCategoryIds,
+    resolvedByAdminUserId: session.user.id,
+    note: typeof formData.get("note") === "string" ? formData.get("note") as string : null,
+  };
+  try {
+    const result = await saveImportCandidateCategoryDecision({
+      $transaction: (callback) => prisma.$transaction((transaction) => callback(transaction as never)),
+    }, input);
+    if (result.status !== "SAVED") {
+      const messages: Record<Exclude<typeof result.status, "SAVED">, string> = {
+        INVALID_CANDIDATE: "Ten kandydat nie może już otrzymać decyzji kategorii.",
+        INVALID_DECISION: "Decyzja kategorii jest niepoprawna.",
+        CATEGORY_NOT_FOUND: "Wybrana kategoria nie istnieje.",
+        CATEGORY_INACTIVE: "Jedna z wybranych kategorii jest nieaktywna.",
+        NOTE_TOO_LONG: "Notatka jest za długa.",
+      };
+      return { ok: false, message: messages[result.status] };
+    }
+    revalidatePath("/admin/importy");
+    return { ok: true, message: result.changed ? "Decyzja kategorii zapisana." : "Decyzja kategorii została ponownie zapisana." };
+  } catch {
+    return { ok: false, message: "Nie udało się zapisać decyzji kategorii." };
+  }
 }
