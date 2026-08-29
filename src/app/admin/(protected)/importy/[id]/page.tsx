@@ -3,10 +3,10 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
-import { importIssueLabel } from "@/lib/imports/issue-labels";
+import { activeImportIssueCodesForCandidate, importIssueLabel } from "@/lib/imports/issue-labels";
 import { MaterializeCandidateButton } from "@/components/admin/imports/materialize-candidate-button";
 import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
-import { isOriginalDuplicateEdge } from "@/lib/imports/duplicate-decisions";
+import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge } from "@/lib/imports/duplicate-decisions";
 import { DuplicateDecisionPanel } from "@/components/admin/imports/duplicate-decision-panel";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,7 +41,6 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     where: { id },
     include: {
       candidates: {
-        where: { status },
         orderBy: [{ proposedName: "asc" }, { proposedAddress: "asc" }],
         include: {
           matchedPlace: { select: { id: true, name: true, recordKind: true } },
@@ -54,12 +53,23 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
     },
   });
   if (!batch) notFound();
-  const [counts, progressCandidates, allCandidates] = await Promise.all([
-    prisma.importCandidate.groupBy({ by: ["status"], where: { importBatchId: id }, _count: { _all: true } }),
+  const [progressCandidates, allCandidates] = await Promise.all([
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { status: true, queueStatus: true, resolution: true, reviewReasons: true, createdPlace: { select: { verificationQueueStatus: true, verificationStatus: true } } } }),
-    prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { id: true, candidateKey: true, proposedData: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedOrganizationName: true, primaryCategorySlug: true, categorySlugs: true, duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } }, duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } } } }),
+    prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { id: true, candidateKey: true, proposedData: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedOrganizationName: true, primaryCategorySlug: true, categorySlugs: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } }, duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } } } }),
   ]);
-  const count = (value: Status) => counts.find((item) => item.status === value)?._count._all ?? 0;
+  const rowNumberToCandidateId = new Map<number, string>();
+  for (const candidate of allCandidates) {
+    const sourceRow = rowNumber(candidate.candidateKey);
+    if (sourceRow !== null) rowNumberToCandidateId.set(sourceRow, candidate.id);
+  }
+  const duplicateDecisions = allCandidates.flatMap((candidate) => [
+    ...candidate.duplicateDecisionsAsA.map((decision) => ({ candidateAId: candidate.id, candidateBId: decision.candidateBId, decision: decision.decision as "KEEP_A" | "KEEP_B" | "DIFFERENT_RECORDS" })),
+    ...candidate.duplicateDecisionsAsB.map((decision) => ({ candidateAId: decision.candidateAId, candidateBId: candidate.id, decision: decision.decision as "KEEP_A" | "KEEP_B" | "DIFFERENT_RECORDS" })),
+  ]);
+  const dispositionFor = (candidate: { id: string; proposedData: unknown }) => getDuplicateDisposition(getDuplicateDecisionState(candidate.id, duplicateRowNumbers(candidate.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, duplicateDecisions));
+  const activeIssuesFor = (candidate: { reviewReasons: readonly string[]; id: string; proposedData: unknown }) => activeImportIssueCodesForCandidate(candidate.proposedData, candidate.reviewReasons, dispositionFor(candidate));
+  const effectiveStatus = (candidate: { status: string; id: string; proposedData: unknown }): Status => dispositionFor(candidate) === "LOSER" ? "SKIPPED" : candidate.status as Status;
+  const count = (value: Status) => allCandidates.filter((candidate) => effectiveStatus(candidate) === value).length;
   const importedPlaces = progressCandidates.filter((item) => item.createdPlace).length;
   const verifiedPlaces = progressCandidates.filter((item) => item.createdPlace?.verificationStatus === "VERIFIED").length;
   const pendingPlaces = progressCandidates.filter((item) => item.createdPlace && item.createdPlace.verificationStatus !== "VERIFIED").length;
@@ -86,14 +96,15 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
       {status === "IMPORT_READY" ? <p className="text-sm text-muted-foreground">Rekord jest gotowy do utworzenia jako szkic. Akcja utworzenia miejsca będzie dostępna w kolejnym kroku.</p> : null}
       {status === "REQUIRES_REVIEW" ? <p className="text-sm text-muted-foreground">Ten rekord wymaga rozstrzygnięcia konfliktu przed utworzeniem miejsca.</p> : null}
       <p className="text-sm text-muted-foreground">Oryginalne pozycje źródłowe pozostają niezmienione. Kandydaci wymagający decyzji nie zostali utworzeni jako miejsca.</p>
-      {batch.candidates.length ? <ol className="space-y-2">{batch.candidates.map((candidate) => (
+      {batch.candidates.filter((candidate) => effectiveStatus(candidate) === status).length ? <ol className="space-y-2">{batch.candidates.filter((candidate) => effectiveStatus(candidate) === status).map((candidate) => (
         <li key={candidate.id} className="rounded-lg border border-border bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0"><span className="text-xs font-bold uppercase text-muted-foreground">{statusLabels[candidate.status]}</span><h2 className="mt-1 text-base font-bold">{candidate.proposedName}</h2><p className="mt-1 text-sm">{candidate.proposedAddress ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">{candidate.categorySlugs.join(" · ") || "Brak klasyfikacji"}</p></div>
-            <div className="flex flex-wrap gap-2">{candidate.createdPlace ? <><span className="inline-flex min-h-11 items-center rounded-lg border border-brand/30 bg-brand-soft px-3 text-sm font-bold text-brand-strong">Utworzono szkic</span><Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link></> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {candidate.matchedPlace.recordKind}</Link> : candidate.status === "IMPORT_READY" ? <MaterializeCandidateButton candidateId={candidate.id} batchId={id} /> : null}{(candidate.queueStatus || isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution })) ? <Link href={`/admin/weryfikacja/${candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link> : null}</div>
-            {isSpreadsheetBatchMetadata(batch.metadata) && hasSpreadsheetSourceRowDuplicate({ proposedData: candidate.proposedData }) && !isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution }) ? <p className="mt-2 text-sm text-muted-foreground">Rekord ma również możliwy duplikat w pliku. Ten typ konfliktu będzie dostępny w kolejnym kroku.</p> : null}
+            <div className="min-w-0"><span className="text-xs font-bold uppercase text-muted-foreground">{statusLabels[effectiveStatus(candidate)]}</span><h2 className="mt-1 text-base font-bold">{candidate.proposedName}</h2><p className="mt-1 text-sm">{candidate.proposedAddress ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">{candidate.categorySlugs.join(" · ") || "Brak klasyfikacji"}</p></div>
+            <div className="flex flex-wrap gap-2">{dispositionFor(candidate) === "LOSER" ? <span className="inline-flex min-h-11 items-center rounded-lg border border-border bg-[#f5f3ed] px-3 text-sm font-bold text-muted-foreground">Pominięto jako duplikat</span> : candidate.createdPlace ? <><span className="inline-flex min-h-11 items-center rounded-lg border border-brand/30 bg-brand-soft px-3 text-sm font-bold text-brand-strong">Utworzono szkic</span><Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link></> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {candidate.matchedPlace.recordKind}</Link> : candidate.status === "IMPORT_READY" ? <MaterializeCandidateButton candidateId={candidate.id} batchId={id} /> : null}{dispositionFor(candidate) !== "LOSER" && (candidate.queueStatus || isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution }, dispositionFor(candidate))) ? <Link href={`/admin/weryfikacja/${candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link> : null}</div>
+            {isSpreadsheetBatchMetadata(batch.metadata) && hasSpreadsheetSourceRowDuplicate({ proposedData: candidate.proposedData }) && dispositionFor(candidate) === "UNRESOLVED" ? <p className="mt-2 text-sm text-muted-foreground">Rekord wymaga rozstrzygnięcia duplikatu w pliku.</p> : null}
+            {dispositionFor(candidate) === "LOSER" ? <p className="mt-2 text-sm text-muted-foreground">Ten wpis nie będzie importowany — zachowano inny rekord z tego pliku.</p> : null}
           </div>
-          {candidate.reviewReasons.length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{candidate.reviewReasons.map((reason) => <li key={reason}>• {importIssueLabel(reason)}</li>)}</ul> : null}
+          {activeIssuesFor(candidate).length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{activeIssuesFor(candidate).map((reason) => <li key={reason}>• {importIssueLabel(reason)}</li>)}</ul> : null}
           {(() => {
             const sourceCandidate = allCandidates.find((item) => item.id === candidate.id);
             if (!sourceCandidate) return null;

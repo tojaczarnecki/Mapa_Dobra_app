@@ -22,6 +22,20 @@ export type DuplicateDecisionState = {
   hasConflictingKeepOutcome: boolean;
 };
 
+export type DuplicateDisposition = "NONE" | "UNRESOLVED" | "LOSER" | "KEPT" | "RESOLVED_DIFFERENT";
+
+export type DuplicateReconciliationCandidate = {
+  status: string;
+  resolution: string | null;
+  createdPlaceId: string | null;
+  proposedData: unknown;
+};
+
+export type DuplicateReconciliationResult = {
+  status: "IMPORT_READY" | "REQUIRES_REVIEW";
+  queueStatus: "PENDING" | null;
+} | null;
+
 export function duplicateRowNumbers(proposedData: unknown): number[] {
   if (!proposedData || typeof proposedData !== "object" || Array.isArray(proposedData)) return [];
   const analysis = (proposedData as Record<string, unknown>).analysis;
@@ -87,4 +101,46 @@ export function getDuplicateDecisionState(
     isLoser,
     hasConflictingKeepOutcome: isKept && isLoser,
   };
+}
+
+export function getDuplicateDisposition(state: DuplicateDecisionState): DuplicateDisposition {
+  if (state.edges.length === 0) return "NONE";
+  if (state.isUnresolved || state.hasConflictingKeepOutcome) return "UNRESOLVED";
+  if (state.isLoser) return "LOSER";
+  if (state.allEdgesResolvedAsDifferent) return "RESOLVED_DIFFERENT";
+  if (state.isKept) return "KEPT";
+  return "UNRESOLVED";
+}
+
+function analysisRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function analysisText(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+export function reconcileCandidateAfterDuplicateDecision(
+  candidate: DuplicateReconciliationCandidate,
+  disposition: DuplicateDisposition,
+): DuplicateReconciliationResult {
+  if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
+  if (disposition === "UNRESOLVED" || disposition === "LOSER") return { status: "REQUIRES_REVIEW", queueStatus: null };
+
+  const root = analysisRecord(candidate.proposedData);
+  const analysis = analysisRecord(root?.analysis);
+  const category = analysisRecord(analysis?.category);
+  const organization = analysisRecord(analysis?.organization);
+  const place = analysisRecord(analysis?.place);
+  const analysisStatus = analysisText(analysis?.status);
+  const categoryStatus = analysisText(category?.status);
+  const organizationStatus = analysisText(organization?.status);
+  const placeClassification = analysisText(place?.classification);
+  const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
+
+  if (placeClassification && placeClassification !== "NEW") return { status: "REQUIRES_REVIEW", queueStatus: "PENDING" };
+  if (analysisStatus === "ERROR" || errors.length > 0 || categoryStatus !== "MATCHED" || ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? "")) {
+    return { status: "REQUIRES_REVIEW", queueStatus: null };
+  }
+  return { status: "IMPORT_READY", queueStatus: null };
 }

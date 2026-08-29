@@ -548,8 +548,8 @@ export async function resolveCandidateSamePlace(
   const placeId = formText(formData, "placeId", 36, true);
   const note = formText(formData, "note", 1000);
   if (!uuidPattern.test(candidateId) || !placeId || !uuidPattern.test(placeId) || note === null) return { error: "Wybierz prawidłowe istniejące miejsce." };
-  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { matchedPlaceId: true, status: true, resolution: true, proposedData: true, importBatch: { select: { metadata: true } } } });
-  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) : false;
+  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { matchedPlaceId: true, status: true, resolution: true, queueStatus: true, proposedData: true, importBatch: { select: { metadata: true } } } });
+  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) || (isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && candidateContext.queueStatus === "PENDING" && !candidateContext.resolution) : false;
   if (candidateContext && isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && !spreadsheetPlaceReview && !candidateContext.resolution) return { error: "Ten kandydat ma inny typ konfliktu i nie może zostać rozstrzygnięty w tym kroku." };
   const allowedSpreadsheetPlaceIds = spreadsheetPlaceReview
     ? new Set((await getCandidateComparisonOptions(candidateId)).suggestions.map((place) => place.id).concat(candidateContext?.matchedPlaceId ?? ""))
@@ -563,7 +563,7 @@ export async function resolveCandidateSamePlace(
       ]);
       if (!candidate || !place) throw new Error("NOT_FOUND");
       if (candidate.resolution) throw new Error("ALREADY_RESOLVED");
-      if (isSpreadsheetPlaceReviewCandidate(candidate) && !isAllowedSpreadsheetPlaceId([...allowedSpreadsheetPlaceIds ?? []], placeId)) throw new Error("INVALID_PLACE_OPTION");
+      if (spreadsheetPlaceReview && !isAllowedSpreadsheetPlaceId([...allowedSpreadsheetPlaceIds ?? []], placeId)) throw new Error("INVALID_PLACE_OPTION");
       await transaction.importCandidate.update({ where: { id: candidateId }, data: { status: "MATCH_EXISTING", matchedPlaceId: placeId, resolution: "SAME_PLACE", queueStatus: "VERIFIED", resolvedAt: new Date(), resolvedByAdminUserId: session.user.id, resolutionNote: note || null } });
       await transaction.auditLog.create({ data: { adminUserId: session.user.id, action: "IMPORT_CONFLICT_RESOLVED", entityType: "IMPORT_CANDIDATE", entityId: candidateId, changedFields: ["status", "matchedPlaceId", "resolution", "queueStatus"], previousValues: { status: candidate.status, matchedPlaceId: candidate.matchedPlaceId }, newValues: { status: "MATCH_EXISTING", matchedPlaceId: placeId, resolution: "SAME_PLACE", queueStatus: "VERIFIED" }, changeOrigin: "SOURCE_IMPORT", sourceReferenceId: candidateId, note: note || `Połączono źródło z miejscem: ${place.name}.` } });
     });
@@ -653,8 +653,8 @@ export async function resolveCandidateDifferentPlace(
 ): Promise<VerificationActionState> {
   const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(candidateId)) return { error: "Nieprawidłowy identyfikator kandydata." };
-  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { status: true, resolution: true, createdPlaceId: true, proposedData: true, importBatch: { select: { metadata: true } } } });
-  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) : false;
+  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { status: true, resolution: true, createdPlaceId: true, queueStatus: true, proposedData: true, importBatch: { select: { metadata: true } } } });
+  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) || (isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && candidateContext.queueStatus === "PENDING" && !candidateContext.resolution) : false;
   if (candidateContext && isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && !candidateContext.resolution && !spreadsheetPlaceReview) return { error: "Najpierw rozstrzygnij pozostałe konflikty tego rekordu." };
   let name = formText(formData, "name", 250, !spreadsheetPlaceReview);
   let addressLine = formText(formData, "addressLine", 400, !spreadsheetPlaceReview);
@@ -671,7 +671,8 @@ export async function resolveCandidateDifferentPlace(
       if (candidate.resolution || candidate.createdPlaceId) throw new Error("ALREADY_RESOLVED");
       const spreadsheetCandidate = isSpreadsheetBatchMetadata(candidate.importBatch.metadata);
       if (spreadsheetCandidate) {
-        if (!isSpreadsheetPlaceReviewCandidate(candidate) || hasSpreadsheetSourceRowDuplicate(candidate)) throw new Error("SPREADSHEET_REVIEW");
+        const queuedSpreadsheetPlaceReview = candidate.queueStatus === "PENDING" && !candidate.resolution;
+        if ((!isSpreadsheetPlaceReviewCandidate(candidate) && !queuedSpreadsheetPlaceReview) || hasSpreadsheetSourceRowDuplicate(candidate)) throw new Error("SPREADSHEET_REVIEW");
         const proposed = jsonRecord(candidate.proposedData);
         const mapped = jsonRecord(proposed?.mappedValues);
         const analysis = jsonRecord(proposed?.analysis);

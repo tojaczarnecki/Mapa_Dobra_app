@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canonicalizeDuplicatePair, getDuplicateDecisionState, isOriginalDuplicateEdge, mapDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
+import { activeImportIssueCodesForCandidate } from "../src/lib/imports/issue-labels.ts";
+import { canonicalizeDuplicatePair, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
 
 test("canonical duplicate pair is identical in either direction", () => {
   assert.deepEqual(canonicalizeDuplicatePair("candidate-a", "candidate-b"), { candidateAId: "candidate-a", candidateBId: "candidate-b" });
@@ -86,4 +87,71 @@ test("a candidate kept in one edge and lost in another reports a conflict", () =
   assert.equal(state.isKept, true);
   assert.equal(state.isLoser, true);
   assert.equal(state.hasConflictingKeepOutcome, true);
+});
+
+test("duplicate disposition distinguishes unresolved, loser, kept and different", () => {
+  const refs = new Map([[2, "b"], [3, "c"]]);
+  const data = { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } };
+  const state = (decisions: StoredDuplicateDecision[]) => getDuplicateDecisionState("a", [{ rowNumber: 2 }, { rowNumber: 3 }], refs, decisions);
+  assert.equal(getDuplicateDisposition(state([])), "UNRESOLVED");
+  assert.equal(getDuplicateDisposition(state([{ candidateAId: "a", candidateBId: "b", decision: "KEEP_B" }, { candidateAId: "a", candidateBId: "c", decision: "DIFFERENT_RECORDS" }])), "LOSER");
+  assert.equal(getDuplicateDisposition(state([{ candidateAId: "a", candidateBId: "b", decision: "KEEP_A" }, { candidateAId: "a", candidateBId: "c", decision: "DIFFERENT_RECORDS" }])), "KEPT");
+  assert.equal(getDuplicateDisposition(getDuplicateDecisionState("a", [{ rowNumber: 2 }], refs, [{ candidateAId: "a", candidateBId: "b", decision: "DIFFERENT_RECORDS" }])), "RESOLVED_DIFFERENT");
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: data }, "RESOLVED_DIFFERENT"), { status: "IMPORT_READY", queueStatus: null });
+});
+
+test("resolved duplicate resumes place review and loser remains derived review", () => {
+  const placeData = { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "POSSIBLE_MATCH" }, errors: [] } };
+  const candidate = { status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: placeData };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "KEPT"), { status: "REQUIRES_REVIEW", queueStatus: "PENDING" });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "LOSER"), { status: "REQUIRES_REVIEW", queueStatus: null });
+});
+
+test("place review takes priority over remaining organization or category blockers", () => {
+  const placeMatch = { analysis: { category: { status: "MATCHED" }, organization: { status: "POSSIBLE" }, place: { classification: "EXACT_MATCH" }, errors: [] } };
+  const categoryMatch = { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "POSSIBLE_MATCH" }, errors: [] } };
+  const organizationOnly = { analysis: { category: { status: "MATCHED" }, organization: { status: "POSSIBLE" }, place: { classification: "NEW" }, errors: [] } };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: placeMatch }, "RESOLVED_DIFFERENT"), { status: "REQUIRES_REVIEW", queueStatus: "PENDING" });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: categoryMatch }, "RESOLVED_DIFFERENT"), { status: "REQUIRES_REVIEW", queueStatus: "PENDING" });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: organizationOnly }, "RESOLVED_DIFFERENT"), { status: "REQUIRES_REVIEW", queueStatus: null });
+});
+
+test("reapplying an existing different-records decision repairs a stale place-review consequence", () => {
+  const exactMatchWithOrganizationReview = { analysis: { category: { status: "MATCHED" }, organization: { status: "POSSIBLE" }, place: { classification: "EXACT_MATCH" }, errors: [] } };
+  const result = reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: exactMatchWithOrganizationReview }, "RESOLVED_DIFFERENT");
+  assert.deepEqual(result, { status: "REQUIRES_REVIEW", queueStatus: "PENDING" });
+});
+
+test("reapplying a resolved decision restores ready flow or keeps an unresolved group blocked", () => {
+  const ready = { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } };
+  const review = { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: ready }, "RESOLVED_DIFFERENT"), { status: "IMPORT_READY", queueStatus: null });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: review }, "UNRESOLVED"), { status: "REQUIRES_REVIEW", queueStatus: null });
+});
+
+test("manual terminal states are not changed by duplicate reconciliation", () => {
+  const candidate = { status: "SKIPPED", resolution: "SKIPPED", createdPlaceId: null, proposedData: {} };
+  assert.equal(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT"), null);
+  assert.equal(reconcileCandidateAfterDuplicateDecision({ ...candidate, status: "IMPORTED", resolution: null, createdPlaceId: "place-1" }, "RESOLVED_DIFFERENT"), null);
+});
+
+test("a group edge change is evaluated against all remaining edges", () => {
+  const refs = new Map([[2, "a"], [3, "c"]]);
+  const state = getDuplicateDecisionState("b", [{ rowNumber: 2 }, { rowNumber: 3 }], refs, [
+    { candidateAId: "a", candidateBId: "b", decision: "DIFFERENT_RECORDS" },
+  ]);
+  assert.equal(getDuplicateDisposition(state), "UNRESOLVED");
+});
+
+test("resolved duplicate issues are removed only from active presentation", () => {
+  const proposedData = { analysis: { place: { classification: "NEW", reasons: [] }, inFileDuplicates: [{ reasons: ["SAME_ADDRESS_AND_PHONE"] }] } };
+  const reasons = ["SOURCE_ROW_DUPLICATE", "SAME_ADDRESS_AND_PHONE", "MATCHED_BY_SLUG", "NEW_ORGANIZATION_CANDIDATE"];
+  assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, reasons, "UNRESOLVED"), ["SOURCE_ROW_DUPLICATE", "SAME_ADDRESS_AND_PHONE", "NEW_ORGANIZATION_CANDIDATE"]);
+  assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, reasons, "RESOLVED_DIFFERENT"), ["NEW_ORGANIZATION_CANDIDATE"]);
+  assert.deepEqual(reasons, ["SOURCE_ROW_DUPLICATE", "SAME_ADDRESS_AND_PHONE", "MATCHED_BY_SLUG", "NEW_ORGANIZATION_CANDIDATE"]);
+});
+
+test("a place reason is retained when the same code also appears in duplicate provenance", () => {
+  const proposedData = { analysis: { place: { classification: "EXACT_MATCH", reasons: ["SAME_ADDRESS_AND_PHONE"] }, inFileDuplicates: [{ reasons: ["SAME_ADDRESS_AND_PHONE"] }] } };
+  assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, ["SAME_ADDRESS_AND_PHONE"], "RESOLVED_DIFFERENT"), ["SAME_ADDRESS_AND_PHONE"]);
 });

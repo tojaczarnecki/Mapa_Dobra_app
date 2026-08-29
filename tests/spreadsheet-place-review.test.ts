@@ -28,6 +28,14 @@ test("recognizes only unresolved spreadsheet exact/possible place reviews", () =
   assert.equal(isSpreadsheetPlaceReviewCandidate({ ...candidate("EXACT_MATCH"), batchMetadata: { kind: "CARITAS" } }), false);
 });
 
+test("resolved duplicate provenance does not permanently block place review", () => {
+  const value = { ...candidate("EXACT_MATCH"), proposedData: { analysis: { place: { classification: "EXACT_MATCH" }, inFileDuplicates: [{ rowNumber: 21 }] } } };
+  assert.equal(isSpreadsheetPlaceReviewCandidate(value), false);
+  assert.equal(isSpreadsheetPlaceReviewCandidate(value, "RESOLVED_DIFFERENT"), true);
+  assert.equal(isSpreadsheetPlaceReviewCandidate(value, "KEPT"), true);
+  assert.equal(isSpreadsheetPlaceReviewCandidate(value, "LOSER"), false);
+});
+
 test("multiple exact candidates are handled as possible place review without selecting a place", () => {
   const value = candidate("POSSIBLE_MATCH");
   value.proposedData = { analysis: { place: { classification: "POSSIBLE_MATCH", conflict: true, reasons: ["MULTIPLE_EXACT_CANDIDATES"], candidates: [{ placeId: "place-1" }, { placeId: "place-2" }] }, inFileDuplicates: [] } };

@@ -18,7 +18,7 @@ import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication } from "@/lib/verification/contact";
 import { getCandidateComparisonOptions, getVerificationNavigation } from "@/lib/verification/queue";
 import { requirePermission } from "@/lib/admin/session";
-import { isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
+import { isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
 import { importIssueLabel } from "@/lib/imports/issue-labels";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -85,7 +85,7 @@ async function PlaceVerification({ place, navigation, allowedToPublish }: { plac
 async function CandidateVerification({ candidate, navigation }: { candidate: NonNullable<Awaited<ReturnType<typeof prisma.importCandidate.findUnique>>> & Record<string, unknown>; navigation: Awaited<ReturnType<typeof getVerificationNavigation>> }) {
   const typed = candidate as Awaited<ReturnType<typeof getCandidateWithRelations>>;
   if (!typed) notFound();
-  const spreadsheetPlaceReview = isSpreadsheetPlaceReviewCandidate(typed);
+  const spreadsheetPlaceReview = isSpreadsheetPlaceReviewCandidate(typed) || (isSpreadsheetBatchMetadata(typed.importBatch.metadata) && typed.queueStatus === "PENDING" && !typed.resolution);
   const [comparison, options] = await Promise.all([getCandidateComparisonOptions(typed.id), getAdminPlaceFormOptions()]);
   const proposed = typed.proposedData as Record<string, unknown>;
   const organizationId = options.organizations.find((item) => normalizeComparable(item.name) === normalizeComparable(typed.proposedOrganizationName ?? ""))?.id ?? "";

@@ -1,4 +1,5 @@
 import type { ImportCandidateStatus } from "../../generated/prisma/enums.ts";
+import type { DuplicateDisposition } from "./duplicate-decisions.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -14,7 +15,7 @@ export function isSpreadsheetBatchMetadata(metadata: unknown): boolean {
   return Boolean(metadata && typeof metadata === "object" && !Array.isArray(metadata) && (metadata as JsonRecord).kind === "SPREADSHEET");
 }
 
-export function isSpreadsheetPlaceReviewCandidate(candidate: SpreadsheetPlaceReviewCandidate): boolean {
+export function isSpreadsheetPlaceReviewCandidate(candidate: SpreadsheetPlaceReviewCandidate, duplicateDisposition?: DuplicateDisposition): boolean {
   const batchMetadata = candidate.batchMetadata ?? candidate.importBatch?.metadata;
   if (!isSpreadsheetBatchMetadata(batchMetadata) || candidate.resolution) return false;
   if (candidate.status !== "REQUIRES_REVIEW") return false;
@@ -26,7 +27,8 @@ export function isSpreadsheetPlaceReviewCandidate(candidate: SpreadsheetPlaceRev
   const classification = (place as JsonRecord).classification;
   if (classification !== "EXACT_MATCH" && classification !== "POSSIBLE_MATCH") return false;
   const inFileDuplicates = (analysis as JsonRecord).inFileDuplicates;
-  return !Array.isArray(inFileDuplicates) || inFileDuplicates.length === 0;
+  if (!Array.isArray(inFileDuplicates) || inFileDuplicates.length === 0) return true;
+  return duplicateDisposition === "KEPT" || duplicateDisposition === "RESOLVED_DIFFERENT";
 }
 
 export function hasSpreadsheetSourceRowDuplicate(candidate: Pick<SpreadsheetPlaceReviewCandidate, "proposedData">): boolean {

@@ -1,3 +1,5 @@
+import type { DuplicateDisposition } from "./duplicate-decisions.ts";
+
 export type ImportIssueCode =
   | "SOURCE_ROW_DUPLICATE"
   | "SAME_PHONE"
@@ -57,4 +59,35 @@ const labels: Record<ImportIssueCode, string> = {
 
 export function importIssueLabel(code: string): string {
   return code in labels ? labels[code as ImportIssueCode] : "Wymaga ręcznego sprawdzenia";
+}
+
+function analysisRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringCodes(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+export function activeImportIssueCodesForCandidate(
+  proposedData: unknown,
+  reviewReasons: readonly string[],
+  duplicateDisposition: DuplicateDisposition,
+): string[] {
+  const root = analysisRecord(proposedData);
+  const analysis = analysisRecord(root?.analysis);
+  const place = analysisRecord(analysis?.place);
+  const duplicateReasons = new Set<string>();
+  const duplicates = Array.isArray(analysis?.inFileDuplicates) ? analysis.inFileDuplicates : [];
+  for (const duplicate of duplicates) {
+    const item = analysisRecord(duplicate);
+    for (const reason of stringCodes(item?.reasons)) duplicateReasons.add(reason);
+  }
+  const placeReasons = new Set(stringCodes(place?.reasons));
+  return reviewReasons.filter((code) => {
+    if (code === "MATCHED_BY_SLUG") return false;
+    if (duplicateDisposition !== "KEPT" && duplicateDisposition !== "RESOLVED_DIFFERENT" && duplicateDisposition !== "LOSER") return true;
+    if (code === "SOURCE_ROW_DUPLICATE") return false;
+    return !duplicateReasons.has(code) || placeReasons.has(code);
+  });
 }

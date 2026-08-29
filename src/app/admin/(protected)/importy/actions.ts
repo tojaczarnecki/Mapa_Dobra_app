@@ -11,7 +11,7 @@ import { importIssueLabel } from "@/lib/imports/issue-labels";
 import { parseImportFile, parseSelectedSheet, type ParsedSpreadsheet, type SpreadsheetErrorCode, type SpreadsheetSheet } from "@/lib/imports/spreadsheet";
 import { persistImportAnalysis } from "@/lib/imports/persist-analysis";
 import { materializeImportCandidate, type MaterializeCandidateDatabase, type MaterializeCandidateTransaction, type MaterializeImportCandidateResult } from "@/lib/imports/materialize-candidate";
-import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionState, isOriginalDuplicateEdge, mapDuplicateDecision, type DuplicateDecision, type DuplicateDecisionInput, type StoredDuplicateDecision } from "@/lib/imports/duplicate-decisions";
+import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type DuplicateDecision, type DuplicateDecisionInput, type StoredDuplicateDecision } from "@/lib/imports/duplicate-decisions";
 import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-review";
 
 const PREVIEW_LIMIT = 100;
@@ -285,7 +285,7 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
 
       const batchCandidates = await transaction.importCandidate.findMany({
         where: { importBatchId: current.importBatchId },
-        select: { id: true, candidateKey: true, proposedData: true },
+        select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true },
       });
       const rowNumberToCandidateId = new Map<number, string>();
       for (const candidate of batchCandidates) {
@@ -309,6 +309,16 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
         create: { ...nextDecision, resolvedByAdminUserId: session.user.id },
         update: { decision: nextDecision.decision, resolvedByAdminUserId: session.user.id, resolvedAt: new Date(), note: null },
       });
+      const currentById = new Map(batchCandidates.map((candidate) => [candidate.id, candidate]));
+      for (const candidate of [current, other]) {
+        const snapshot = currentById.get(candidate.id);
+        if (!snapshot) continue;
+        const state = getDuplicateDecisionState(candidate.id, duplicateRowNumbers(snapshot.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, decisionsWithNext);
+        const reconciliation = reconcileCandidateAfterDuplicateDecision(snapshot, getDuplicateDisposition(state));
+        if (reconciliation && (snapshot.status !== reconciliation.status || snapshot.queueStatus !== reconciliation.queueStatus)) {
+          await transaction.importCandidate.update({ where: { id: snapshot.id }, data: reconciliation });
+        }
+      }
       const previous = storedDecisions.find((item) => item.candidateAId === requestedPair.candidateAId && item.candidateBId === requestedPair.candidateBId);
       await transaction.auditLog.create({
         data: {

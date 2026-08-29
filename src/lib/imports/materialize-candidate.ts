@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.ts";
 import { ImportBatchStatus, ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import { slugifyImportValue } from "./caritas-gdzie-parser.ts";
+import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_SLUG_COLLISION_RETRIES = 2;
@@ -33,6 +34,7 @@ export class ImportCandidateMaterializationError extends Error {
 
 type CandidateSnapshot = {
   id: string;
+  candidateKey?: string;
   status: ImportCandidateStatus;
   createdPlaceId: string | null;
   matchedPlaceId: string | null;
@@ -50,7 +52,11 @@ export type MaterializeCandidateTransaction = {
   $queryRaw<T>(query: Prisma.Sql): Promise<T[]>;
   importCandidate: {
     findUnique(args: Prisma.ImportCandidateFindUniqueArgs): Promise<CandidateSnapshot | null>;
+    findMany?(args: Prisma.ImportCandidateFindManyArgs): Promise<Array<{ id: string; candidateKey: string; proposedData: Prisma.JsonValue }>>;
     update(args: Prisma.ImportCandidateUpdateArgs): Promise<{ id: string }>;
+  };
+  importCandidateDuplicateDecision?: {
+    findMany(args: Prisma.ImportCandidateDuplicateDecisionFindManyArgs): Promise<Array<{ candidateAId: string; candidateBId: string; decision: string }>>;
   };
   category: {
     findFirst(args: Prisma.CategoryFindFirstArgs): Promise<{ id: string; slug: string; active: boolean } | null>;
@@ -187,10 +193,17 @@ async function uniquePlaceSlug(transaction: MaterializeCandidateTransaction, nam
   return slug;
 }
 
-function blockedByMatch(candidate: CandidateSnapshot, analysis: ProposedAnalysis): MaterializeImportCandidateResult | null {
+function candidateRowNumber(candidateKey: string): number | null {
+  const match = /^row-(\d+)$/.exec(candidateKey);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function blockedByMatch(candidate: CandidateSnapshot, analysis: ProposedAnalysis, duplicateDisposition: ReturnType<typeof getDuplicateDisposition>): MaterializeImportCandidateResult | null {
   if (candidate.matchedPlaceId || analysis.placeClassification === "EXACT_MATCH") return { status: "EXISTING_PLACE_REVIEW_REQUIRED" };
   if (analysis.placeClassification !== "NEW" || analysis.placeCandidateIds.length > 0) return { status: "PLACE_MATCH_REVIEW_REQUIRED" };
-  if (analysis.inFileDuplicate) return { status: "SOURCE_DUPLICATE_REVIEW_REQUIRED" };
+  if (duplicateDisposition === "UNRESOLVED" || duplicateDisposition === "LOSER") return { status: "SOURCE_DUPLICATE_REVIEW_REQUIRED" };
   return null;
 }
 
@@ -209,6 +222,7 @@ export async function materializeImportCandidate(
       where: { id: input.candidateId },
       select: {
         id: true,
+        candidateKey: true,
         status: true,
         createdPlaceId: true,
         matchedPlaceId: true,
@@ -229,7 +243,32 @@ export async function materializeImportCandidate(
     const proposed = validateProposedData(candidate.proposedData);
     if (!proposed) return { status: "INVALID_CANDIDATE" };
 
-    const matchBlock = blockedByMatch(candidate, proposed.analysis);
+    const hasDuplicateQueries = Boolean(transaction.importCandidate.findMany && transaction.importCandidateDuplicateDecision);
+    let duplicateDisposition: ReturnType<typeof getDuplicateDisposition> = proposed.analysis.inFileDuplicate ? "UNRESOLVED" : "NONE";
+    if (hasDuplicateQueries) {
+      const batchCandidates = await transaction.importCandidate.findMany!({
+        where: { importBatchId: candidate.importBatch.id },
+        select: { id: true, candidateKey: true, proposedData: true },
+      });
+      const rowNumberToCandidateId = new Map<number, string>();
+      for (const item of batchCandidates) {
+        const rowNumber = candidateRowNumber(item.candidateKey);
+        if (rowNumber !== null) rowNumberToCandidateId.set(rowNumber, item.id);
+      }
+      const decisions = await transaction.importCandidateDuplicateDecision!.findMany({
+        where: { candidateA: { importBatchId: candidate.importBatch.id } },
+        select: { candidateAId: true, candidateBId: true, decision: true },
+      });
+      const duplicateState = getDuplicateDecisionState(
+        candidate.id,
+        duplicateRowNumbers(candidate.proposedData).map((rowNumber) => ({ rowNumber })),
+        rowNumberToCandidateId,
+        decisions.map((item) => ({ ...item, decision: item.decision as StoredDuplicateDecision["decision"] })),
+      );
+      duplicateDisposition = getDuplicateDisposition(duplicateState);
+    }
+
+    const matchBlock = blockedByMatch(candidate, proposed.analysis, duplicateDisposition);
     if (matchBlock) return matchBlock;
     if (candidate.status !== ImportCandidateStatus.IMPORT_READY) return { status: "INVALID_CANDIDATE" };
     if (proposed.analysis.categoryStatus !== "MATCHED" || !proposed.analysis.categorySlug) return { status: "CATEGORY_REVIEW_REQUIRED" };
