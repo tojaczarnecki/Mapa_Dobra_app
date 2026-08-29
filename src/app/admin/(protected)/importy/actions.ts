@@ -11,6 +11,8 @@ import { importIssueLabel } from "@/lib/imports/issue-labels";
 import { parseImportFile, parseSelectedSheet, type ParsedSpreadsheet, type SpreadsheetErrorCode, type SpreadsheetSheet } from "@/lib/imports/spreadsheet";
 import { persistImportAnalysis } from "@/lib/imports/persist-analysis";
 import { materializeImportCandidate, type MaterializeCandidateDatabase, type MaterializeCandidateTransaction, type MaterializeImportCandidateResult } from "@/lib/imports/materialize-candidate";
+import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionState, isOriginalDuplicateEdge, mapDuplicateDecision, type DuplicateDecision, type DuplicateDecisionInput, type StoredDuplicateDecision } from "@/lib/imports/duplicate-decisions";
+import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-review";
 
 const PREVIEW_LIMIT = 100;
 
@@ -241,4 +243,98 @@ export async function materializeCandidateAction(_state: MaterializeCandidateAct
   return result.status === "CREATED" || result.status === "ALREADY_CREATED"
     ? { ok: true, status: result.status, message: materializeResultMessage(result), placeId: result.placeId }
     : { ok: true, status: result.status, message: materializeResultMessage(result) };
+}
+
+export type DuplicateDecisionActionState = { ok: boolean; message: string };
+
+function duplicateDecisionInput(value: FormDataEntryValue | null): DuplicateDecisionInput | null {
+  if (value === "KEEP_CURRENT" || value === "KEEP_OTHER" || value === "DIFFERENT_RECORDS") return value;
+  return null;
+}
+
+function candidateRowNumber(candidateKey: string): number | null {
+  const match = /^row-(\d+)$/.exec(candidateKey);
+  if (!match) return null;
+  const rowNumber = Number(match[1]);
+  return Number.isSafeInteger(rowNumber) && rowNumber > 0 ? rowNumber : null;
+}
+
+export async function saveDuplicateDecision(formData: FormData): Promise<DuplicateDecisionActionState> {
+  const session = await requirePermission("MANAGE_IMPORTS");
+  const candidateId = formData.get("candidateId");
+  const duplicateCandidateId = formData.get("duplicateCandidateId");
+  const decision = duplicateDecisionInput(formData.get("decision"));
+  if (typeof candidateId !== "string" || typeof duplicateCandidateId !== "string" || !decision || candidateId === duplicateCandidateId) {
+    return { ok: false, message: "Nieprawidłowa decyzja duplikatu." };
+  }
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const requestedPair = canonicalizeDuplicatePair(candidateId, duplicateCandidateId);
+      await transaction.$queryRaw`SELECT "id" FROM "import_candidates" WHERE "id" IN (${requestedPair.candidateAId}::uuid, ${requestedPair.candidateBId}::uuid) ORDER BY "id" FOR UPDATE`;
+      const candidates = await transaction.importCandidate.findMany({
+        where: { id: { in: [candidateId, duplicateCandidateId] } },
+        select: { id: true, candidateKey: true, importBatchId: true, proposedData: true, importBatch: { select: { metadata: true } } },
+      });
+      if (candidates.length !== 2 || candidates[0]?.importBatchId !== candidates[1]?.importBatchId || !isSpreadsheetBatchMetadata(candidates[0]?.importBatch.metadata)) throw new Error("INVALID_DUPLICATE_EDGE");
+      const current = candidates.find((candidate) => candidate.id === candidateId);
+      const other = candidates.find((candidate) => candidate.id === duplicateCandidateId);
+      if (!current || !other) throw new Error("INVALID_DUPLICATE_EDGE");
+      const currentRowNumber = current ? candidateRowNumber(current.candidateKey) : null;
+      const otherRowNumber = other ? candidateRowNumber(other.candidateKey) : null;
+      if (currentRowNumber === null || otherRowNumber === null || !isOriginalDuplicateEdge({ rowNumber: currentRowNumber, proposedData: current.proposedData }, { rowNumber: otherRowNumber, proposedData: other.proposedData })) throw new Error("INVALID_DUPLICATE_EDGE");
+
+      const batchCandidates = await transaction.importCandidate.findMany({
+        where: { importBatchId: current.importBatchId },
+        select: { id: true, candidateKey: true, proposedData: true },
+      });
+      const rowNumberToCandidateId = new Map<number, string>();
+      for (const candidate of batchCandidates) {
+        const rowNumber = candidateRowNumber(candidate.candidateKey);
+        if (rowNumber !== null) rowNumberToCandidateId.set(rowNumber, candidate.id);
+      }
+      const storedDecisions = await transaction.importCandidateDuplicateDecision.findMany({ where: { candidateA: { importBatchId: current.importBatchId } }, select: { candidateAId: true, candidateBId: true, decision: true } });
+      const nextDecision = { candidateAId: requestedPair.candidateAId, candidateBId: requestedPair.candidateBId, decision: mapDuplicateDecision(candidateId, duplicateCandidateId, decision) };
+      const decisionsWithNext: StoredDuplicateDecision[] = [
+        ...storedDecisions
+          .filter((item) => item.candidateAId !== requestedPair.candidateAId || item.candidateBId !== requestedPair.candidateBId)
+          .map((item) => ({ ...item, decision: item.decision as DuplicateDecision })),
+        nextDecision,
+      ];
+      for (const candidate of [current, other]) {
+        const state = getDuplicateDecisionState(candidate.id, duplicateRowNumbers(candidate.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, decisionsWithNext);
+        if (state.hasConflictingKeepOutcome) throw new Error("CONFLICTING_DUPLICATE_DECISION");
+      }
+      await transaction.importCandidateDuplicateDecision.upsert({
+        where: { candidateAId_candidateBId: requestedPair },
+        create: { ...nextDecision, resolvedByAdminUserId: session.user.id },
+        update: { decision: nextDecision.decision, resolvedByAdminUserId: session.user.id, resolvedAt: new Date(), note: null },
+      });
+      const previous = storedDecisions.find((item) => item.candidateAId === requestedPair.candidateAId && item.candidateBId === requestedPair.candidateBId);
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "IMPORT_CONFLICT_RESOLVED",
+          entityType: "IMPORT_CANDIDATE",
+          entityId: candidateId,
+          changedFields: ["duplicateDecision"],
+          previousValues: { candidateId, duplicateCandidateId, candidateAId: requestedPair.candidateAId, candidateBId: requestedPair.candidateBId, issue: "SOURCE_ROW_DUPLICATE", decision: previous?.decision ?? null },
+          newValues: { candidateId, duplicateCandidateId, candidateAId: requestedPair.candidateAId, candidateBId: requestedPair.candidateBId, issue: "SOURCE_ROW_DUPLICATE", decision: nextDecision.decision },
+          changeOrigin: "SOURCE_IMPORT",
+          sourceReferenceId: candidateId,
+          note: "Zapisano decyzję dotyczącą duplikatu wiersza źródłowego.",
+        },
+      });
+    });
+  } catch (error) {
+    const message = error instanceof Error && error.message === "CONFLICTING_DUPLICATE_DECISION"
+      ? "Ta decyzja jest sprzeczna z wcześniejszym rozstrzygnięciem innego duplikatu. Najpierw zmień wcześniejszą decyzję."
+      : error instanceof Error && error.message === "INVALID_DUPLICATE_EDGE"
+        ? "Ta para nie jest potwierdzonym duplikatem z tego importu."
+        : "Nie udało się zapisać decyzji duplikatu.";
+    return { ok: false, message };
+  }
+  const batchId = formData.get("batchId");
+  if (typeof batchId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(batchId)) revalidatePath(`/admin/importy/${batchId}`);
+  revalidatePath("/admin/importy");
+  return { ok: true, message: "Decyzja zapisana." };
 }

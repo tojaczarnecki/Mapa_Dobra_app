@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/admin/session";
 import { importIssueLabel } from "@/lib/imports/issue-labels";
 import { MaterializeCandidateButton } from "@/components/admin/imports/materialize-candidate-button";
 import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
+import { isOriginalDuplicateEdge } from "@/lib/imports/duplicate-decisions";
+import { DuplicateDecisionPanel } from "@/components/admin/imports/duplicate-decision-panel";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -19,6 +21,13 @@ type Status = keyof typeof statusLabels;
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function rowNumber(candidateKey: string): number | null {
+  const match = /^row-(\d+)$/.exec(candidateKey);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 export default async function AdminImportBatchPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -38,14 +47,17 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
           matchedPlace: { select: { id: true, name: true, recordKind: true } },
           createdPlace: { select: { id: true, name: true, verificationQueueStatus: true, verificationStatus: true } },
           sources: { include: { sourceEntry: true } },
+          duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } },
+          duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } },
         },
       },
     },
   });
   if (!batch) notFound();
-  const [counts, progressCandidates] = await Promise.all([
+  const [counts, progressCandidates, allCandidates] = await Promise.all([
     prisma.importCandidate.groupBy({ by: ["status"], where: { importBatchId: id }, _count: { _all: true } }),
     prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { status: true, queueStatus: true, resolution: true, reviewReasons: true, createdPlace: { select: { verificationQueueStatus: true, verificationStatus: true } } } }),
+    prisma.importCandidate.findMany({ where: { importBatchId: id }, select: { id: true, candidateKey: true, proposedData: true, proposedName: true, proposedAddress: true, proposedPhone: true, proposedOrganizationName: true, primaryCategorySlug: true, categorySlugs: true, duplicateDecisionsAsA: { select: { candidateBId: true, decision: true } }, duplicateDecisionsAsB: { select: { candidateAId: true, decision: true } } } }),
   ]);
   const count = (value: Status) => counts.find((item) => item.status === value)?._count._all ?? 0;
   const importedPlaces = progressCandidates.filter((item) => item.createdPlace).length;
@@ -82,6 +94,18 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
             {isSpreadsheetBatchMetadata(batch.metadata) && hasSpreadsheetSourceRowDuplicate({ proposedData: candidate.proposedData }) && !isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution }) ? <p className="mt-2 text-sm text-muted-foreground">Rekord ma również możliwy duplikat w pliku. Ten typ konfliktu będzie dostępny w kolejnym kroku.</p> : null}
           </div>
           {candidate.reviewReasons.length ? <ul className="mt-3 space-y-1 rounded-md border border-urgent/25 bg-urgent-soft/40 p-3 text-sm">{candidate.reviewReasons.map((reason) => <li key={reason}>• {importIssueLabel(reason)}</li>)}</ul> : null}
+          {(() => {
+            const sourceCandidate = allCandidates.find((item) => item.id === candidate.id);
+            if (!sourceCandidate) return null;
+            const currentRowNumber = rowNumber(sourceCandidate.candidateKey);
+            const duplicates = currentRowNumber === null ? [] : allCandidates.flatMap((duplicate) => {
+              const duplicateRow = rowNumber(duplicate.candidateKey);
+              if (duplicate.id === candidate.id || duplicateRow === null || !isOriginalDuplicateEdge({ rowNumber: currentRowNumber, proposedData: sourceCandidate.proposedData }, { rowNumber: duplicateRow, proposedData: duplicate.proposedData })) return [];
+              const decision = sourceCandidate.duplicateDecisionsAsA.find((item) => item.candidateBId === duplicate.id)?.decision ?? sourceCandidate.duplicateDecisionsAsB.find((item) => item.candidateAId === duplicate.id)?.decision ?? null;
+              return [{ id: duplicate.id, rowNumber: duplicateRow, name: duplicate.proposedName, address: duplicate.proposedAddress, phone: duplicate.proposedPhone, organization: duplicate.proposedOrganizationName, category: (duplicate.primaryCategorySlug ?? duplicate.categorySlugs.join(" · ")) || null, decision, canonicalCurrent: candidate.id < duplicate.id }];
+            });
+            return <DuplicateDecisionPanel candidateId={candidate.id} batchId={id} duplicates={duplicates} />;
+          })()}
           <details className="mt-3 border-t border-border pt-3 text-sm">
             <summary className="min-h-11 cursor-pointer font-bold text-brand-strong">Pokaż dokładny zapis z PDF</summary>
             <div className="space-y-3 pt-2">{candidate.sources.map(({ sourceEntry }) => <article key={sourceEntry.id} className="rounded-md bg-[#f5f3ed] p-3"><p className="text-xs font-bold uppercase text-muted-foreground">{sourceEntry.section} · strony {sourceEntry.sourcePages.join(", ")}</p><pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-sans text-sm leading-5">{sourceEntry.rawText}</pre></article>)}</div>

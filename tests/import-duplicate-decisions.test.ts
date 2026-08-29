@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canonicalizeDuplicatePair, getDuplicateDecisionState } from "../src/lib/imports/duplicate-decisions.ts";
+import { canonicalizeDuplicatePair, getDuplicateDecisionState, isOriginalDuplicateEdge, mapDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
 
 test("canonical duplicate pair is identical in either direction", () => {
   assert.deepEqual(canonicalizeDuplicatePair("candidate-a", "candidate-b"), { candidateAId: "candidate-a", candidateBId: "candidate-b" });
@@ -9,6 +9,21 @@ test("canonical duplicate pair is identical in either direction", () => {
 
 test("canonical duplicate pair rejects a self relation", () => {
   assert.throws(() => canonicalizeDuplicatePair("candidate-a", "candidate-a"), /TWO_CANDIDATES/);
+});
+
+test("semantic decisions map to the canonical A/B sides", () => {
+  assert.equal(mapDuplicateDecision("a", "b", "KEEP_CURRENT"), "KEEP_A");
+  assert.equal(mapDuplicateDecision("b", "a", "KEEP_CURRENT"), "KEEP_B");
+  assert.equal(mapDuplicateDecision("a", "b", "KEEP_OTHER"), "KEEP_B");
+  assert.equal(mapDuplicateDecision("b", "a", "KEEP_OTHER"), "KEEP_A");
+  assert.equal(mapDuplicateDecision("b", "a", "DIFFERENT_RECORDS"), "DIFFERENT_RECORDS");
+});
+
+test("read and write edge validation share the original row relation", () => {
+  const first = { rowNumber: 87, proposedData: { analysis: { inFileDuplicates: [{ rowNumber: 2 }] } } };
+  const second = { rowNumber: 2, proposedData: { analysis: { inFileDuplicates: [] } } };
+  assert.equal(isOriginalDuplicateEdge(first, second), true);
+  assert.equal(isOriginalDuplicateEdge(first, { rowNumber: 99, proposedData: { analysis: { inFileDuplicates: [] } } }), false);
 });
 
 test("unresolved, kept and loser state is derived from pair decisions", () => {
