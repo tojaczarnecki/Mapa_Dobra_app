@@ -192,6 +192,101 @@ test("resolved duplicate removes its blocker and permits ready flow", () => {
   });
 });
 
+test("accepted category reanalysis clears only the historical category error", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true), {
+    status: "IMPORT_READY",
+    queueStatus: null,
+    reviewReasons: [],
+  });
+});
+
+test("valid category decision also resolves the historical category error", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", true, true), {
+    status: "IMPORT_READY",
+    queueStatus: null,
+    reviewReasons: [],
+  });
+});
+
+test("structural errors remain blockers after category resolution", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY", "INVALID_EMAIL"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY", "INVALID_EMAIL"], category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["INVALID_EMAIL"],
+  });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons: ["INVALID_EMAIL"] }, "NONE", true, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["INVALID_EMAIL"],
+  });
+});
+
+test("unresolved category keeps its historical error active", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, false), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+  });
+});
+
+test("invalid category decision cannot fall back to resolved reanalysis", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, false), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+  });
+});
+
+test("resolved category does not hide an organization blocker", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY", "NEW_ORGANIZATION_CANDIDATE"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NEW_CANDIDATE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", false, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"],
+  });
+});
+
 test("manual terminal states are not changed by duplicate reconciliation", () => {
   const candidate = { status: "SKIPPED", resolution: "SKIPPED", createdPlaceId: null, proposedData: {} };
   assert.equal(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT"), null);

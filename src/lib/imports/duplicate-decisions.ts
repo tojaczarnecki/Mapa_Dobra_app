@@ -129,7 +129,9 @@ export function reconcileCandidateAfterDuplicateDecision(
   categoryResolved = false,
 ): DuplicateReconciliationResult {
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
-  const reviewReasons = [...(candidate.reviewReasons ?? [])].filter((reason) => reason !== "SOURCE_ROW_DUPLICATE");
+  const reviewReasons = [...(candidate.reviewReasons ?? [])]
+    .filter((reason) => reason !== "SOURCE_ROW_DUPLICATE")
+    .filter((reason) => !(categoryResolved && reason === "UNRESOLVED_CATEGORY"));
   const result = (status: "IMPORT_READY" | "REQUIRES_REVIEW", queueStatus: "PENDING" | null, reasons: string[]): DuplicateReconciliationResult => ({
     status,
     queueStatus,
@@ -143,14 +145,14 @@ export function reconcileCandidateAfterDuplicateDecision(
   const category = analysisRecord(analysis?.category);
   const organization = analysisRecord(analysis?.organization);
   const place = analysisRecord(analysis?.place);
-  const analysisStatus = analysisText(analysis?.status);
   const categoryStatus = analysisText(category?.status);
   const organizationStatus = analysisText(organization?.status);
   const placeClassification = analysisText(place?.classification);
   const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
 
   if (placeClassification && placeClassification !== "NEW") return result("REQUIRES_REVIEW", "PENDING", reviewReasons);
-  if (analysisStatus === "ERROR" || errors.length > 0 || (!categoryResolved && categoryStatus !== "MATCHED") || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
+  const effectiveErrors = errors.filter((error) => !(categoryResolved && error === "UNRESOLVED_CATEGORY"));
+  if (effectiveErrors.length > 0 || (!categoryResolved && categoryStatus !== "MATCHED") || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
     return result("REQUIRES_REVIEW", null, reviewReasons);
   }
   return result("IMPORT_READY", null, reviewReasons);
