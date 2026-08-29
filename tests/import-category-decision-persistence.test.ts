@@ -17,6 +17,7 @@ type FakeCandidate = {
   status: string;
   resolution: string | null;
   queueStatus: string | null;
+  reviewReasons?: string[];
   createdPlaceId: string | null;
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue };
@@ -140,6 +141,13 @@ test("creates a decision and persists primary first", async () => {
   assert.deepEqual(db.joins.map(({ categoryId, sortOrder }) => [categoryId, sortOrder]), [[categoryA, 0], [categoryB, 1]]);
   assert.equal(db.candidate.status, ImportCandidateStatus.IMPORT_READY);
   assert.equal(db.audits.length, 1);
+});
+
+test("single category decision clears a stale primary decision blocker", async () => {
+  const db = new FakeDatabase(makeCandidate({ reviewReasons: ["PRIMARY_CATEGORY_DECISION_REQUIRED"] }));
+  const result = await saveImportCandidateCategoryDecision(db, input());
+  assert.equal(result.status, "SAVED");
+  assert.deepEqual(db.candidate.reviewReasons, []);
 });
 
 test("multi-category decision clears the category blocker and reconciles to ready", async () => {

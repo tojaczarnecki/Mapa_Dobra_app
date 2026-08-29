@@ -10,6 +10,8 @@ import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition
 import { DuplicateDecisionPanel } from "@/components/admin/imports/duplicate-decision-panel";
 import { OrganizationDecisionPanel } from "@/components/admin/imports/organization-decision-panel";
 import { CategoryResolutionPanel } from "@/components/admin/imports/category-resolution-panel";
+import { BulkCategoryDecisionPanel } from "@/components/admin/imports/bulk-category-decision-panel";
+import { deriveBulkCategoryGroups, type BulkCategoryCandidate } from "@/lib/imports/bulk-category-decision";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
 import { resolveEffectiveCategory } from "@/lib/imports/category-decisions";
 
@@ -107,6 +109,11 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
   const pendingPlaces = progressCandidates.filter((item) => item.createdPlace && item.createdPlace.verificationStatus !== "VERIFIED").length;
   const conflicts = progressCandidates.filter((item) => item.reviewReasons.length > 0 || item.status === "MATCH_EXISTING" || item.resolution !== null);
   const resolvedConflicts = conflicts.filter((item) => item.queueStatus === "VERIFIED" || item.queueStatus === "SKIPPED").length;
+  const bulkCandidates: BulkCategoryCandidate[] = isSpreadsheetBatchMetadata(batch.metadata) ? batch.candidates.map((candidate) => {
+    const root = objectRecord(candidate.proposedData);
+    return { id: candidate.id, name: candidate.proposedName, address: candidate.proposedAddress, status: candidate.status, primaryCategorySlug: candidate.primaryCategorySlug, categoryDecision: candidate.categoryDecision, reviewReasons: candidate.reviewReasons, reanalysisCategory: objectRecord(objectRecord(root?.reanalysis)?.category) };
+  }) : [];
+  const bulkGroups = deriveBulkCategoryGroups(bulkCandidates, categories);
   return (
     <div className="space-y-5">
       <Link href="/admin/importy" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} /> Wróć do importów</Link>
@@ -125,6 +132,7 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
       <nav aria-label="Status kandydatów" className="flex max-w-full gap-2 overflow-x-auto pb-1">
         {(Object.keys(statusLabels) as Status[]).map((value) => <Link key={value} href={`/admin/importy/${id}?status=${value}`} className={`inline-flex min-h-11 shrink-0 items-center rounded-lg border px-3 text-sm font-bold ${status === value ? "border-brand bg-brand-soft text-brand-strong" : "border-border bg-white"}`}>{statusLabels[value]} ({count(value)})</Link>)}
       </nav>
+      {status === "REQUIRES_REVIEW" ? <BulkCategoryDecisionPanel batchId={id} groups={bulkGroups} /> : null}
       {status === "IMPORT_READY" ? <p className="text-sm text-muted-foreground">Rekord jest gotowy do utworzenia jako szkic. Akcja utworzenia miejsca będzie dostępna w kolejnym kroku.</p> : null}
       {status === "REQUIRES_REVIEW" ? <p className="text-sm text-muted-foreground">Ten rekord wymaga rozstrzygnięcia konfliktu przed utworzeniem miejsca.</p> : null}
       <p className="text-sm text-muted-foreground">Oryginalne pozycje źródłowe pozostają niezmienione. Kandydaci wymagający decyzji nie zostali utworzeni jako miejsca.</p>

@@ -154,7 +154,7 @@ export function reconcileCandidateAfterDuplicateDecision(
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
   const reviewReasons = [...(candidate.reviewReasons ?? [])]
     .filter((reason) => reason !== "SOURCE_ROW_DUPLICATE")
-    .filter((reason) => !(categoryResolved && reason === "UNRESOLVED_CATEGORY"))
+    .filter((reason) => !(categoryResolved && (reason === "UNRESOLVED_CATEGORY" || reason === "PRIMARY_CATEGORY_DECISION_REQUIRED")))
     .filter((reason) => !(categoryReviewReason && (reason === "UNRESOLVED_CATEGORY" || reason === categoryReviewReason)))
     .filter((reason) => !(organizationResolved && organizationReviewReasons.has(reason)));
   const result = (status: "IMPORT_READY" | "REQUIRES_REVIEW", queueStatus: "PENDING" | null, reasons: string[]): DuplicateReconciliationResult => ({

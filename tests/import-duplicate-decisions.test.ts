@@ -367,6 +367,21 @@ test("resolved organization blockers are hidden without changing provenance", ()
   assert.deepEqual(reasons, ["NEW_ORGANIZATION_CANDIDATE", "MATCHED_BY_IDENTIFIER", "UNRESOLVED_CATEGORY"]);
 });
 
+test("resolved admin category decision clears both category review reasons", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["PRIMARY_CATEGORY_DECISION_REQUIRED", "UNRESOLVED_CATEGORY"],
+    proposedData: { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true), {
+    status: "IMPORT_READY",
+    queueStatus: null,
+    reviewReasons: [],
+  });
+});
+
 test("current live possible place conflict blocks a candidate despite historical NEW analysis", () => {
   const candidate = {
     status: "IMPORT_READY",

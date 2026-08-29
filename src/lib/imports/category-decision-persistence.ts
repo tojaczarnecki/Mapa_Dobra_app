@@ -3,7 +3,7 @@ import { ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
-import { resolveEffectiveCategory } from "./category-decisions.ts";
+import { parseCategoryReanalysis, resolveEffectiveCategory } from "./category-decisions.ts";
 import { findLivePlaceMatch, importValuesForLivePlace, type LivePlaceMatch } from "./live-place-match.ts";
 import type { ImportPlaceReference } from "./matching.ts";
 
@@ -15,14 +15,23 @@ type CandidateSnapshot = {
   resolution: string | null;
   queueStatus: string | null;
   reviewReasons?: string[];
+  categorySlugs?: string[];
+  primaryCategorySlug?: string | null;
   createdPlaceId: string | null;
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue | null };
   sources: Array<{ sourceEntryId: string }>;
   organizationDecision: { decision: string; organizationId: string | null } | null;
+  categoryDecision?: { primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null;
 };
 
-type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "reviewReasons" | "proposedData">;
+type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "reviewReasons" | "proposedData"> & {
+  importBatchId?: string;
+  importBatch?: { metadata: Prisma.JsonValue | null };
+  categoryDecision?: { primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null;
+  categorySlugs?: string[];
+  primaryCategorySlug?: string | null;
+};
 
 type PersistedDecision = {
   id: string;
@@ -134,8 +143,8 @@ export async function getImportCandidateCategoryDecision(
   return database.$transaction((transaction) => transaction.importCandidateCategoryDecision.findUnique(snapshotArgs(candidateId)));
 }
 
-export async function saveImportCandidateCategoryDecision(
-  database: CategoryDecisionPersistenceDatabase,
+export async function saveImportCandidateCategoryDecisionInTransaction(
+  transaction: CategoryDecisionPersistenceTransaction,
   input: SaveCategoryDecisionInput,
 ): Promise<SaveCategoryDecisionResult> {
   if (!isUuid(input.candidateId) || !isUuid(input.primaryCategoryId) || !isUuid(input.resolvedByAdminUserId)) return { status: "INVALID_DECISION" };
@@ -144,7 +153,6 @@ export async function saveImportCandidateCategoryDecision(
   if (new Set(input.selectedCategoryIds).size !== input.selectedCategoryIds.length || !input.selectedCategoryIds.includes(input.primaryCategoryId)) return { status: "INVALID_DECISION" };
   if (input.note !== undefined && input.note !== null && input.note.length > 1000) return { status: "NOTE_TOO_LONG" };
 
-  return database.$transaction(async (transaction) => {
     const locked = await transaction.$queryRaw<Array<{ id: string }>>(
       Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" = ${input.candidateId}::uuid FOR UPDATE`,
     );
@@ -244,5 +252,78 @@ export async function saveImportCandidateCategoryDecision(
       });
     }
     return { status: "SAVED", changed, decision: persisted };
-  });
+}
+
+export async function saveImportCandidateCategoryDecision(
+  database: CategoryDecisionPersistenceDatabase,
+  input: SaveCategoryDecisionInput,
+): Promise<SaveCategoryDecisionResult> {
+  return database.$transaction((transaction) => saveImportCandidateCategoryDecisionInTransaction(transaction, input));
+}
+
+export type BulkCategoryDecisionInput = {
+  batchId: string;
+  candidateIds: string[];
+  primaryCategoryId: string;
+  selectedCategoryIds: string[];
+  resolvedByAdminUserId: string;
+  note?: string | null;
+};
+
+export type BulkCategoryDecisionResult =
+  | { status: "SAVED"; count: number }
+  | { status: "INVALID_BULK" | "INVALID_CANDIDATE" | "CATEGORY_NOT_FOUND" | "CATEGORY_INACTIVE" | "NOTE_TOO_LONG" };
+
+function sameSet(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && new Set(left).size === left.length && left.every((value) => right.includes(value));
+}
+
+function categoryReanalysis(value: unknown) {
+  const root = record(value);
+  return parseCategoryReanalysis(record(record(root?.reanalysis)?.category));
+}
+
+export async function saveBulkImportCandidateCategoryDecision(
+  database: CategoryDecisionPersistenceDatabase,
+  input: BulkCategoryDecisionInput,
+): Promise<BulkCategoryDecisionResult> {
+  if (!isUuid(input.batchId) || !isUuid(input.primaryCategoryId) || !isUuid(input.resolvedByAdminUserId) || !Array.isArray(input.candidateIds) || input.candidateIds.length < 2 || input.candidateIds.some((id) => !isUuid(id)) || new Set(input.candidateIds).size !== input.candidateIds.length) return { status: "INVALID_BULK" };
+  if (!Array.isArray(input.selectedCategoryIds) || input.selectedCategoryIds.length < 2 || input.selectedCategoryIds.some((id) => !isUuid(id)) || new Set(input.selectedCategoryIds).size !== input.selectedCategoryIds.length || !input.selectedCategoryIds.includes(input.primaryCategoryId)) return { status: "INVALID_BULK" };
+  if (input.note !== undefined && input.note !== null && input.note.length > 1000) return { status: "NOTE_TOO_LONG" };
+
+  try {
+    return await database.$transaction(async (transaction) => {
+      const locked = await transaction.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" IN (${Prisma.join(input.candidateIds.map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY "id" FOR UPDATE`,
+      );
+      if (locked.length !== input.candidateIds.length) throw new Error("BULK_INVALID_CANDIDATE");
+      const candidates = await transaction.importCandidate.findMany({
+        where: { id: { in: input.candidateIds } },
+        include: { importBatch: { select: { metadata: true } }, sources: { select: { sourceEntryId: true } }, organizationDecision: { select: { decision: true, organizationId: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } },
+      }) as unknown as CandidateSnapshot[];
+      if (candidates.length !== input.candidateIds.length || candidates.some((candidate) => candidate.importBatchId !== input.batchId || !isSpreadsheetBatchMetadata(candidate.importBatch.metadata) || candidate.status !== ImportCandidateStatus.REQUIRES_REVIEW || candidate.resolution || candidate.createdPlaceId || candidate.categoryDecision)) throw new Error("BULK_INVALID_CANDIDATE");
+      const categories = await transaction.category.findMany({ where: { id: { in: input.selectedCategoryIds } }, select: { id: true, active: true } });
+      if (categories.length !== input.selectedCategoryIds.length) throw new Error("BULK_CATEGORY_NOT_FOUND");
+      if (categories.some((category) => !category.active)) throw new Error("BULK_CATEGORY_INACTIVE");
+      const categoryIds = new Set(categories.map((category) => category.id));
+      for (const candidate of candidates) {
+        const reanalysis = categoryReanalysis(candidate.proposedData);
+        if (!reanalysis || reanalysis.categoryIds.length < 2 || candidate.primaryCategorySlug !== null || !sameSet(reanalysis.categoryIds, input.selectedCategoryIds) || !reanalysis.categoryIds.every((id) => categoryIds.has(id)) || !(candidate.reviewReasons ?? []).includes("PRIMARY_CATEGORY_DECISION_REQUIRED")) throw new Error("BULK_INVALID_CANDIDATE");
+        const effective = resolveEffectiveCategory(reanalysis, null, categories, reanalysis);
+        if (effective.status !== "REQUIRES_REVIEW" || effective.reason !== "PRIMARY_CATEGORY_DECISION_REQUIRED") throw new Error("BULK_INVALID_CANDIDATE");
+      }
+      for (const candidate of candidates) {
+        const result = await saveImportCandidateCategoryDecisionInTransaction(transaction, { candidateId: candidate.id, primaryCategoryId: input.primaryCategoryId, selectedCategoryIds: input.selectedCategoryIds, resolvedByAdminUserId: input.resolvedByAdminUserId, note: input.note });
+        if (result.status !== "SAVED") throw new Error(`BULK_${result.status}`);
+      }
+      return { status: "SAVED", count: candidates.length };
+    });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "BULK_INVALID_CANDIDATE") return { status: "INVALID_CANDIDATE" };
+    if (code === "BULK_CATEGORY_NOT_FOUND") return { status: "CATEGORY_NOT_FOUND" };
+    if (code === "BULK_CATEGORY_INACTIVE") return { status: "CATEGORY_INACTIVE" };
+    if (code === "BULK_INVALID_DECISION") return { status: "INVALID_BULK" };
+    throw error;
+  }
 }
