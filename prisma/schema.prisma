@@ -356,6 +356,11 @@ enum ImportCandidateDuplicateDecisionType {
   DIFFERENT_RECORDS
 }
 
+enum ImportCandidateOrganizationDecisionType {
+  SELECTED_ORGANIZATION
+  NO_ORGANIZATION
+}
+
 enum PlaceLocationSource {
   GEOCODER
   MANUAL
@@ -415,6 +420,7 @@ model AdminUser {
   updatedDrafts                 SubmissionDraft[]                  @relation("DraftUpdater")
   resolvedImportCandidates      ImportCandidate[]                  @relation("ImportCandidateResolver")
   resolvedDuplicateDecisions    ImportCandidateDuplicateDecision[]  @relation("DuplicateDecisionResolver")
+  organizationDecisions         ImportCandidateOrganizationDecision[] @relation("OrganizationDecisionResolver")
   requiredVerificationContacts  PlaceVerificationContact[]         @relation("VerificationContactRequiredBy")
   completedVerificationContacts PlaceVerificationContact[]         @relation("VerificationContactCompletedBy")
   permissionOverrides           AdminUserPermission[]
@@ -554,6 +560,7 @@ model Organization {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
   places      Place[]
+  importCandidateOrganizationDecisions ImportCandidateOrganizationDecision[]
 
   @@index([active, name])
   @@map("organizations")
@@ -747,6 +754,7 @@ model ImportCandidate {
   sources                  ImportCandidateSource[]
   duplicateDecisionsAsA   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateA")
   duplicateDecisionsAsB   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateB")
+  organizationDecision    ImportCandidateOrganizationDecision?
 
   @@unique([importBatchId, candidateKey])
   @@index([importBatchId, status])
@@ -772,6 +780,23 @@ model ImportCandidateDuplicateDecision {
   @@index([candidateBId])
   @@index([resolvedByAdminUserId])
   @@map("import_candidate_duplicate_decisions")
+}
+
+model ImportCandidateOrganizationDecision {
+  id                    String                                      @id(map: "import_org_decisions_pkey") @default(uuid()) @db.Uuid
+  candidateId           String                                      @unique(map: "import_org_decisions_candidate_key") @db.Uuid
+  decision              ImportCandidateOrganizationDecisionType
+  organizationId        String?                                     @db.Uuid
+  resolvedByAdminUserId String                                      @db.Uuid
+  resolvedAt            DateTime                                    @default(now()) @db.Timestamptz(3)
+  note                  String?                                     @db.VarChar(1000)
+  candidate             ImportCandidate                             @relation(fields: [candidateId], references: [id], onDelete: Cascade, map: "import_org_decisions_candidate_fkey")
+  organization          Organization?                               @relation(fields: [organizationId], references: [id], onDelete: Restrict, map: "import_org_decisions_org_fkey")
+  resolvedBy            AdminUser                                   @relation("OrganizationDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict, map: "import_org_decisions_resolver_fkey")
+
+  @@index([organizationId], map: "import_org_decisions_org_idx")
+  @@index([resolvedByAdminUserId], map: "import_org_decisions_resolver_idx")
+  @@map("import_candidate_organization_decisions")
 }
 
 model GeocodingCache {
