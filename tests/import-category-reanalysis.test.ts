@@ -34,13 +34,14 @@ class FakeDatabase implements CategoryReanalysisDatabase {
   categories = [{ id: "category-social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true }];
   updates: Prisma.ImportCandidateUpdateArgs["data"][] = [];
   audits: Prisma.AuditLogCreateArgs["data"][] = [];
+  duplicateCandidate: { id: string; candidateKey: string; proposedData: Prisma.JsonValue } | null = null;
 
   private transaction(): CategoryReanalysisTransaction {
     return {
       $queryRaw: async <T>() => [{ id: candidateId }] as T[],
       importCandidate: {
         findUnique: async () => this.candidate,
-        findMany: async () => [this.candidate],
+        findMany: async () => [this.candidate, ...(this.duplicateCandidate ? [{ ...this.candidate, ...this.duplicateCandidate, status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, queueStatus: null, reviewReasons: [] }] : [])],
         update: async (args) => { this.updates.push(args.data); this.candidate = { ...this.candidate, ...args.data } as typeof this.candidate; return { id: candidateId }; },
       },
       importCandidateDuplicateDecision: { findMany: async () => [] },
@@ -121,4 +122,19 @@ test("controlled reanalysis keeps other blockers and rejects inactive singleton"
   assert.equal(inactiveResult.status, "CATEGORY_REVIEW_REQUIRED");
   assert.equal(inactive.updates.length, 0);
   assert.equal(inactive.audits.length, 0);
+});
+
+test("controlled reanalysis keeps an unresolved duplicate blocker visible", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = {
+    mappedValues: { primaryCategory: "pomoc-socjalna" },
+    analysis: { ...originalAnalysis, inFileDuplicates: [{ rowNumber: 13, reasons: ["SAME_ADDRESS_AND_PHONE"] }] },
+  } as typeof db.candidate.proposedData;
+  db.duplicateCandidate = { id: "44444444-4444-4444-8444-444444444444", candidateKey: "row-13", proposedData: { analysis: { inFileDuplicates: [{ rowNumber: 12 }] } } };
+  const result = await reanalyseImportCandidateCategory(db, { candidateId, resolvedByAdminUserId: adminId });
+  assert.equal(result.status, "REANALYZED");
+  assert.equal(db.candidate.status, "REQUIRES_REVIEW");
+  assert.equal(db.candidate.queueStatus, null);
+  assert.deepEqual(db.candidate.reviewReasons, ["SOURCE_ROW_DUPLICATE"]);
+  assert.equal(db.candidate.reviewReasons.includes("UNRESOLVED_CATEGORY"), false);
 });

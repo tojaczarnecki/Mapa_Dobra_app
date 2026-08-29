@@ -157,6 +157,41 @@ test("duplicate reconciliation blocks an invalid or inactive persisted category 
   assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", false, effective.status !== "REQUIRES_REVIEW"), { status: "REQUIRES_REVIEW", queueStatus: null });
 });
 
+test("unresolved duplicate remains an explicit blocker after category resolution", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: [],
+    proposedData: { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "UNRESOLVED", true, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["SOURCE_ROW_DUPLICATE"],
+  });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"] }, "UNRESOLVED", false, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["SOURCE_ROW_DUPLICATE", "NEW_ORGANIZATION_CANDIDATE"],
+  });
+});
+
+test("resolved duplicate removes its blocker and permits ready flow", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["SOURCE_ROW_DUPLICATE"],
+    proposedData: { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", true, true), {
+    status: "IMPORT_READY",
+    queueStatus: null,
+    reviewReasons: [],
+  });
+});
+
 test("manual terminal states are not changed by duplicate reconciliation", () => {
   const candidate = { status: "SKIPPED", resolution: "SKIPPED", createdPlaceId: null, proposedData: {} };
   assert.equal(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT"), null);

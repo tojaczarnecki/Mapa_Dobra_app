@@ -12,6 +12,7 @@ type CandidateSnapshot = {
   status: string;
   resolution: string | null;
   queueStatus: string | null;
+  reviewReasons?: string[];
   createdPlaceId: string | null;
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue | null };
@@ -19,7 +20,7 @@ type CandidateSnapshot = {
   organizationDecision: { decision: string; organizationId: string | null } | null;
 };
 
-type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "proposedData">;
+type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "reviewReasons" | "proposedData">;
 
 type PersistedDecision = {
   id: string;
@@ -177,7 +178,7 @@ export async function saveImportCandidateCategoryDecision(
 
     const batchCandidates = await transaction.importCandidate.findMany({
       where: { importBatchId: candidate.importBatchId },
-      select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true },
+      select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, reviewReasons: true },
     });
     const rowNumberToCandidateId = new Map<number, string>();
     for (const item of batchCandidates) {
@@ -213,7 +214,7 @@ export async function saveImportCandidateCategoryDecision(
       effectiveOrganization.status === "NO_ORGANIZATION" || effectiveOrganization.status === "USE_MATCHED_ORGANIZATION" || effectiveOrganization.status === "USE_SELECTED_ORGANIZATION",
       effective.status !== "REQUIRES_REVIEW",
     );
-    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) {
+    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus || JSON.stringify(candidate.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
       await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
     }
 

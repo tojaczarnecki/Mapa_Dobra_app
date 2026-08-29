@@ -13,13 +13,14 @@ type CandidateSnapshot = {
   resolution: string | null;
   createdPlaceId: string | null;
   queueStatus: string | null;
+  reviewReasons?: string[];
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue | null };
   sources: Array<{ sourceEntryId: string }>;
   categoryDecision?: { primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null;
 };
 
-type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "proposedData">;
+type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "reviewReasons" | "proposedData">;
 
 export type OrganizationDecisionPersistenceTransaction = {
   $queryRaw<T>(query: Prisma.Sql): Promise<T[]>;
@@ -134,7 +135,7 @@ export async function saveImportCandidateOrganizationDecision(
       update: { decision: decision.decision, organizationId: decision.organizationId, resolvedByAdminUserId: input.adminUserId, resolvedAt: new Date(), note: input.note ?? null },
     });
 
-    const batchCandidates = await transaction.importCandidate.findMany({ where: { importBatchId: candidate.importBatchId }, select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true } });
+    const batchCandidates = await transaction.importCandidate.findMany({ where: { importBatchId: candidate.importBatchId }, select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, reviewReasons: true } });
     const rowNumberToCandidateId = new Map<number, string>();
     for (const item of batchCandidates) {
       const rowNumber = candidateRowNumber(item.candidateKey);
@@ -157,7 +158,7 @@ export async function saveImportCandidateOrganizationDecision(
       categoryResolved = categoryResult.status !== "REQUIRES_REVIEW";
     }
     const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION", categoryResolved);
-    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) {
+    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus || JSON.stringify(candidate.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
       await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
     }
 

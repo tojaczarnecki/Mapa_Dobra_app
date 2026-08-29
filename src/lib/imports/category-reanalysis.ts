@@ -118,7 +118,7 @@ function sameReanalysisResult(left: unknown, right: CategoryReanalysis): boolean
     && sameJson(previous.result, right.result);
 }
 
-function nextReviewReasons(current: string[]): string[] {
+function withoutCategoryReviewReasons(current: string[]): string[] {
   return current.filter((reason) => !categoryReviewCodes.has(reason));
 }
 
@@ -181,13 +181,14 @@ export async function reanalyseImportCandidateCategory(
     const organizationId = orgDecision?.decision === "SELECTED_ORGANIZATION" ? orgDecision.organizationId : orgAnalysis?.organizationId ?? null;
     const organization = organizationId ? await transaction.organization.findUnique({ where: { id: organizationId }, select: { id: true, active: true } }) : null;
     const effectiveOrganization = orgAnalysis ? resolveEffectiveOrganization(orgAnalysis, orgDecision, organization) : { status: "UNRESOLVED" as const, organizationId: null };
+    const reviewReasons = withoutCategoryReviewReasons(candidate.reviewReasons);
     const effectiveCategory = resolveEffectiveCategory(analysisCategoryState(candidate.proposedData), null, [matchedCategory], { categoryIds: result.matchedCategoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] });
-    const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW");
-    const reviewReasons = nextReviewReasons(candidate.reviewReasons);
-    const derivedChanged = !sameJson(candidate.categorySlugs, result.matchedCategorySlugs) || candidate.primaryCategorySlug !== result.matchedCategorySlugs[0] || !sameJson(candidate.reviewReasons, reviewReasons) || !sameReanalysisResult(previousReanalysis, reanalysis);
+    const reconciliation = reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons }, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW");
+    const nextReviewReasons = reconciliation?.reviewReasons ?? reviewReasons;
+    const derivedChanged = !sameJson(candidate.categorySlugs, result.matchedCategorySlugs) || candidate.primaryCategorySlug !== result.matchedCategorySlugs[0] || !sameJson(candidate.reviewReasons, nextReviewReasons) || !sameReanalysisResult(previousReanalysis, reanalysis);
     const reconciliationChanged = reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus);
     if (derivedChanged || reconciliationChanged) {
-      await transaction.importCandidate.update({ where: { id: candidate.id }, data: { ...(derivedChanged ? { proposedData: nextProposedData as Prisma.InputJsonValue, categorySlugs: result.matchedCategorySlugs, primaryCategorySlug: result.matchedCategorySlugs[0], reviewReasons } : {}), ...(reconciliationChanged ? reconciliation : {}) } });
+      await transaction.importCandidate.update({ where: { id: candidate.id }, data: { ...(derivedChanged ? { proposedData: nextProposedData as Prisma.InputJsonValue, categorySlugs: result.matchedCategorySlugs, primaryCategorySlug: result.matchedCategorySlugs[0], reviewReasons: nextReviewReasons } : {}), ...(reconciliationChanged ? { status: reconciliation!.status, queueStatus: reconciliation!.queueStatus } : {}) } });
     }
     if (!derivedChanged) return { status: "NO_OP", candidateStatus: reconciliation?.status ?? candidate.status, queueStatus: reconciliation?.queueStatus ?? candidate.queueStatus, reanalysis: persistedReanalysis };
     await transaction.auditLog.create({

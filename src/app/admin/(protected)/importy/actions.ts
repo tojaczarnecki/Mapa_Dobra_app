@@ -314,7 +314,7 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
 
       const batchCandidates = await transaction.importCandidate.findMany({
         where: { importBatchId: current.importBatchId },
-        select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true },
+        select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true, reviewReasons: true },
       });
       const categoryDecisionIds = candidates.flatMap((candidate) => candidate.categoryDecision?.categories.map((item) => item.categoryId) ?? []);
       const categorySnapshots = categoryDecisionIds.length > 0
@@ -354,7 +354,7 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
           false,
           categoryResolvedForDuplicateReconciliation(snapshot.proposedData, categoryDecision, categorySnapshots),
         );
-        if (reconciliation && (snapshot.status !== reconciliation.status || snapshot.queueStatus !== reconciliation.queueStatus)) {
+        if (reconciliation && (snapshot.status !== reconciliation.status || snapshot.queueStatus !== reconciliation.queueStatus || JSON.stringify(snapshot.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
           await transaction.importCandidate.update({ where: { id: snapshot.id }, data: reconciliation });
         }
       }

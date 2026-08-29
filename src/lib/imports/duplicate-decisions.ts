@@ -29,11 +29,13 @@ export type DuplicateReconciliationCandidate = {
   resolution: string | null;
   createdPlaceId: string | null;
   proposedData: unknown;
+  reviewReasons?: readonly string[];
 };
 
 export type DuplicateReconciliationResult = {
   status: "IMPORT_READY" | "REQUIRES_REVIEW";
   queueStatus: "PENDING" | null;
+  reviewReasons?: string[];
 } | null;
 
 export function duplicateRowNumbers(proposedData: unknown): number[] {
@@ -127,7 +129,14 @@ export function reconcileCandidateAfterDuplicateDecision(
   categoryResolved = false,
 ): DuplicateReconciliationResult {
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
-  if (disposition === "UNRESOLVED" || disposition === "LOSER") return { status: "REQUIRES_REVIEW", queueStatus: null };
+  const reviewReasons = [...(candidate.reviewReasons ?? [])].filter((reason) => reason !== "SOURCE_ROW_DUPLICATE");
+  const result = (status: "IMPORT_READY" | "REQUIRES_REVIEW", queueStatus: "PENDING" | null, reasons: string[]): DuplicateReconciliationResult => ({
+    status,
+    queueStatus,
+    ...(candidate.reviewReasons === undefined ? {} : { reviewReasons: reasons }),
+  });
+  if (disposition === "UNRESOLVED") return result("REQUIRES_REVIEW", null, ["SOURCE_ROW_DUPLICATE", ...reviewReasons]);
+  if (disposition === "LOSER") return result("REQUIRES_REVIEW", null, reviewReasons);
 
   const root = analysisRecord(candidate.proposedData);
   const analysis = analysisRecord(root?.analysis);
@@ -140,9 +149,9 @@ export function reconcileCandidateAfterDuplicateDecision(
   const placeClassification = analysisText(place?.classification);
   const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
 
-  if (placeClassification && placeClassification !== "NEW") return { status: "REQUIRES_REVIEW", queueStatus: "PENDING" };
+  if (placeClassification && placeClassification !== "NEW") return result("REQUIRES_REVIEW", "PENDING", reviewReasons);
   if (analysisStatus === "ERROR" || errors.length > 0 || (!categoryResolved && categoryStatus !== "MATCHED") || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
-    return { status: "REQUIRES_REVIEW", queueStatus: null };
+    return result("REQUIRES_REVIEW", null, reviewReasons);
   }
-  return { status: "IMPORT_READY", queueStatus: null };
+  return result("IMPORT_READY", null, reviewReasons);
 }
