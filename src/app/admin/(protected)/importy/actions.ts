@@ -10,6 +10,7 @@ import { mapSpreadsheetRows, mappingIssueMessage, suggestColumnMapping, validate
 import { importIssueLabel } from "@/lib/imports/issue-labels";
 import { parseImportFile, parseSelectedSheet, type ParsedSpreadsheet, type SpreadsheetErrorCode, type SpreadsheetSheet } from "@/lib/imports/spreadsheet";
 import { persistImportAnalysis } from "@/lib/imports/persist-analysis";
+import { materializeImportCandidate, type MaterializeCandidateDatabase, type MaterializeCandidateTransaction, type MaterializeImportCandidateResult } from "@/lib/imports/materialize-candidate";
 
 const PREVIEW_LIMIT = 100;
 
@@ -30,6 +31,12 @@ export type PreviewRow = {
 };
 
 export type PreviewCounts = { total: number; ready: number; review: number; error: number };
+
+export type MaterializeCandidateActionState =
+  | { ok: false; message: string }
+  | { ok: true; status: "CREATED"; message: string; placeId: string }
+  | { ok: true; status: Exclude<MaterializeImportCandidateResult["status"], "CREATED" | "ALREADY_CREATED">; message: string; placeId?: string }
+  | { ok: true; status: "ALREADY_CREATED"; message: string; placeId: string };
 
 const errorMessages: Record<SpreadsheetErrorCode, string> = {
   UNSUPPORTED_FILE_TYPE: "Obsługiwane są pliki CSV i XLSX.",
@@ -202,4 +209,36 @@ export async function saveSpreadsheetAnalysis(formData: FormData): Promise<Impor
         ? "Poprzedni import tego pliku nie został ukończony."
         : "Poprzednia próba importu zakończyła się błędem.",
   };
+}
+
+function materializeResultMessage(result: MaterializeImportCandidateResult): string {
+  const messages: Record<MaterializeImportCandidateResult["status"], string> = {
+    CREATED: "Utworzono szkic miejsca.",
+    ALREADY_CREATED: "To miejsce zostało już utworzone.",
+    CATEGORY_REVIEW_REQUIRED: "Kategoria wymaga ponownego sprawdzenia.",
+    ORGANIZATION_REVIEW_REQUIRED: "Organizacja wymaga decyzji przed utworzeniem miejsca.",
+    EXISTING_PLACE_REVIEW_REQUIRED: "Rekord prawdopodobnie odpowiada istniejącemu miejscu.",
+    PLACE_MATCH_REVIEW_REQUIRED: "Możliwe dopasowanie do istniejącego miejsca wymaga decyzji.",
+    SOURCE_DUPLICATE_REVIEW_REQUIRED: "Najpierw rozstrzygnij duplikat w pliku.",
+    INVALID_CANDIDATE: "Nie można utworzyć miejsca z tego rekordu.",
+    BATCH_NOT_READY: "Import nie jest gotowy do tworzenia miejsc.",
+  };
+  return messages[result.status];
+}
+
+export async function materializeCandidateAction(_state: MaterializeCandidateActionState, formData: FormData): Promise<MaterializeCandidateActionState> {
+  const session = await requirePermission("MANAGE_IMPORTS");
+  await requirePermission("CREATE_PLACES");
+  const candidateId = formData.get("candidateId");
+  if (typeof candidateId !== "string") return { ok: false, message: "Nie można utworzyć miejsca z tego rekordu." };
+  const materializeDb: MaterializeCandidateDatabase = {
+    $transaction: (callback) => prisma.$transaction((transaction) => callback(transaction as unknown as MaterializeCandidateTransaction)),
+  };
+  const result = await materializeImportCandidate(materializeDb, { candidateId, adminUserId: session.user.id, action: "CREATE_NEW_PLACE" });
+  const batchId = formData.get("batchId");
+  revalidatePath("/admin/importy");
+  if (typeof batchId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(batchId)) revalidatePath(`/admin/importy/${batchId}`);
+  return result.status === "CREATED" || result.status === "ALREADY_CREATED"
+    ? { ok: true, status: result.status, message: materializeResultMessage(result), placeId: result.placeId }
+    : { ok: true, status: result.status, message: materializeResultMessage(result) };
 }
