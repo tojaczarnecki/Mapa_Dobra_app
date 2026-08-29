@@ -38,6 +38,18 @@ export type DuplicateReconciliationResult = {
   reviewReasons?: string[];
 } | null;
 
+const organizationReviewReasons = new Set([
+  "NEW_ORGANIZATION_CANDIDATE",
+  "INACTIVE_ORGANIZATION",
+  "CONFLICTING_IDENTIFIERS",
+  "MULTIPLE_NAME_MATCHES",
+  "MATCHED_BY_IDENTIFIER",
+  "MATCHED_BY_NIP",
+  "MATCHED_BY_REGON",
+  "MATCHED_BY_KRS",
+  "MATCHED_BY_NAME",
+]);
+
 export function duplicateRowNumbers(proposedData: unknown): number[] {
   if (!proposedData || typeof proposedData !== "object" || Array.isArray(proposedData)) return [];
   const analysis = (proposedData as Record<string, unknown>).analysis;
@@ -131,7 +143,8 @@ export function reconcileCandidateAfterDuplicateDecision(
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
   const reviewReasons = [...(candidate.reviewReasons ?? [])]
     .filter((reason) => reason !== "SOURCE_ROW_DUPLICATE")
-    .filter((reason) => !(categoryResolved && reason === "UNRESOLVED_CATEGORY"));
+    .filter((reason) => !(categoryResolved && reason === "UNRESOLVED_CATEGORY"))
+    .filter((reason) => !(organizationResolved && organizationReviewReasons.has(reason)));
   const result = (status: "IMPORT_READY" | "REQUIRES_REVIEW", queueStatus: "PENDING" | null, reasons: string[]): DuplicateReconciliationResult => ({
     status,
     queueStatus,

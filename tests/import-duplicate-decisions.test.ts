@@ -287,6 +287,51 @@ test("resolved category does not hide an organization blocker", () => {
   });
 });
 
+test("resolved NO_ORGANIZATION clears stale organization reasons and keeps ready flow", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"],
+    proposedData: { analysis: { status: "ERROR", errors: ["UNRESOLVED_CATEGORY"], category: { status: "UNRESOLVED" }, organization: { status: "NEW_CANDIDATE" }, place: { classification: "NEW" } } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true), {
+    status: "IMPORT_READY",
+    queueStatus: null,
+    reviewReasons: [],
+  });
+});
+
+test("unresolved organization keeps its organization reason active", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"],
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NEW_CANDIDATE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", false, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"],
+  });
+});
+
+test("selected active organization clears stale organization reasons without hiding other blockers", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE", "INVALID_EMAIL", "SOURCE_ROW_DUPLICATE"],
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NEW_CANDIDATE" }, place: { classification: "NEW" }, errors: ["INVALID_EMAIL"] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "UNRESOLVED", true, true), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["SOURCE_ROW_DUPLICATE", "INVALID_EMAIL"],
+  });
+});
+
 test("manual terminal states are not changed by duplicate reconciliation", () => {
   const candidate = { status: "SKIPPED", resolution: "SKIPPED", createdPlaceId: null, proposedData: {} };
   assert.equal(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT"), null);
