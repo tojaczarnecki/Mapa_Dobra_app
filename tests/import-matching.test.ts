@@ -80,6 +80,12 @@ test("multi-category matching preserves token provenance without choosing a prim
   assert.deepEqual(matchCategories("pomoc prawna; praca socjalna", references).matchedCategorySlugs, ["pomoc-prawna", "pomoc-socjalna"]);
 });
 
+test("empty multi-category input requires category review", () => {
+  const references = [{ id: "food", slug: "jedzenie", name: "Jedzenie", active: true }];
+  assert.equal(matchCategories("", references).requiresReview, true);
+  assert.equal(matchCategories("   ", references).requiresReview, true);
+});
+
 test("inactive matched category is retained with an explicit review signal", () => {
   const result = matchCategories("pomoc-prawna", [{ id: "legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: false }]);
   assert.equal(result.status, "FULLY_MATCHED");

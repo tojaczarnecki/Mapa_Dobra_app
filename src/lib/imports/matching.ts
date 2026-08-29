@@ -91,6 +91,7 @@ export type MatchingAnalysisRow = {
   rowNumber: number;
   organizationMatch: OrganizationMatch;
   categoryMatch: CategoryMatch;
+  categoryMatches?: MultiCategoryMatch;
   placeMatch: PlaceMatch;
   inFileDuplicates: InFileDuplicate[];
   errors: ImportMatchingErrorCode[];
@@ -256,6 +257,7 @@ export function matchCategories(sourceValue: unknown, references: ImportCategory
   }
   const hasMatches = matchedCategoryIds.length > 0;
   const hasUnresolved = unresolvedTokens.length > 0;
+  const hasTokens = tokens.length > 0;
   return {
     sourceValue: sourceText,
     tokens,
@@ -264,7 +266,7 @@ export function matchCategories(sourceValue: unknown, references: ImportCategory
     unresolvedTokens,
     warnings,
     status: !hasMatches ? "UNRESOLVED" : hasUnresolved ? "PARTIALLY_MATCHED" : "FULLY_MATCHED",
-    requiresReview: hasUnresolved || warnings.length > 0,
+    requiresReview: !hasTokens || hasUnresolved || warnings.length > 0,
   };
 }
 
@@ -328,18 +330,21 @@ export function analyzeImportRows(rows: MappedImportRow[], references: ImportMat
   return rows.map((row) => {
     const organizationMatch = matchOrganization(row.values, references.organizations);
     const categoryMatch = matchCategory(row.values.primaryCategory, references.categories);
+    const categoryMatches = matchCategories(row.values.primaryCategory, references.categories);
     const placeMatch = matchPlace(row.values, references.places, organizationMatch.organizationId);
     const errors: ImportMatchingErrorCode[] = row.errors.map((item) => item.code);
     const warnings: ImportMatchingWarningCode[] = row.warnings.map((item) => item.code);
-    if (categoryMatch.status === "UNRESOLVED") errors.push("UNRESOLVED_CATEGORY");
+    if (categoryMatches.unresolvedTokens.length > 0) errors.push("UNRESOLVED_CATEGORY");
     warnings.push(...organizationMatch.warnings, ...categoryMatch.warnings);
+    warnings.push(...categoryMatches.warnings);
     const inFileDuplicates = duplicates.get(row.rowNumber) ?? [];
     if (inFileDuplicates.length) warnings.push("SOURCE_ROW_DUPLICATE");
-    const review = organizationMatch.status === "CONFLICT" || organizationMatch.status === "POSSIBLE" || organizationMatch.status === "NEW_CANDIDATE" || categoryMatch.warnings.length > 0 || organizationMatch.warnings.length > 0 || placeMatch.classification !== "NEW" || inFileDuplicates.length > 0 || row.warnings.length > 0;
+    const review = organizationMatch.status === "CONFLICT" || organizationMatch.status === "POSSIBLE" || organizationMatch.status === "NEW_CANDIDATE" || categoryMatches.requiresReview || categoryMatches.matchedCategorySlugs.length > 1 || organizationMatch.warnings.length > 0 || placeMatch.classification !== "NEW" || inFileDuplicates.length > 0 || row.warnings.length > 0;
     return {
       rowNumber: row.rowNumber,
       organizationMatch,
       categoryMatch,
+      categoryMatches,
       placeMatch,
       inFileDuplicates,
       errors: [...new Set(errors)],

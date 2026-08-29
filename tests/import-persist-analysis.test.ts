@@ -5,7 +5,8 @@ import { ImportBatchStatus } from "../src/generated/prisma/enums.ts";
 import type { ImportBatchStatus as ImportBatchStatusValue } from "../src/generated/prisma/enums.ts";
 import type { CanonicalImportValues, MappedImportRow } from "../src/lib/imports/column-mapping.ts";
 import { persistImportAnalysis, type ImportAnalysisDatabase, type ImportAnalysisTransaction, type PersistImportAnalysisInput } from "../src/lib/imports/persist-analysis.ts";
-import type { MatchingAnalysisRow } from "../src/lib/imports/matching.ts";
+import { matchCategories } from "../src/lib/imports/matching.ts";
+import type { ImportCategoryReference, MatchingAnalysisRow } from "../src/lib/imports/matching.ts";
 
 const fileHash = "a".repeat(64);
 
@@ -39,6 +40,13 @@ function row(rowNumber: number, values: CanonicalImportValues, status: "READY" |
     status,
   };
 }
+
+const categoryReferences: ImportCategoryReference[] = [
+  { id: "legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: true },
+  { id: "social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true },
+  { id: "hygiene", slug: "higiena", name: "Higiena", active: true },
+  { id: "inactive", slug: "pomoc-prawna-archiwalna", name: "Pomoc prawna archiwalna", active: false },
+];
 
 class FakeDatabase implements ImportAnalysisDatabase {
   readonly batches: Array<Prisma.ImportBatchCreateArgs["data"]> = [];
@@ -205,6 +213,13 @@ test("persists exact place match and keeps review status", async () => {
       errors: [],
       warnings: ["SOURCE_ROW_DUPLICATE"],
       organization: { status: "MATCHED", method: "NIP", organizationId: "org-1", candidateIds: ["org-1"], reasons: ["MATCHED_BY_NIP"], warnings: [] },
+      categoryStatus: "MATCHED",
+      categorySlug: "jedzenie",
+      organizationStatus: "MATCHED",
+      organizationId: "org-1",
+      placeClassification: "EXACT_MATCH",
+      placeCandidateIds: ["place-1"],
+      inFileDuplicate: false,
       category: { status: "MATCHED", method: "SLUG", categoryId: "category-1", categorySlug: "jedzenie", reasons: ["MATCHED_BY_SLUG"], warnings: [] },
       place: { classification: "EXACT_MATCH", candidates: [{ placeId: "place-1", reasons: ["SAME_NAME_AND_ADDRESS"] }], reasons: ["SAME_NAME_AND_ADDRESS"], conflict: false },
       inFileDuplicates: [],
@@ -231,4 +246,76 @@ test("does not queue a mixed place match with an in-file duplicate", async () =>
 
   assert.equal(result.status, "CREATED");
   assert.equal(db.candidates[0]?.queueStatus, undefined);
+});
+
+test("persists the complete multi-category analysis without inventing a primary category", async () => {
+  const db = new FakeDatabase();
+  const analyzed = row(10, { name: "Punkt pomocy", addressLine: "Adres", primaryCategory: "pomoc-prawna; pomoc-socjalna" });
+  analyzed.categoryMatches = matchCategories(analyzed.source.values.primaryCategory, categoryReferences);
+
+  await persistImportAnalysis(db, input({ rows: [analyzed] }));
+
+  assert.deepEqual(db.candidates[0]?.categorySlugs, ["pomoc-prawna", "pomoc-socjalna"]);
+  assert.equal(db.candidates[0]?.primaryCategorySlug, null);
+  assert.equal(db.candidates[0]?.status, "REQUIRES_REVIEW");
+  assert.ok((db.candidates[0]?.reviewReasons as string[]).includes("PRIMARY_CATEGORY_DECISION_REQUIRED"));
+  const proposedData = db.candidates[0]?.proposedData as { analysis: { categories: typeof analyzed.categoryMatches } };
+  assert.deepEqual(proposedData.analysis.categories, analyzed.categoryMatches);
+  assert.equal((proposedData.analysis.categories as NonNullable<typeof analyzed.categoryMatches>).requiresReview, false);
+});
+
+test("persists one effective category from multiple source tokens", async () => {
+  const db = new FakeDatabase();
+  const analyzed = row(11, { name: "Prysznic", addressLine: "Adres", primaryCategory: "prysznic; higiena" });
+  analyzed.categoryMatches = matchCategories(analyzed.source.values.primaryCategory, categoryReferences);
+
+  await persistImportAnalysis(db, input({ rows: [analyzed] }));
+
+  assert.deepEqual(db.candidates[0]?.categorySlugs, ["higiena"]);
+  assert.equal(db.candidates[0]?.primaryCategorySlug, "higiena");
+  assert.equal(db.candidates[0]?.status, "IMPORT_READY");
+  assert.deepEqual((db.candidates[0]?.proposedData as { analysis: { categories: { matchedCategorySlugs: string[] } } }).analysis.categories.matchedCategorySlugs, ["higiena"]);
+});
+
+test("keeps partial multi-category analysis blocked and preserves unresolved tokens", async () => {
+  const db = new FakeDatabase();
+  const analyzed = row(12, { name: "Punkt", addressLine: "Adres", primaryCategory: "pomoc-socjalna; inne" });
+  analyzed.categoryMatches = matchCategories(analyzed.source.values.primaryCategory, categoryReferences);
+
+  await persistImportAnalysis(db, input({ rows: [analyzed] }));
+
+  assert.deepEqual(db.candidates[0]?.categorySlugs, ["pomoc-socjalna"]);
+  assert.equal(db.candidates[0]?.primaryCategorySlug, null);
+  assert.equal(db.candidates[0]?.status, "REQUIRES_REVIEW");
+  assert.ok((db.candidates[0]?.reviewReasons as string[]).includes("UNRESOLVED_CATEGORY"));
+  assert.deepEqual((db.candidates[0]?.proposedData as { analysis: { categories: { unresolvedTokens: string[] } } }).analysis.categories.unresolvedTokens, ["inne"]);
+});
+
+test("persists empty and whitespace categories as unresolved review", async () => {
+  for (const primaryCategory of ["", "   "]) {
+    const db = new FakeDatabase();
+    const analyzed = row(13, { name: "Punkt", addressLine: "Adres", primaryCategory });
+    analyzed.categoryMatches = matchCategories(primaryCategory, categoryReferences);
+
+    await persistImportAnalysis(db, input({ rows: [analyzed] }));
+
+    assert.equal(db.candidates[0]?.status, "REQUIRES_REVIEW");
+    assert.equal(db.candidates[0]?.queueStatus, undefined);
+    assert.deepEqual(db.candidates[0]?.reviewReasons, ["UNRESOLVED_CATEGORY"]);
+    assert.equal((db.candidates[0]?.proposedData as { analysis: { categoryStatus: string; categorySlug: string | null } }).analysis.categoryStatus, "UNRESOLVED");
+    assert.equal((db.candidates[0]?.proposedData as { analysis: { categoryStatus: string; categorySlug: string | null } }).analysis.categorySlug, null);
+  }
+});
+
+test("persists an inactive singleton category as a blocker", async () => {
+  const db = new FakeDatabase();
+  const analyzed = row(14, { name: "Punkt prawny", addressLine: "Adres", primaryCategory: "pomoc-prawna-archiwalna" });
+  analyzed.categoryMatches = matchCategories(analyzed.source.values.primaryCategory, categoryReferences);
+
+  await persistImportAnalysis(db, input({ rows: [analyzed] }));
+
+  assert.deepEqual(db.candidates[0]?.categorySlugs, ["pomoc-prawna-archiwalna"]);
+  assert.equal(db.candidates[0]?.primaryCategorySlug, null);
+  assert.equal(db.candidates[0]?.status, "REQUIRES_REVIEW");
+  assert.deepEqual(db.candidates[0]?.reviewReasons, ["INACTIVE_CATEGORY"]);
 });

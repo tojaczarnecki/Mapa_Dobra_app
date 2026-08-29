@@ -36,6 +36,25 @@ function proposedData(overrides: Record<string, unknown> = {}): Prisma.JsonValue
   } as Prisma.JsonValue;
 }
 
+function persistedCategoryData(category: { status: string; categorySlug: string | null; categories: Record<string, unknown> }): Prisma.JsonValue {
+  return proposedData({
+    analysis: {
+      categoryStatus: category.status,
+      categorySlug: category.categorySlug,
+      organizationStatus: "NONE",
+      organizationId: null,
+      placeClassification: "NEW",
+      placeCandidateIds: [],
+      inFileDuplicate: false,
+      category: { status: category.status, categorySlug: category.categorySlug },
+      categories: category.categories,
+      organization: { status: "NONE", organizationId: null },
+      place: { classification: "NEW", candidates: [] },
+      inFileDuplicates: [],
+    },
+  });
+}
+
 function snapshot(overrides: Partial<{
   status: ImportCandidateStatus;
   createdPlaceId: string | null;
@@ -227,6 +246,29 @@ test("requires active category and resolved organization", async () => {
   organization.candidate.proposedData = proposedData({ analysis: { category: { status: "MATCHED", categorySlug: "jedzenie" }, organization: { status: "MATCHED", organizationId: "org-1" }, place: { classification: "NEW", candidates: [] }, inFileDuplicates: [] } });
   organization.organization = { id: "org-1", active: false };
   assert.deepEqual(await materialize(organization), { status: "ORGANIZATION_REVIEW_REQUIRED" });
+});
+
+test("accepts the new persisted singleton category shape", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = persistedCategoryData({ status: "MATCHED", categorySlug: "jedzenie", categories: { status: "FULLY_MATCHED", matchedCategorySlugs: ["jedzenie"] } });
+
+  const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
+
+  assert.notEqual(result.status, "INVALID_CANDIDATE");
+});
+
+test("returns a category blocker for new persisted multi, partial and empty categories", async () => {
+  for (const category of [
+    { status: "UNRESOLVED", categorySlug: null, categories: { status: "FULLY_MATCHED", matchedCategorySlugs: ["pomoc-prawna", "pomoc-socjalna"] } },
+    { status: "UNRESOLVED", categorySlug: null, categories: { status: "PARTIALLY_MATCHED", matchedCategorySlugs: ["pomoc-socjalna"], unresolvedTokens: ["inne"] } },
+    { status: "UNRESOLVED", categorySlug: null, categories: { status: "UNRESOLVED", matchedCategorySlugs: [], unresolvedTokens: [] } },
+  ]) {
+    const db = new FakeDatabase();
+    db.candidate.proposedData = persistedCategoryData(category);
+    const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
+    assert.deepEqual(result, { status: "CATEGORY_REVIEW_REQUIRED" });
+    assert.equal(db.createdPlaceData, null);
+  }
 });
 
 test("uses a persisted NO_ORGANIZATION decision for a NEW candidate", async () => {

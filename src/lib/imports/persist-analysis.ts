@@ -3,7 +3,7 @@ import type { Prisma } from "../../generated/prisma/client.ts";
 import { ImportBatchStatus, ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import type { ImportBatchStatus as ImportBatchStatusValue } from "../../generated/prisma/enums.ts";
 import type { ColumnMapping, MappedImportRow } from "./column-mapping.ts";
-import type { MatchingAnalysisRow } from "./matching.ts";
+import type { CategoryMatch, MatchingAnalysisRow, MultiCategoryMatch } from "./matching.ts";
 import { isSpreadsheetPlaceReviewCandidate } from "./spreadsheet-place-review.ts";
 
 const CHUNK_SIZE = 50;
@@ -82,6 +82,43 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function categoryAnalysis(row: MatchingAnalysisRow): MultiCategoryMatch | null {
+  return row.categoryMatches ?? null;
+}
+
+function legacyCategoryMatch(row: MatchingAnalysisRow): CategoryMatch {
+  const multi = categoryAnalysis(row);
+  if (!multi) return row.categoryMatch;
+  if (multi.matchedCategorySlugs.length === 1 && multi.unresolvedTokens.length === 0) {
+    const matchedToken = multi.tokens.find((token) => token.status === "MATCHED" && token.categorySlug === multi.matchedCategorySlugs[0]);
+    if (matchedToken) return matchedToken;
+  }
+  return {
+    status: "UNRESOLVED",
+    method: null,
+    categoryId: null,
+    categorySlug: null,
+    reasons: [multi.matchedCategorySlugs.length > 1 ? "PRIMARY_CATEGORY_DECISION_REQUIRED" : "UNRESOLVED_CATEGORY"],
+    warnings: multi.warnings,
+  };
+}
+
+function categoryReviewReasons(row: MatchingAnalysisRow): string[] {
+  const multi = categoryAnalysis(row);
+  if (!multi) return row.categoryMatch.reasons;
+  const reasons: string[] = [];
+  if (multi.matchedCategorySlugs.length === 0 && multi.unresolvedTokens.length === 0) reasons.push("UNRESOLVED_CATEGORY");
+  if (multi.unresolvedTokens.length > 0) reasons.push("UNRESOLVED_CATEGORY");
+  if (multi.matchedCategorySlugs.length > 1) reasons.push("PRIMARY_CATEGORY_DECISION_REQUIRED");
+  if (multi.warnings.length > 0) reasons.push("INACTIVE_CATEGORY");
+  return reasons;
+}
+
+function categoryRequiresReview(row: MatchingAnalysisRow): boolean {
+  const multi = categoryAnalysis(row);
+  return multi ? multi.requiresReview || multi.matchedCategorySlugs.length !== 1 : false;
+}
+
 function sourceKey(fileHash: string, sheetName: string, rowNumber: number): string {
   const sheetHash = createHash("sha256").update(sheetName, "utf8").digest("hex").slice(0, 16);
   return `sheet:${sheetHash}:row:${rowNumber}:file:${fileHash.slice(0, 16)}`;
@@ -96,14 +133,14 @@ function reviewReasons(row: MatchingAnalysisRow): string[] {
     ...row.errors,
     ...row.warnings,
     ...row.organizationMatch.reasons,
-    ...row.categoryMatch.reasons,
+    ...categoryReviewReasons(row),
     ...row.placeMatch.reasons,
     ...row.inFileDuplicates.flatMap((duplicate) => duplicate.reasons),
   ])];
 }
 
 function candidateStatus(row: MatchingAnalysisRow): ImportCandidateStatus {
-  return row.status === "READY" ? ImportCandidateStatus.IMPORT_READY : ImportCandidateStatus.REQUIRES_REVIEW;
+  return row.status === "READY" && !categoryRequiresReview(row) ? ImportCandidateStatus.IMPORT_READY : ImportCandidateStatus.REQUIRES_REVIEW;
 }
 
 function sourceData(input: PersistImportAnalysisInput, row: PersistImportAnalysisInput["rows"][number]) {
@@ -116,7 +153,7 @@ function sourceData(input: PersistImportAnalysisInput, row: PersistImportAnalysi
     analysis: {
       status: row.status,
       organization: row.organizationMatch,
-      category: row.categoryMatch,
+      category: legacyCategoryMatch(row),
       place: row.placeMatch,
       inFileDuplicates: row.inFileDuplicates,
     },
@@ -138,6 +175,10 @@ function batchMetadata(input: PersistImportAnalysisInput) {
 }
 
 function candidateData(row: PersistImportAnalysisInput["rows"][number]) {
+  const multi = categoryAnalysis(row);
+  const category = legacyCategoryMatch(row);
+  const organization = row.organizationMatch;
+  const place = row.placeMatch;
   return jsonValue({
     mappedValues: row.source.values,
     analysis: {
@@ -145,7 +186,15 @@ function candidateData(row: PersistImportAnalysisInput["rows"][number]) {
       errors: row.errors,
       warnings: row.warnings,
       organization: row.organizationMatch,
-      category: row.categoryMatch,
+      categoryStatus: category.status,
+      categorySlug: category.categorySlug,
+      organizationStatus: organization.status,
+      organizationId: organization.organizationId,
+      placeClassification: place.classification,
+      placeCandidateIds: place.candidates.map((candidate) => candidate.placeId),
+      inFileDuplicate: row.inFileDuplicates.length > 0,
+      category,
+      ...(multi ? { categories: multi } : {}),
       place: row.placeMatch,
       inFileDuplicates: row.inFileDuplicates,
     },
@@ -264,8 +313,8 @@ export async function persistImportAnalysis(db: ImportAnalysisDatabase, input: P
               proposedEmail: text(values.email),
               proposedWebsite: text(values.website),
               proposedOrganizationName: text(values.organizationName),
-              categorySlugs: row.categoryMatch.categorySlug ? [row.categoryMatch.categorySlug] : [],
-              primaryCategorySlug: row.categoryMatch.categorySlug,
+              categorySlugs: categoryAnalysis(row)?.matchedCategorySlugs ?? (row.categoryMatch.categorySlug ? [row.categoryMatch.categorySlug] : []),
+              primaryCategorySlug: categoryAnalysis(row)?.matchedCategorySlugs.length === 1 && !categoryRequiresReview(row) ? categoryAnalysis(row)?.matchedCategorySlugs[0] ?? null : categoryAnalysis(row) ? null : row.categoryMatch.categorySlug,
               reviewReasons: reviewReasons(row),
               proposedData: candidateData(row),
               matchedPlaceId: row.placeMatch.classification === "EXACT_MATCH" && row.placeMatch.candidates.length === 1 ? row.placeMatch.candidates[0]?.placeId : null,
