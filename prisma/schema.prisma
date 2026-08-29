@@ -399,35 +399,36 @@ enum DraftFieldDecision {
 }
 
 model AdminUser {
-  id                            String                             @id @default(uuid()) @db.Uuid
-  email                         String                             @unique @db.VarChar(320)
-  passwordHash                  String?                            @db.VarChar(512)
-  displayName                   String                             @db.VarChar(160)
-  role                          AdminRole                          @default(MODERATOR)
-  active                        Boolean                            @default(true)
-  createdAt                     DateTime                           @default(now()) @db.Timestamptz(3)
-  updatedAt                     DateTime                           @updatedAt @db.Timestamptz(3)
-  lastLoginAt                   DateTime?                          @db.Timestamptz(3)
+  id                            String                                @id @default(uuid()) @db.Uuid
+  email                         String                                @unique @db.VarChar(320)
+  passwordHash                  String?                               @db.VarChar(512)
+  displayName                   String                                @db.VarChar(160)
+  role                          AdminRole                             @default(MODERATOR)
+  active                        Boolean                               @default(true)
+  createdAt                     DateTime                              @default(now()) @db.Timestamptz(3)
+  updatedAt                     DateTime                              @updatedAt @db.Timestamptz(3)
+  lastLoginAt                   DateTime?                             @db.Timestamptz(3)
   sessions                      AdminSession[]
   auditLogs                     AuditLog[]
-  moderatedPlaceUpdates         PlaceUpdateSubmission[]            @relation("PlaceUpdateModerator")
-  moderatedNewPlaceSubmissions  NewPlaceSubmission[]               @relation("NewPlaceModerator")
-  editedPlaces                  Place[]                            @relation("PlaceLastEditor")
-  verifiedPlaces                Place[]                            @relation("PlaceVerifier")
+  moderatedPlaceUpdates         PlaceUpdateSubmission[]               @relation("PlaceUpdateModerator")
+  moderatedNewPlaceSubmissions  NewPlaceSubmission[]                  @relation("NewPlaceModerator")
+  editedPlaces                  Place[]                               @relation("PlaceLastEditor")
+  verifiedPlaces                Place[]                               @relation("PlaceVerifier")
   capacityUpdates               AccommodationCapacityGroup[]
   availabilityHistory           AccommodationAvailabilityHistory[]
-  createdDrafts                 SubmissionDraft[]                  @relation("DraftCreator")
-  updatedDrafts                 SubmissionDraft[]                  @relation("DraftUpdater")
-  resolvedImportCandidates      ImportCandidate[]                  @relation("ImportCandidateResolver")
-  resolvedDuplicateDecisions    ImportCandidateDuplicateDecision[]  @relation("DuplicateDecisionResolver")
+  createdDrafts                 SubmissionDraft[]                     @relation("DraftCreator")
+  updatedDrafts                 SubmissionDraft[]                     @relation("DraftUpdater")
+  resolvedImportCandidates      ImportCandidate[]                     @relation("ImportCandidateResolver")
+  resolvedDuplicateDecisions    ImportCandidateDuplicateDecision[]    @relation("DuplicateDecisionResolver")
   organizationDecisions         ImportCandidateOrganizationDecision[] @relation("OrganizationDecisionResolver")
-  requiredVerificationContacts  PlaceVerificationContact[]         @relation("VerificationContactRequiredBy")
-  completedVerificationContacts PlaceVerificationContact[]         @relation("VerificationContactCompletedBy")
+  categoryDecisions             ImportCandidateCategoryDecision[]     @relation("CategoryDecisionResolver")
+  requiredVerificationContacts  PlaceVerificationContact[]            @relation("VerificationContactRequiredBy")
+  completedVerificationContacts PlaceVerificationContact[]            @relation("VerificationContactCompletedBy")
   permissionOverrides           AdminUserPermission[]
-  placeAccesses                 UserPlaceAccess[]                  @relation("UserPlaceAccessUser")
-  grantedPlaceAccesses          UserPlaceAccess[]                  @relation("UserPlaceAccessCreator")
-  accessTokens                  AdminAccessToken[]                 @relation("AdminAccessTokenUser")
-  createdAccessTokens           AdminAccessToken[]                 @relation("AdminAccessTokenCreator")
+  placeAccesses                 UserPlaceAccess[]                     @relation("UserPlaceAccessUser")
+  grantedPlaceAccesses          UserPlaceAccess[]                     @relation("UserPlaceAccessCreator")
+  accessTokens                  AdminAccessToken[]                    @relation("AdminAccessTokenUser")
+  createdAccessTokens           AdminAccessToken[]                    @relation("AdminAccessTokenCreator")
 
   @@index([active])
   @@map("admin_users")
@@ -546,20 +547,20 @@ model HelpRequest {
 }
 
 model Organization {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique @db.VarChar(200)
-  name        String   @db.VarChar(250)
-  description String?  @db.VarChar(2000)
-  phone       String?  @db.VarChar(50)
-  email       String?  @db.VarChar(320)
-  website     String?  @db.VarChar(2048)
-  nip         String?  @unique @db.VarChar(10)
-  regon       String?  @unique @db.VarChar(14)
-  krs         String?  @unique @db.VarChar(10)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  places      Place[]
+  id                                   String                                @id @default(uuid()) @db.Uuid
+  slug                                 String                                @unique @db.VarChar(200)
+  name                                 String                                @db.VarChar(250)
+  description                          String?                               @db.VarChar(2000)
+  phone                                String?                               @db.VarChar(50)
+  email                                String?                               @db.VarChar(320)
+  website                              String?                               @db.VarChar(2048)
+  nip                                  String?                               @unique @db.VarChar(10)
+  regon                                String?                               @unique @db.VarChar(14)
+  krs                                  String?                               @unique @db.VarChar(10)
+  active                               Boolean                               @default(true)
+  createdAt                            DateTime                              @default(now()) @db.Timestamptz(3)
+  updatedAt                            DateTime                              @updatedAt @db.Timestamptz(3)
+  places                               Place[]
   importCandidateOrganizationDecisions ImportCandidateOrganizationDecision[]
 
   @@index([active, name])
@@ -567,16 +568,18 @@ model Organization {
 }
 
 model Category {
-  id            String          @id @default(uuid()) @db.Uuid
-  slug          String          @unique @db.VarChar(120)
-  name          String          @db.VarChar(160)
-  description   String?         @db.VarChar(1000)
-  active        Boolean         @default(true)
-  sortOrder     Int             @default(0)
-  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
-  placeLinks    PlaceCategory[]
-  primaryPlaces Place[]         @relation("PrimaryPlaceCategory")
+  id                                  String                                    @id @default(uuid()) @db.Uuid
+  slug                                String                                    @unique @db.VarChar(120)
+  name                                String                                    @db.VarChar(160)
+  description                         String?                                   @db.VarChar(1000)
+  active                              Boolean                                   @default(true)
+  sortOrder                           Int                                       @default(0)
+  createdAt                           DateTime                                  @default(now()) @db.Timestamptz(3)
+  updatedAt                           DateTime                                  @updatedAt @db.Timestamptz(3)
+  placeLinks                          PlaceCategory[]
+  primaryPlaces                       Place[]                                   @relation("PrimaryPlaceCategory")
+  candidateCategoryDecisionPrimaries  ImportCandidateCategoryDecision[]         @relation("CandidateCategoryDecisionPrimary")
+  candidateCategoryDecisionCategories ImportCandidateCategoryDecisionCategory[]
 
   @@index([active, sortOrder])
   @@map("categories")
@@ -724,37 +727,38 @@ model ImportSourceEntry {
 }
 
 model ImportCandidate {
-  id                       String                     @id @default(uuid()) @db.Uuid
-  importBatchId            String                     @db.Uuid
-  candidateKey             String                     @db.VarChar(200)
+  id                       String                               @id @default(uuid()) @db.Uuid
+  importBatchId            String                               @db.Uuid
+  candidateKey             String                               @db.VarChar(200)
   status                   ImportCandidateStatus
-  proposedName             String                     @db.VarChar(500)
-  proposedAddress          String?                    @db.VarChar(1200)
-  proposedPhone            String?                    @db.VarChar(500)
-  proposedEmail            String?                    @db.VarChar(500)
-  proposedWebsite          String?                    @db.VarChar(2048)
-  proposedOrganizationName String?                    @db.VarChar(500)
+  proposedName             String                               @db.VarChar(500)
+  proposedAddress          String?                              @db.VarChar(1200)
+  proposedPhone            String?                              @db.VarChar(500)
+  proposedEmail            String?                              @db.VarChar(500)
+  proposedWebsite          String?                              @db.VarChar(2048)
+  proposedOrganizationName String?                              @db.VarChar(500)
   categorySlugs            String[]
-  primaryCategorySlug      String?                    @db.VarChar(120)
+  primaryCategorySlug      String?                              @db.VarChar(120)
   reviewReasons            String[]
   proposedData             Json
-  matchedPlaceId           String?                    @db.Uuid
-  createdPlaceId           String?                    @unique @db.Uuid
+  matchedPlaceId           String?                              @db.Uuid
+  createdPlaceId           String?                              @unique @db.Uuid
   queueStatus              VerificationQueueStatus?
   resolution               ImportCandidateResolution?
-  resolvedAt               DateTime?                  @db.Timestamptz(3)
-  resolvedByAdminUserId    String?                    @db.Uuid
-  resolutionNote           String?                    @db.VarChar(1000)
-  createdAt                DateTime                   @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime                   @updatedAt @db.Timestamptz(3)
-  importBatch              ImportBatch                @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
-  matchedPlace             Place?                     @relation("MatchedImportPlace", fields: [matchedPlaceId], references: [id], onDelete: SetNull)
-  createdPlace             Place?                     @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
-  resolvedBy               AdminUser?                 @relation("ImportCandidateResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: SetNull)
+  resolvedAt               DateTime?                            @db.Timestamptz(3)
+  resolvedByAdminUserId    String?                              @db.Uuid
+  resolutionNote           String?                              @db.VarChar(1000)
+  createdAt                DateTime                             @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                             @updatedAt @db.Timestamptz(3)
+  importBatch              ImportBatch                          @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  matchedPlace             Place?                               @relation("MatchedImportPlace", fields: [matchedPlaceId], references: [id], onDelete: SetNull)
+  createdPlace             Place?                               @relation("CreatedImportPlace", fields: [createdPlaceId], references: [id], onDelete: SetNull)
+  resolvedBy               AdminUser?                           @relation("ImportCandidateResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: SetNull)
   sources                  ImportCandidateSource[]
-  duplicateDecisionsAsA   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateA")
-  duplicateDecisionsAsB   ImportCandidateDuplicateDecision[] @relation("DuplicateDecisionCandidateB")
-  organizationDecision    ImportCandidateOrganizationDecision?
+  duplicateDecisionsAsA    ImportCandidateDuplicateDecision[]   @relation("DuplicateDecisionCandidateA")
+  duplicateDecisionsAsB    ImportCandidateDuplicateDecision[]   @relation("DuplicateDecisionCandidateB")
+  organizationDecision     ImportCandidateOrganizationDecision?
+  categoryDecision         ImportCandidateCategoryDecision?
 
   @@unique([importBatchId, candidateKey])
   @@index([importBatchId, status])
@@ -764,16 +768,16 @@ model ImportCandidate {
 }
 
 model ImportCandidateDuplicateDecision {
-  id                    String                              @id @default(uuid()) @db.Uuid
-  candidateAId          String                              @db.Uuid
-  candidateBId          String                              @db.Uuid
+  id                    String                               @id @default(uuid()) @db.Uuid
+  candidateAId          String                               @db.Uuid
+  candidateBId          String                               @db.Uuid
   decision              ImportCandidateDuplicateDecisionType
-  resolvedByAdminUserId String                              @db.Uuid
-  resolvedAt            DateTime                            @default(now()) @db.Timestamptz(3)
-  note                  String?                             @db.VarChar(1000)
-  candidateA            ImportCandidate                     @relation("DuplicateDecisionCandidateA", fields: [candidateAId], references: [id], onDelete: Cascade)
-  candidateB            ImportCandidate                     @relation("DuplicateDecisionCandidateB", fields: [candidateBId], references: [id], onDelete: Cascade)
-  resolvedBy            AdminUser                           @relation("DuplicateDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict)
+  resolvedByAdminUserId String                               @db.Uuid
+  resolvedAt            DateTime                             @default(now()) @db.Timestamptz(3)
+  note                  String?                              @db.VarChar(1000)
+  candidateA            ImportCandidate                      @relation("DuplicateDecisionCandidateA", fields: [candidateAId], references: [id], onDelete: Cascade)
+  candidateB            ImportCandidate                      @relation("DuplicateDecisionCandidateB", fields: [candidateBId], references: [id], onDelete: Cascade)
+  resolvedBy            AdminUser                            @relation("DuplicateDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict)
 
   @@unique([candidateAId, candidateBId])
   @@index([candidateAId])
@@ -783,20 +787,49 @@ model ImportCandidateDuplicateDecision {
 }
 
 model ImportCandidateOrganizationDecision {
-  id                    String                                      @id(map: "import_org_decisions_pkey") @default(uuid()) @db.Uuid
-  candidateId           String                                      @unique(map: "import_org_decisions_candidate_key") @db.Uuid
+  id                    String                                  @id(map: "import_org_decisions_pkey") @default(uuid()) @db.Uuid
+  candidateId           String                                  @unique(map: "import_org_decisions_candidate_key") @db.Uuid
   decision              ImportCandidateOrganizationDecisionType
-  organizationId        String?                                     @db.Uuid
-  resolvedByAdminUserId String                                      @db.Uuid
-  resolvedAt            DateTime                                    @default(now()) @db.Timestamptz(3)
-  note                  String?                                     @db.VarChar(1000)
-  candidate             ImportCandidate                             @relation(fields: [candidateId], references: [id], onDelete: Cascade, map: "import_org_decisions_candidate_fkey")
-  organization          Organization?                               @relation(fields: [organizationId], references: [id], onDelete: Restrict, map: "import_org_decisions_org_fkey")
-  resolvedBy            AdminUser                                   @relation("OrganizationDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict, map: "import_org_decisions_resolver_fkey")
+  organizationId        String?                                 @db.Uuid
+  resolvedByAdminUserId String                                  @db.Uuid
+  resolvedAt            DateTime                                @default(now()) @db.Timestamptz(3)
+  note                  String?                                 @db.VarChar(1000)
+  candidate             ImportCandidate                         @relation(fields: [candidateId], references: [id], onDelete: Cascade, map: "import_org_decisions_candidate_fkey")
+  organization          Organization?                           @relation(fields: [organizationId], references: [id], onDelete: Restrict, map: "import_org_decisions_org_fkey")
+  resolvedBy            AdminUser                               @relation("OrganizationDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict, map: "import_org_decisions_resolver_fkey")
 
   @@index([organizationId], map: "import_org_decisions_org_idx")
   @@index([resolvedByAdminUserId], map: "import_org_decisions_resolver_idx")
   @@map("import_candidate_organization_decisions")
+}
+
+model ImportCandidateCategoryDecision {
+  id                    String                                    @id(map: "import_cat_decisions_pkey") @default(uuid()) @db.Uuid
+  candidateId           String                                    @unique(map: "import_cat_decisions_candidate_key") @db.Uuid
+  primaryCategoryId     String                                    @db.Uuid
+  resolvedByAdminUserId String                                    @db.Uuid
+  resolvedAt            DateTime                                  @default(now()) @db.Timestamptz(3)
+  note                  String?                                   @db.VarChar(1000)
+  candidate             ImportCandidate                           @relation(fields: [candidateId], references: [id], onDelete: Cascade, map: "import_cat_decisions_candidate_fkey")
+  primaryCategory       Category                                  @relation("CandidateCategoryDecisionPrimary", fields: [primaryCategoryId], references: [id], onDelete: Restrict, map: "import_cat_decisions_primary_fkey")
+  resolvedBy            AdminUser                                 @relation("CategoryDecisionResolver", fields: [resolvedByAdminUserId], references: [id], onDelete: Restrict, map: "import_cat_decisions_resolver_fkey")
+  categories            ImportCandidateCategoryDecisionCategory[]
+
+  @@index([primaryCategoryId], map: "import_cat_decisions_primary_idx")
+  @@index([resolvedByAdminUserId], map: "import_cat_decisions_resolver_idx")
+  @@map("import_candidate_category_decisions")
+}
+
+model ImportCandidateCategoryDecisionCategory {
+  decisionId String                          @db.Uuid
+  categoryId String                          @db.Uuid
+  sortOrder  Int                             @default(0)
+  decision   ImportCandidateCategoryDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade, map: "import_cat_decision_categories_decision_fkey")
+  category   Category                        @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "import_cat_decision_categories_category_fkey")
+
+  @@id([decisionId, categoryId], map: "import_cat_decision_categories_pkey")
+  @@index([categoryId], map: "import_cat_decision_categories_category_idx")
+  @@map("import_candidate_category_decision_categories")
 }
 
 model GeocodingCache {
