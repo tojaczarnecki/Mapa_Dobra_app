@@ -13,6 +13,8 @@ import { persistImportAnalysis } from "@/lib/imports/persist-analysis";
 import { materializeImportCandidate, type MaterializeCandidateDatabase, type MaterializeCandidateTransaction, type MaterializeImportCandidateResult } from "@/lib/imports/materialize-candidate";
 import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type DuplicateDecision, type DuplicateDecisionInput, type StoredDuplicateDecision } from "@/lib/imports/duplicate-decisions";
 import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-review";
+import { saveImportCandidateOrganizationDecision, type OrganizationDecisionPersistenceTransaction, type SaveOrganizationDecisionInput } from "@/lib/imports/organization-decision-persistence";
+import type { OrganizationDecision } from "@/lib/imports/organization-decisions";
 
 const PREVIEW_LIMIT = 100;
 
@@ -247,6 +249,8 @@ export async function materializeCandidateAction(_state: MaterializeCandidateAct
 
 export type DuplicateDecisionActionState = { ok: boolean; message: string };
 
+export type OrganizationDecisionActionState = { ok: boolean; message: string };
+
 function duplicateDecisionInput(value: FormDataEntryValue | null): DuplicateDecisionInput | null {
   if (value === "KEEP_CURRENT" || value === "KEEP_OTHER" || value === "DIFFERENT_RECORDS") return value;
   return null;
@@ -347,4 +351,49 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
   if (typeof batchId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(batchId)) revalidatePath(`/admin/importy/${batchId}`);
   revalidatePath("/admin/importy");
   return { ok: true, message: "Decyzja zapisana." };
+}
+
+function organizationDecisionInput(formData: FormData): OrganizationDecision | null {
+  const decision = formData.get("decision");
+  const organizationValue = formData.get("organizationId");
+  const organizationId = typeof organizationValue === "string" && organizationValue.trim() ? organizationValue.trim() : null;
+  if (decision === "NO_ORGANIZATION" && organizationId === null) return { decision, organizationId };
+  if (decision === "SELECTED_ORGANIZATION" && organizationId) return { decision, organizationId };
+  return null;
+}
+
+function organizationDecisionMessage(status: Exclude<Awaited<ReturnType<typeof saveImportCandidateOrganizationDecision>>["status"], "SAVED">): string {
+  if (status === "INVALID_CANDIDATE") return "Ten kandydat nie może już otrzymać decyzji organizacyjnej.";
+  if (status === "ORGANIZATION_NOT_FOUND") return "Wybrana organizacja nie istnieje.";
+  if (status === "ORGANIZATION_INACTIVE") return "Wybrana organizacja jest nieaktywna.";
+  return "Decyzja organizacyjna jest niepoprawna.";
+}
+
+export async function saveOrganizationDecision(formData: FormData): Promise<OrganizationDecisionActionState> {
+  const session = await requirePermission("MANAGE_IMPORTS");
+  const candidateId = formData.get("candidateId");
+  const decision = organizationDecisionInput(formData);
+  if (typeof candidateId !== "string" || !decision) return { ok: false, message: "Nieprawidłowa decyzja organizacyjna." };
+  const input: SaveOrganizationDecisionInput = {
+    candidateId,
+    adminUserId: session.user.id,
+    ...decision,
+    note: typeof formData.get("note") === "string" ? formData.get("note") as string : null,
+  };
+  let result: Awaited<ReturnType<typeof saveImportCandidateOrganizationDecision>>;
+  try {
+    const decisionDb = {
+      $transaction: <T>(callback: (transaction: OrganizationDecisionPersistenceTransaction) => Promise<T>) => prisma.$transaction((transaction) => callback(transaction as unknown as OrganizationDecisionPersistenceTransaction)),
+    };
+    result = await saveImportCandidateOrganizationDecision(decisionDb, input);
+  } catch {
+    return { ok: false, message: "Nie udało się zapisać decyzji organizacyjnej." };
+  }
+  const batchId = formData.get("batchId");
+  if (result.status === "SAVED") {
+    if (typeof batchId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(batchId)) revalidatePath(`/admin/importy/${batchId}`);
+    revalidatePath("/admin/importy");
+    return { ok: true, message: result.changed ? "Decyzja organizacyjna zapisana." : "Stan kandydata został ponownie przeliczony." };
+  }
+  return { ok: false, message: organizationDecisionMessage(result.status) };
 }
