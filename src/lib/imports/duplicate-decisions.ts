@@ -38,6 +38,13 @@ export type DuplicateReconciliationResult = {
   reviewReasons?: string[];
 } | null;
 
+export type LivePlaceReconciliationContext = {
+  classification: "EXACT_MATCH" | "POSSIBLE_MATCH" | "NO_MATCH";
+  candidates: Array<{ placeId: string; reasons: string[] }>;
+  reasons: string[];
+  conflict: boolean;
+};
+
 const organizationReviewReasons = new Set([
   "NEW_ORGANIZATION_CANDIDATE",
   "INACTIVE_ORGANIZATION",
@@ -139,6 +146,7 @@ export function reconcileCandidateAfterDuplicateDecision(
   disposition: DuplicateDisposition,
   organizationResolved = false,
   categoryResolved = false,
+  livePlaceMatch?: LivePlaceReconciliationContext,
 ): DuplicateReconciliationResult {
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
   const reviewReasons = [...(candidate.reviewReasons ?? [])]
@@ -163,10 +171,24 @@ export function reconcileCandidateAfterDuplicateDecision(
   const placeClassification = analysisText(place?.classification);
   const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
 
-  if (placeClassification && placeClassification !== "NEW") return result("REQUIRES_REVIEW", "PENDING", reviewReasons);
+  let currentReviewReasons = reviewReasons;
+  if (livePlaceMatch) {
+    const placeReasons = new Set(["SAME_PHONE", "SAME_ADDRESS_AND_PHONE", "SAME_NAME_AND_ADDRESS", "SAME_NORMALIZED_ADDRESS", "SAME_WEBSITE", "MULTIPLE_EXACT_CANDIDATES"]);
+    const historicalPlaceReasons = Array.isArray(place?.reasons) ? place.reasons : [];
+    const historicalOrganizationReasons = Array.isArray(organization?.reasons) ? organization.reasons : [];
+    currentReviewReasons = currentReviewReasons.filter((reason) => {
+      if (placeReasons.has(reason)) return false;
+      if (reason === "SIMILAR_NAME" && historicalPlaceReasons.includes(reason) && !historicalOrganizationReasons.includes(reason)) return false;
+      return true;
+    });
+    if (livePlaceMatch.classification !== "NO_MATCH") currentReviewReasons = [...new Set([...currentReviewReasons, ...livePlaceMatch.reasons])];
+  }
+
+  if (livePlaceMatch && livePlaceMatch.classification !== "NO_MATCH") return result("REQUIRES_REVIEW", "PENDING", currentReviewReasons);
+  if (!livePlaceMatch && placeClassification && placeClassification !== "NEW") return result("REQUIRES_REVIEW", "PENDING", currentReviewReasons);
   const effectiveErrors = errors.filter((error) => !(categoryResolved && error === "UNRESOLVED_CATEGORY"));
   if (effectiveErrors.length > 0 || (!categoryResolved && categoryStatus !== "MATCHED") || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
-    return result("REQUIRES_REVIEW", null, reviewReasons);
+    return result("REQUIRES_REVIEW", null, currentReviewReasons);
   }
-  return result("IMPORT_READY", null, reviewReasons);
+  return result("IMPORT_READY", null, currentReviewReasons);
 }

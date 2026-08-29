@@ -4,6 +4,8 @@ import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
 import { resolveEffectiveOrganization, type OrganizationDecision, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
 import { resolveEffectiveCategory } from "./category-decisions.ts";
+import { findLivePlaceMatch, importValuesForLivePlace, type LivePlaceMatch } from "./live-place-match.ts";
+import type { ImportPlaceReference } from "./matching.ts";
 
 type CandidateSnapshot = {
   id: string;
@@ -38,6 +40,9 @@ export type OrganizationDecisionPersistenceTransaction = {
   };
   category?: {
     findMany(args: Prisma.CategoryFindManyArgs): Promise<Array<{ id: string; active: boolean }>>;
+  };
+  place?: {
+    findMany(args: Prisma.PlaceFindManyArgs): Promise<ImportPlaceReference[]>;
   };
   importCandidateDuplicateDecision: {
     findMany(args: Prisma.ImportCandidateDuplicateDecisionFindManyArgs): Promise<Array<{ candidateAId: string; candidateBId: string; decision: string }>>;
@@ -157,7 +162,10 @@ export async function saveImportCandidateOrganizationDecision(
       );
       categoryResolved = categoryResult.status !== "REQUIRES_REVIEW";
     }
-    const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION", categoryResolved);
+    const livePlaceMatch: LivePlaceMatch | undefined = transaction.place
+      ? findLivePlaceMatch(importValuesForLivePlace(candidate.proposedData), await transaction.place.findMany({ select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, publicationStatus: true } }), effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION" ? effective.organizationId : null)
+      : undefined;
+    const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION", categoryResolved, livePlaceMatch);
     if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus || JSON.stringify(candidate.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
       await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
     }

@@ -1,10 +1,11 @@
 import { Prisma } from "../../generated/prisma/client.ts";
 import { ImportCandidateStatus } from "../../generated/prisma/enums.ts";
-import { matchCategories, type ImportCategoryReference, type MultiCategoryMatch } from "./matching.ts";
+import { matchCategories, type ImportCategoryReference, type ImportPlaceReference, type MultiCategoryMatch } from "./matching.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
 import { resolveEffectiveCategory, type CategoryReanalysis } from "./category-decisions.ts";
+import { findLivePlaceMatch, importValuesForLivePlace, type LivePlaceMatch } from "./live-place-match.ts";
 
 type CandidateSnapshot = {
   id: string;
@@ -37,6 +38,9 @@ export type CategoryReanalysisTransaction = {
   };
   category: {
     findMany(args: Prisma.CategoryFindManyArgs): Promise<ImportCategoryReference[]>;
+  };
+  place?: {
+    findMany(args: Prisma.PlaceFindManyArgs): Promise<ImportPlaceReference[]>;
   };
   organization: {
     findUnique(args: Prisma.OrganizationFindUniqueArgs): Promise<{ id: string; active: boolean } | null>;
@@ -183,7 +187,10 @@ export async function reanalyseImportCandidateCategory(
     const effectiveOrganization = orgAnalysis ? resolveEffectiveOrganization(orgAnalysis, orgDecision, organization) : { status: "UNRESOLVED" as const, organizationId: null };
     const reviewReasons = withoutCategoryReviewReasons(candidate.reviewReasons);
     const effectiveCategory = resolveEffectiveCategory(analysisCategoryState(candidate.proposedData), null, [matchedCategory], { categoryIds: result.matchedCategoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] });
-    const reconciliation = reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons }, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW");
+    const livePlaceMatch: LivePlaceMatch | undefined = transaction.place
+      ? findLivePlaceMatch(importValuesForLivePlace(candidate.proposedData), await transaction.place.findMany({ select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, publicationStatus: true } }), ["USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status) ? effectiveOrganization.organizationId : null)
+      : undefined;
+    const reconciliation = reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons }, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW", livePlaceMatch);
     const nextReviewReasons = reconciliation?.reviewReasons ?? reviewReasons;
     const derivedChanged = !sameJson(candidate.categorySlugs, result.matchedCategorySlugs) || candidate.primaryCategorySlug !== result.matchedCategorySlugs[0] || !sameJson(candidate.reviewReasons, nextReviewReasons) || !sameReanalysisResult(previousReanalysis, reanalysis);
     const reconciliationChanged = reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus);

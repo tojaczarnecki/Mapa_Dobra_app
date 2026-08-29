@@ -16,7 +16,8 @@ import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-revi
 import { saveImportCandidateOrganizationDecision, type OrganizationDecisionPersistenceTransaction, type SaveOrganizationDecisionInput } from "@/lib/imports/organization-decision-persistence";
 import { saveImportCandidateCategoryDecision, type SaveCategoryDecisionInput } from "@/lib/imports/category-decision-persistence";
 import { resolveEffectiveCategory } from "@/lib/imports/category-decisions";
-import type { OrganizationDecision } from "@/lib/imports/organization-decisions";
+import { parseOrganizationDecision, type OrganizationDecision } from "@/lib/imports/organization-decisions";
+import { findLivePlaceMatch, importValuesForLivePlace } from "@/lib/imports/live-place-match";
 
 const PREVIEW_LIMIT = 100;
 
@@ -302,7 +303,7 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
       await transaction.$queryRaw`SELECT "id" FROM "import_candidates" WHERE "id" IN (${requestedPair.candidateAId}::uuid, ${requestedPair.candidateBId}::uuid) ORDER BY "id" FOR UPDATE`;
       const candidates = await transaction.importCandidate.findMany({
         where: { id: { in: [candidateId, duplicateCandidateId] } },
-        select: { id: true, candidateKey: true, importBatchId: true, proposedData: true, importBatch: { select: { metadata: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } },
+        select: { id: true, candidateKey: true, importBatchId: true, proposedData: true, importBatch: { select: { metadata: true } }, organizationDecision: { select: { decision: true, organizationId: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } },
       });
       if (candidates.length !== 2 || candidates[0]?.importBatchId !== candidates[1]?.importBatchId || !isSpreadsheetBatchMetadata(candidates[0]?.importBatch.metadata)) throw new Error("INVALID_DUPLICATE_EDGE");
       const current = candidates.find((candidate) => candidate.id === candidateId);
@@ -343,16 +344,29 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
         update: { decision: nextDecision.decision, resolvedByAdminUserId: session.user.id, resolvedAt: new Date(), note: null },
       });
       const currentById = new Map(batchCandidates.map((candidate) => [candidate.id, candidate]));
+      const livePlaces = (await transaction.place.findMany({
+        select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, latitude: true, longitude: true, publicationStatus: true },
+      })).map((place) => ({ ...place, latitude: place.latitude === null ? null : Number(place.latitude), longitude: place.longitude === null ? null : Number(place.longitude) }));
       for (const candidate of [current, other]) {
         const snapshot = currentById.get(candidate.id);
         if (!snapshot) continue;
         const state = getDuplicateDecisionState(candidate.id, duplicateRowNumbers(snapshot.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, decisionsWithNext);
+        const proposed = snapshot.proposedData && typeof snapshot.proposedData === "object" && !Array.isArray(snapshot.proposedData) ? snapshot.proposedData as Record<string, unknown> : null;
+        const analysis = proposed?.analysis && typeof proposed.analysis === "object" && !Array.isArray(proposed.analysis) ? proposed.analysis as Record<string, unknown> : null;
+        const organization = analysis?.organization && typeof analysis.organization === "object" && !Array.isArray(analysis.organization) ? analysis.organization as Record<string, unknown> : null;
+        const persistedOrganization = parseOrganizationDecision(candidate.organizationDecision);
+        const liveOrganizationId = persistedOrganization?.decision === "SELECTED_ORGANIZATION"
+          ? persistedOrganization.organizationId
+          : organization?.status === "MATCHED" && typeof organization.organizationId === "string" ? organization.organizationId : null;
+        const liveOrganization = liveOrganizationId ? await transaction.organization.findUnique({ where: { id: liveOrganizationId }, select: { id: true, active: true } }) : null;
+        const livePlaceMatch = findLivePlaceMatch(importValuesForLivePlace(snapshot.proposedData), livePlaces, liveOrganization?.active ? liveOrganization.id : null);
         const categoryDecision = candidate.categoryDecision;
         const reconciliation = reconcileCandidateAfterDuplicateDecision(
           snapshot,
           getDuplicateDisposition(state),
           false,
           categoryResolvedForDuplicateReconciliation(snapshot.proposedData, categoryDecision, categorySnapshots),
+          livePlaceMatch,
         );
         if (reconciliation && (snapshot.status !== reconciliation.status || snapshot.queueStatus !== reconciliation.queueStatus || JSON.stringify(snapshot.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
           await transaction.importCandidate.update({ where: { id: snapshot.id }, data: reconciliation });

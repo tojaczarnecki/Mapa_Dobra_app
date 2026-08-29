@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { activeImportIssueCodesForCandidate } from "../src/lib/imports/issue-labels.ts";
 import { resolveEffectiveCategory } from "../src/lib/imports/category-decisions.ts";
-import { canonicalizeDuplicatePair, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
+import { canonicalizeDuplicatePair, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type LivePlaceReconciliationContext, type StoredDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
+import { findLivePlaceMatch } from "../src/lib/imports/live-place-match.ts";
 
 test("canonical duplicate pair is identical in either direction", () => {
   assert.deepEqual(canonicalizeDuplicatePair("candidate-a", "candidate-b"), { candidateAId: "candidate-a", candidateBId: "candidate-b" });
@@ -364,4 +365,156 @@ test("resolved organization blockers are hidden without changing provenance", ()
   const reasons = ["NEW_ORGANIZATION_CANDIDATE", "MATCHED_BY_IDENTIFIER", "UNRESOLVED_CATEGORY"];
   assert.deepEqual(activeImportIssueCodesForCandidate(proposedData, reasons, "NONE", true), ["UNRESOLVED_CATEGORY"]);
   assert.deepEqual(reasons, ["NEW_ORGANIZATION_CANDIDATE", "MATCHED_BY_IDENTIFIER", "UNRESOLVED_CATEGORY"]);
+});
+
+test("current live possible place conflict blocks a candidate despite historical NEW analysis", () => {
+  const candidate = {
+    status: "IMPORT_READY",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: [],
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const liveMatch: LivePlaceReconciliationContext = {
+    classification: "POSSIBLE_MATCH",
+    candidates: [{ placeId: "place-56", reasons: ["SAME_NORMALIZED_ADDRESS"] }],
+    reasons: ["SAME_NORMALIZED_ADDRESS"],
+    conflict: true,
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, liveMatch), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NORMALIZED_ADDRESS"],
+  });
+});
+
+test("current live exact place conflict is also a reconciliation blocker", () => {
+  const candidate = {
+    status: "IMPORT_READY",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: [],
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const liveMatch: LivePlaceReconciliationContext = {
+    classification: "EXACT_MATCH",
+    candidates: [{ placeId: "place-exact", reasons: ["SAME_NAME_AND_ADDRESS"] }],
+    reasons: ["SAME_NAME_AND_ADDRESS"],
+    conflict: true,
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, liveMatch), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NAME_AND_ADDRESS"],
+  });
+});
+
+test("a disappeared live place conflict is cleared without hiding unrelated blockers", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["SAME_NORMALIZED_ADDRESS", "INVALID_EMAIL"],
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "POSSIBLE_MATCH", reasons: ["SAME_NORMALIZED_ADDRESS"] }, errors: ["INVALID_EMAIL"] } },
+  };
+  const noLiveMatch: LivePlaceReconciliationContext = { classification: "NO_MATCH", candidates: [], reasons: [], conflict: false };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, noLiveMatch), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: null,
+    reviewReasons: ["INVALID_EMAIL"],
+  });
+});
+
+test("category decision reconciliation cannot unblock a current live possible place", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { mappedValues: { name: "Nowy punkt", addressLine: "Piotrkowska 10, Łódź" }, analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const live = findLivePlaceMatch(
+    candidate.proposedData.mappedValues,
+    [{ id: "place-live", name: "Inny punkt", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-a" }],
+    null,
+  );
+  assert.equal(live.classification, "POSSIBLE_MATCH");
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, live), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NORMALIZED_ADDRESS"],
+  });
+});
+
+test("organization decision reconciliation keeps an exact live place in review", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["NEW_ORGANIZATION_CANDIDATE"],
+    proposedData: { mappedValues: { name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź" }, analysis: { category: { status: "MATCHED" }, organization: { status: "NEW_CANDIDATE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const live = findLivePlaceMatch(
+    candidate.proposedData.mappedValues,
+    [{ id: "place-live", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-a" }],
+    null,
+  );
+  assert.equal(live.classification, "EXACT_MATCH");
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, live), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NAME_AND_ADDRESS"],
+  });
+});
+
+test("resolved duplicate reconciliation preserves a current live place blocker", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["SOURCE_ROW_DUPLICATE"],
+    proposedData: { mappedValues: { name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź" }, analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, inFileDuplicates: [{ rowNumber: 2 }], errors: [] } },
+  };
+  const live = findLivePlaceMatch(
+    candidate.proposedData.mappedValues,
+    [{ id: "place-live", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-a" }],
+    null,
+  );
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", true, true, live), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NAME_AND_ADDRESS"],
+  });
+});
+
+test("accepted category reanalysis remains blocked by a current live possible place", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    reviewReasons: ["UNRESOLVED_CATEGORY"],
+    proposedData: { mappedValues: { name: "Nowy punkt", addressLine: "Piotrkowska 10, Łódź" }, analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const live = findLivePlaceMatch(
+    candidate.proposedData.mappedValues,
+    [{ id: "place-live", name: "Inny punkt", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-a" }],
+    null,
+  );
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, live), {
+    status: "REQUIRES_REVIEW",
+    queueStatus: "PENDING",
+    reviewReasons: ["SAME_NORMALIZED_ADDRESS"],
+  });
+});
+
+test("SAME_PLACE remains terminal when reconciliation receives live context", () => {
+  const candidate = {
+    status: "MATCH_EXISTING",
+    resolution: "SAME_PLACE",
+    createdPlaceId: null,
+    matchedPlaceId: "place-live",
+    proposedData: { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "EXACT_MATCH" }, errors: [] } },
+  };
+  const live: LivePlaceReconciliationContext = { classification: "EXACT_MATCH", candidates: [{ placeId: "place-live", reasons: ["SAME_NAME_AND_ADDRESS"] }], reasons: ["SAME_NAME_AND_ADDRESS"], conflict: false };
+  assert.equal(reconcileCandidateAfterDuplicateDecision(candidate, "NONE", true, true, live), null);
 });

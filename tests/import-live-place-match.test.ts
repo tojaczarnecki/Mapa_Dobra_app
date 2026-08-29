@@ -56,3 +56,18 @@ test("keeps a phone-only possible match that heuristic name scoring could omit",
   assert.deepEqual(result.candidates.map((item) => item.placeId), ["phone-match"]);
   assert.deepEqual(result.candidates[0]?.reasons, ["SAME_PHONE"]);
 });
+
+test("excluding the reviewed place leaves no conflict when it is the only match", () => {
+  const places = [{ id: "reviewed", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-1" }];
+  assert.equal(findLivePlaceMatch(values, places, null, ["reviewed"]).classification, "NO_MATCH");
+});
+
+test("excluding one reviewed place does not suppress a second live conflict", () => {
+  const places = [
+    { id: "reviewed", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-1" },
+    { id: "remaining", name: "Punkt pomocy", addressLine: "Piotrkowska 10, Łódź", phone: null, website: null, organizationId: null, primaryCategoryId: "category-1" },
+  ];
+  const result = findLivePlaceMatch(values, places, null, ["reviewed"]);
+  assert.equal(result.classification, "EXACT_MATCH");
+  assert.deepEqual(result.candidates.map((item) => item.placeId), ["remaining"]);
+});

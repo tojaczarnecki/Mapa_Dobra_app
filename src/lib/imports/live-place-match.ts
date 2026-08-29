@@ -8,6 +8,14 @@ export type LivePlaceMatch = {
   conflict: boolean;
 };
 
+export function importValuesForLivePlace(proposedData: unknown): CanonicalImportValues {
+  if (!proposedData || typeof proposedData !== "object" || Array.isArray(proposedData)) return {};
+  const mappedValues = (proposedData as Record<string, unknown>).mappedValues;
+  return mappedValues && typeof mappedValues === "object" && !Array.isArray(mappedValues)
+    ? mappedValues as CanonicalImportValues
+    : {};
+}
+
 export function findLivePlaceMatch(
   values: CanonicalImportValues,
   places: ImportPlaceReference[],

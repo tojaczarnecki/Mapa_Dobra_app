@@ -4,6 +4,8 @@ import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition
 import { parseOrganizationDecision, resolveEffectiveOrganization, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
 import { resolveEffectiveCategory } from "./category-decisions.ts";
+import { findLivePlaceMatch, importValuesForLivePlace, type LivePlaceMatch } from "./live-place-match.ts";
+import type { ImportPlaceReference } from "./matching.ts";
 
 type CandidateSnapshot = {
   id: string;
@@ -47,6 +49,9 @@ export type CategoryDecisionPersistenceTransaction = {
   };
   category: {
     findMany(args: Prisma.CategoryFindManyArgs): Promise<Array<{ id: string; active: boolean }>>;
+  };
+  place?: {
+    findMany(args: Prisma.PlaceFindManyArgs): Promise<ImportPlaceReference[]>;
   };
   importCandidateCategoryDecision: {
     findUnique(args: Prisma.ImportCandidateCategoryDecisionFindUniqueArgs): Promise<PersistedDecision | null>;
@@ -208,11 +213,15 @@ export async function saveImportCandidateCategoryDecision(
       { primaryCategoryId: persisted.primaryCategoryId, categories: persisted.categories },
       categories,
     );
+    const livePlaceMatch: LivePlaceMatch | undefined = transaction.place
+      ? findLivePlaceMatch(importValuesForLivePlace(candidate.proposedData), await transaction.place.findMany({ select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, publicationStatus: true } }), effectiveOrganization.status === "USE_MATCHED_ORGANIZATION" || effectiveOrganization.status === "USE_SELECTED_ORGANIZATION" ? effectiveOrganization.organizationId : null)
+      : undefined;
     const reconciliation = reconcileCandidateAfterDuplicateDecision(
       candidate,
       duplicateDisposition,
       effectiveOrganization.status === "NO_ORGANIZATION" || effectiveOrganization.status === "USE_MATCHED_ORGANIZATION" || effectiveOrganization.status === "USE_SELECTED_ORGANIZATION",
       effective.status !== "REQUIRES_REVIEW",
+      livePlaceMatch,
     );
     if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus || JSON.stringify(candidate.reviewReasons) !== JSON.stringify(reconciliation.reviewReasons))) {
       await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
