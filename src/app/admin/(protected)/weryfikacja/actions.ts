@@ -12,7 +12,7 @@ import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
 import { resolveLocationSource } from "@/lib/verification/location";
 import { getCandidateComparisonOptions } from "@/lib/verification/queue";
-import { matchOrganization } from "@/lib/imports/matching";
+import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
 import { canUndoCandidateResolution, hasSpreadsheetSourceRowDuplicate, isAllowedSpreadsheetPlaceId, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate, restoreMatcherMatchedPlaceId } from "@/lib/imports/spreadsheet-place-review";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -666,7 +666,7 @@ export async function resolveCandidateDifferentPlace(
   try {
     const placeId = await prisma.$transaction(async (transaction) => {
       await transaction.$queryRaw(Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" = ${candidateId}::uuid FOR UPDATE`);
-      const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, include: { importBatch: true } });
+      const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, include: { importBatch: true, organizationDecision: { select: { decision: true, organizationId: true } } } });
       if (!candidate) throw new Error("NOT_FOUND");
       if (candidate.resolution || candidate.createdPlaceId) throw new Error("ALREADY_RESOLVED");
       const spreadsheetCandidate = isSpreadsheetBatchMetadata(candidate.importBatch.metadata);
@@ -687,23 +687,22 @@ export async function resolveCandidateDifferentPlace(
         categorySlugs = categoryStatus === "MATCHED" && sourceCategorySlug ? [sourceCategorySlug] : (selectedCategorySlug ? [selectedCategorySlug] : []);
         const organizationStatus = jsonText(organization?.status, 40);
         const sourceOrganizationId = jsonText(organization?.organizationId, 36);
-        const organizationCandidates = Array.isArray(organization?.candidateIds) ? organization.candidateIds.filter((id): id is string => typeof id === "string") : [];
         if (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug)) throw new Error("CATEGORY_SELECTION");
         if (categoryStatus !== "MATCHED" && selectedCategorySlug === null) throw new Error("CATEGORY_SELECTION");
-        organizationId = organizationStatus === "MATCHED" ? sourceOrganizationId : organizationId;
-        const currentOrganizations = await transaction.organization.findMany({ select: { id: true, name: true, nip: true, regon: true, krs: true, active: true } });
-        const currentOrganizationMatch = matchOrganization({
-          organizationName: jsonText(mapped?.organizationName, 500),
-          organizationNip: jsonText(mapped?.organizationNip, 40),
-          organizationRegon: jsonText(mapped?.organizationRegon, 40),
-          organizationKrs: jsonText(mapped?.organizationKrs, 40),
-        }, currentOrganizations);
-        const currentOrganization = currentOrganizations.find((item) => item.id === currentOrganizationMatch.organizationId);
-        if (currentOrganizationMatch.status === "MATCHED" && currentOrganization?.active) organizationId = currentOrganization.id;
-        if (organizationStatus === "MATCHED" && !currentOrganization?.active) organizationId = organizationId && organizationCandidates.includes(organizationId) ? organizationId : null;
-        if (organizationStatus !== "NONE" && organizationStatus !== "MATCHED" && organizationId && !organizationCandidates.includes(organizationId)) throw new Error("ORGANIZATION_OPTION");
-        if (organizationStatus !== "NONE" && !organizationId && organizationStatus !== "MATCHED") organizationId = null;
-        if (organizationStatus === "MATCHED" && !organizationId) organizationId = null;
+        const persistedOrganizationDecision = parseOrganizationDecision(candidate.organizationDecision);
+        const organizationLookupId = persistedOrganizationDecision?.decision === "SELECTED_ORGANIZATION"
+          ? persistedOrganizationDecision.organizationId
+          : organizationStatus === "MATCHED" ? sourceOrganizationId : null;
+        const currentOrganization = organizationLookupId
+          ? await transaction.organization.findUnique({ where: { id: organizationLookupId }, select: { id: true, active: true } })
+          : null;
+        const effectiveOrganization = resolveEffectiveOrganization(
+          { status: organizationStatus as "NONE" | "MATCHED" | "POSSIBLE" | "CONFLICT" | "NEW_CANDIDATE", organizationId: sourceOrganizationId },
+          persistedOrganizationDecision,
+          currentOrganization,
+        );
+        if (effectiveOrganization.status === "UNRESOLVED" || effectiveOrganization.status === "BLOCKED_INACTIVE_MATCH") throw new Error("ORGANIZATION");
+        organizationId = effectiveOrganization.organizationId;
       }
       const categories = await transaction.category.findMany({ where: { slug: { in: categorySlugs }, active: true } });
       if (categories.length !== categorySlugs.length) throw new Error("CATEGORY");

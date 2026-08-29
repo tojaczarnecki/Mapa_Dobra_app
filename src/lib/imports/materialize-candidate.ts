@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { ImportBatchStatus, ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import { slugifyImportValue } from "./caritas-gdzie-parser.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
+import { parseOrganizationDecision, resolveEffectiveOrganization } from "./organization-decisions.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_SLUG_COLLISION_RETRIES = 2;
@@ -46,6 +47,7 @@ type CandidateSnapshot = {
   proposedData: Prisma.JsonValue;
   importBatch: { id: string; key: string; status: ImportBatchStatus };
   sources: Array<{ sourceEntry: { id: string; parsedData: Prisma.JsonValue | null } }>;
+  organizationDecision: { decision: string; organizationId: string | null } | null;
 };
 
 export type MaterializeCandidateTransaction = {
@@ -234,6 +236,7 @@ export async function materializeImportCandidate(
         proposedData: true,
         importBatch: { select: { id: true, key: true, status: true } },
         sources: { select: { sourceEntry: { select: { id: true, parsedData: true } } } },
+        organizationDecision: { select: { decision: true, organizationId: true } },
       },
     });
     if (!candidate) return { status: "INVALID_CANDIDATE" };
@@ -275,16 +278,20 @@ export async function materializeImportCandidate(
     const category = await transaction.category.findFirst({ where: { slug: proposed.analysis.categorySlug, active: true }, select: { id: true, slug: true, active: true } });
     if (!category) return { status: "CATEGORY_REVIEW_REQUIRED" };
 
-    let organizationId: string | null = null;
-    if (proposed.analysis.organizationStatus === "NONE") {
-      organizationId = null;
-    } else if (proposed.analysis.organizationStatus === "MATCHED" && proposed.analysis.organizationId) {
-      const organization = await transaction.organization.findUnique({ where: { id: proposed.analysis.organizationId }, select: { id: true, active: true } });
-      if (!organization?.active) return { status: "ORGANIZATION_REVIEW_REQUIRED" };
-      organizationId = organization.id;
-    } else {
-      return { status: "ORGANIZATION_REVIEW_REQUIRED" };
-    }
+    const organizationDecision = parseOrganizationDecision(candidate.organizationDecision);
+    const organizationLookupId = organizationDecision?.decision === "SELECTED_ORGANIZATION"
+      ? organizationDecision.organizationId
+      : proposed.analysis.organizationStatus === "MATCHED" ? proposed.analysis.organizationId : null;
+    const organization = organizationLookupId
+      ? await transaction.organization.findUnique({ where: { id: organizationLookupId }, select: { id: true, active: true } })
+      : null;
+    const effectiveOrganization = resolveEffectiveOrganization(
+      { status: proposed.analysis.organizationStatus as "NONE" | "MATCHED" | "POSSIBLE" | "CONFLICT" | "NEW_CANDIDATE", organizationId: proposed.analysis.organizationId },
+      organizationDecision,
+      organization,
+    );
+    if (effectiveOrganization.status === "UNRESOLVED" || effectiveOrganization.status === "BLOCKED_INACTIVE_MATCH") return { status: "ORGANIZATION_REVIEW_REQUIRED" };
+    const organizationId = effectiveOrganization.organizationId;
 
     const values = proposed.values;
     const place = await transaction.place.create({

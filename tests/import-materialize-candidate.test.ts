@@ -40,6 +40,7 @@ function snapshot(overrides: Partial<{
   createdPlaceId: string | null;
   matchedPlaceId: string | null;
   proposedData: Prisma.JsonValue;
+  organizationDecision?: { decision: string; organizationId: string | null } | null;
 }> = {}) {
   return {
     id: candidateId,
@@ -54,6 +55,7 @@ function snapshot(overrides: Partial<{
     proposedData: proposedData(),
     importBatch: { id: "33333333-3333-4333-8333-333333333333", key: "spreadsheet-hash", status: ImportBatchStatus.STAGED as ImportBatchStatusValue },
     sources: [{ sourceEntry: { id: "44444444-4444-4444-8444-444444444444", parsedData: null } }],
+    organizationDecision: null,
     ...overrides,
   };
 }
@@ -195,6 +197,36 @@ test("requires active category and resolved organization", async () => {
   organization.candidate.proposedData = proposedData({ analysis: { category: { status: "MATCHED", categorySlug: "jedzenie" }, organization: { status: "MATCHED", organizationId: "org-1" }, place: { classification: "NEW", candidates: [] }, inFileDuplicates: [] } });
   organization.organization = { id: "org-1", active: false };
   assert.deepEqual(await materialize(organization), { status: "ORGANIZATION_REVIEW_REQUIRED" });
+});
+
+test("uses a persisted NO_ORGANIZATION decision for a NEW candidate", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = proposedData({ analysis: { category: { status: "MATCHED", categorySlug: "jedzenie" }, organization: { status: "NEW_CANDIDATE", organizationId: null }, place: { classification: "NEW", candidates: [] }, inFileDuplicates: [] } });
+  db.candidate.organizationDecision = { decision: "NO_ORGANIZATION", organizationId: null };
+
+  assert.deepEqual(await materialize(db), { status: "CREATED", placeId: "place-1" });
+  assert.equal(db.createdPlaceData?.organizationId, null);
+});
+
+test("uses an active persisted organization decision instead of matcher data", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = proposedData({ analysis: { category: { status: "MATCHED", categorySlug: "jedzenie" }, organization: { status: "POSSIBLE", organizationId: null }, place: { classification: "NEW", candidates: [] }, inFileDuplicates: [] } });
+  db.candidate.organizationDecision = { decision: "SELECTED_ORGANIZATION", organizationId: "org-selected" };
+  db.organization = { id: "org-selected", active: true };
+
+  assert.deepEqual(await materialize(db), { status: "CREATED", placeId: "place-1" });
+  assert.equal(db.createdPlaceData?.organizationId, "org-selected");
+});
+
+test("blocks a selected organization that is no longer active or present", async () => {
+  for (const organization of [{ id: "org-selected", active: false }, null]) {
+    const db = new FakeDatabase();
+    db.candidate.proposedData = proposedData({ analysis: { category: { status: "MATCHED", categorySlug: "jedzenie" }, organization: { status: "NEW_CANDIDATE", organizationId: null }, place: { classification: "NEW", candidates: [] }, inFileDuplicates: [] } });
+    db.candidate.organizationDecision = { decision: "SELECTED_ORGANIZATION", organizationId: "org-selected" };
+    db.organization = organization;
+    assert.deepEqual(await materialize(db), { status: "ORGANIZATION_REVIEW_REQUIRED" });
+    assert.equal(db.createdPlaceData, null);
+  }
 });
 
 test("does not create a place for invalid candidate data or skipped candidates", async () => {

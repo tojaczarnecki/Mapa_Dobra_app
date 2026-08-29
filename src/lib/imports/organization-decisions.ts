@@ -17,6 +17,15 @@ export type OrganizationDecisionOrganization = {
   active: boolean;
 };
 
+export function parseOrganizationDecision(value: { decision: string; organizationId: string | null } | null | undefined): OrganizationDecision | null {
+  if (!value) return null;
+  if (value.decision === "NO_ORGANIZATION" && value.organizationId === null) return { decision: "NO_ORGANIZATION", organizationId: null };
+  if (value.decision === "SELECTED_ORGANIZATION" && typeof value.organizationId === "string" && value.organizationId.trim()) {
+    return { decision: "SELECTED_ORGANIZATION", organizationId: value.organizationId };
+  }
+  return null;
+}
+
 export type EffectiveOrganizationState =
   | { status: "NO_ORGANIZATION"; organizationId: null }
   | { status: "USE_MATCHED_ORGANIZATION"; organizationId: string }
