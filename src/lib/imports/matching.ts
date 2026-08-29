@@ -52,6 +52,28 @@ export type CategoryMatch = {
   warnings: ("INACTIVE_CATEGORY")[];
 };
 
+export type MultiCategoryTokenMatch = {
+  sourceToken: string;
+  normalizedToken: string;
+  status: CategoryMatch["status"];
+  method: CategoryMatch["method"];
+  categoryId: string | null;
+  categorySlug: string | null;
+  reasons: string[];
+  warnings: CategoryMatch["warnings"];
+};
+
+export type MultiCategoryMatch = {
+  sourceValue: string;
+  tokens: MultiCategoryTokenMatch[];
+  matchedCategoryIds: string[];
+  matchedCategorySlugs: string[];
+  unresolvedTokens: string[];
+  warnings: ("INACTIVE_CATEGORY")[];
+  status: "FULLY_MATCHED" | "PARTIALLY_MATCHED" | "UNRESOLVED";
+  requiresReview: boolean;
+};
+
 export type PlaceMatchCandidate = { placeId: string; reasons: string[] };
 export type PlaceMatch = {
   classification: "EXACT_MATCH" | "POSSIBLE_MATCH" | "NEW";
@@ -177,6 +199,20 @@ function normalizeCategorySlug(value: string): string {
   return normalizeMatchingText(value).replace(/\s+/gu, "-");
 }
 
+export function parseCategoryTokens(value: unknown): string[] {
+  if (typeof value !== "string") return [];
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const token of value.split(";")) {
+    const sourceToken = token.trim();
+    const normalizedToken = normalizeCategorySlug(sourceToken);
+    if (!normalizedToken || seen.has(normalizedToken)) continue;
+    seen.add(normalizedToken);
+    tokens.push(sourceToken);
+  }
+  return tokens;
+}
+
 export function matchCategory(value: unknown, references: ImportCategoryReference[]): CategoryMatch {
   const input = textValue(value);
   const normalizedName = normalizeMatchingText(input);
@@ -195,6 +231,40 @@ export function matchCategory(value: unknown, references: ImportCategoryReferenc
     categorySlug: match.category.slug,
     reasons: [`MATCHED_BY_${match.method}`],
     warnings: match.category.active ? [] : ["INACTIVE_CATEGORY"],
+  };
+}
+
+export function matchCategories(sourceValue: unknown, references: ImportCategoryReference[]): MultiCategoryMatch {
+  const sourceText = typeof sourceValue === "string" ? sourceValue : "";
+  const tokens = parseCategoryTokens(sourceText).map((sourceToken) => {
+    const normalizedToken = normalizeCategorySlug(sourceToken);
+    const match = matchCategory(sourceToken, references);
+    return { sourceToken, normalizedToken, ...match };
+  });
+  const matchedCategoryIds: string[] = [];
+  const matchedCategorySlugs: string[] = [];
+  const unresolvedTokens: string[] = [];
+  const warnings: ("INACTIVE_CATEGORY")[] = [];
+  for (const token of tokens) {
+    if (token.status === "MATCHED") {
+      if (token.categoryId && !matchedCategoryIds.includes(token.categoryId)) matchedCategoryIds.push(token.categoryId);
+      if (token.categorySlug && !matchedCategorySlugs.includes(token.categorySlug)) matchedCategorySlugs.push(token.categorySlug);
+      for (const warning of token.warnings) if (!warnings.includes(warning)) warnings.push(warning);
+    } else {
+      unresolvedTokens.push(token.sourceToken);
+    }
+  }
+  const hasMatches = matchedCategoryIds.length > 0;
+  const hasUnresolved = unresolvedTokens.length > 0;
+  return {
+    sourceValue: sourceText,
+    tokens,
+    matchedCategoryIds,
+    matchedCategorySlugs,
+    unresolvedTokens,
+    warnings,
+    status: !hasMatches ? "UNRESOLVED" : hasUnresolved ? "PARTIALLY_MATCHED" : "FULLY_MATCHED",
+    requiresReview: hasUnresolved || warnings.length > 0,
   };
 }
 

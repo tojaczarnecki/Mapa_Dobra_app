@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeImportRows, findInFileDuplicates, matchCategory, matchOrganization, matchPlace, normalizeMatchingPhone, normalizeMatchingWebsite } from "../src/lib/imports/matching.ts";
+import { analyzeImportRows, findInFileDuplicates, matchCategories, matchCategory, matchOrganization, matchPlace, normalizeMatchingPhone, normalizeMatchingWebsite, parseCategoryTokens } from "../src/lib/imports/matching.ts";
 import type { CanonicalImportValues, MappedImportRow } from "../src/lib/imports/column-mapping.ts";
 
 const organizations = [
@@ -50,6 +50,41 @@ test("category matching uses slug, name and known aliases only when target exist
   assert.equal(matchCategory("Pomoc socjalna", [{ id: "social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true }]).categorySlug, "pomoc-socjalna");
   assert.equal(matchCategory("Pomoc medyczna", categories).status, "UNRESOLVED");
   assert.equal(matchCategory("nieznana", categories).status, "UNRESOLVED");
+});
+
+test("category tokenization is semicolon-delimited, stable and normalized", () => {
+  assert.deepEqual(parseCategoryTokens(" pomoc-prawna ;  pomoc-socjalna "), ["pomoc-prawna", "pomoc-socjalna"]);
+  assert.deepEqual(parseCategoryTokens("pomoc-prawna;;pomoc-prawna;"), ["pomoc-prawna"]);
+  assert.deepEqual(parseCategoryTokens(""), []);
+});
+
+test("multi-category matching preserves token provenance without choosing a primary category", () => {
+  const references = [
+    { id: "legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: true },
+    { id: "social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true },
+    { id: "hygiene", slug: "higiena", name: "Higiena", active: true },
+    { id: "psych", slug: "pomoc-psychologiczna", name: "Pomoc psychologiczna", active: true },
+    { id: "medical", slug: "pomoc-medyczna", name: "Pomoc medyczna", active: true },
+    { id: "food", slug: "jedzenie", name: "Jedzenie", active: true },
+  ];
+  const result = matchCategories("prysznic; higiena", references);
+  assert.equal(result.status, "FULLY_MATCHED");
+  assert.deepEqual(result.matchedCategorySlugs, ["higiena"]);
+  assert.deepEqual(result.tokens.map((token) => [token.sourceToken, token.categorySlug]), [["prysznic", "higiena"], ["higiena", "higiena"]]);
+  assert.equal(matchCategories("pomoc-prawna; pomoc-socjalna", references).matchedCategorySlugs.join(","), "pomoc-prawna,pomoc-socjalna");
+  assert.deepEqual(matchCategories("pomoc-socjalna; inne", references).unresolvedTokens, ["inne"]);
+  assert.equal(matchCategories("pomoc-socjalna; inne", references).status, "PARTIALLY_MATCHED");
+  assert.equal(matchCategories("inne", references).status, "UNRESOLVED");
+  assert.equal(matchCategories("inna pomoc", references).status, "UNRESOLVED");
+  assert.equal(matchCategories("foo; bar", references).status, "UNRESOLVED");
+  assert.deepEqual(matchCategories("pomoc prawna; praca socjalna", references).matchedCategorySlugs, ["pomoc-prawna", "pomoc-socjalna"]);
+});
+
+test("inactive matched category is retained with an explicit review signal", () => {
+  const result = matchCategories("pomoc-prawna", [{ id: "legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: false }]);
+  assert.equal(result.status, "FULLY_MATCHED");
+  assert.equal(result.requiresReview, true);
+  assert.deepEqual(result.warnings, ["INACTIVE_CATEGORY"]);
 });
 
 test("place matching is conservative", () => {
