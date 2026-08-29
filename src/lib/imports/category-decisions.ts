@@ -32,7 +32,7 @@ export type CategoryDecisionCategory = { id: string; active: boolean };
 export type EffectiveCategoryResult =
   | { status: "AUTO_SINGLE"; primaryCategoryId: string; categoryIds: string[] }
   | { status: "ADMIN_DECISION"; primaryCategoryId: string; categoryIds: string[] }
-  | { status: "REQUIRES_REVIEW"; reason: "ANALYSIS_REVIEW_REQUIRED" | "INVALID_ADMIN_DECISION" | "INACTIVE_CATEGORY" };
+  | { status: "REQUIRES_REVIEW"; reason: "ANALYSIS_REVIEW_REQUIRED" | "PRIMARY_CATEGORY_DECISION_REQUIRED" | "INVALID_ADMIN_DECISION" | "INACTIVE_CATEGORY" };
 
 export function parseCategoryReanalysis(value: unknown): CategoryAnalysisState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -43,7 +43,7 @@ export function parseCategoryReanalysis(value: unknown): CategoryAnalysisState |
   const categoryIds = Array.isArray(data.matchedCategoryIds) ? data.matchedCategoryIds.filter((id): id is string => typeof id === "string") : [];
   const unresolvedTokens = Array.isArray(data.unresolvedTokens) ? data.unresolvedTokens.filter((token): token is string => typeof token === "string") : [];
   const warnings = Array.isArray(data.warnings) ? data.warnings.filter((warning): warning is string => typeof warning === "string") : [];
-  if (item.version !== 1 || typeof item.sourceValue !== "string" || data.status !== "FULLY_MATCHED" || categoryIds.length !== 1 || unresolvedTokens.length > 0 || warnings.length > 0 || data.requiresReview !== false) return null;
+  if (item.version !== 1 || typeof item.sourceValue !== "string" || data.status !== "FULLY_MATCHED" || categoryIds.length === 0 || unresolvedTokens.length > 0 || warnings.length > 0 || data.requiresReview !== false) return null;
   return { categoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] };
 }
 
@@ -79,6 +79,10 @@ export function resolveEffectiveCategory(
     if (category && !category.active) return { status: "REQUIRES_REVIEW", reason: "INACTIVE_CATEGORY" };
     if (categories.length > 0 && !category) return { status: "REQUIRES_REVIEW", reason: "ANALYSIS_REVIEW_REQUIRED" };
     return { status: "AUTO_SINGLE", primaryCategoryId, categoryIds: [primaryCategoryId] };
+  }
+
+  if (reanalysis && !reanalysis.requiresReview && reanalysis.unresolvedTokens.length === 0 && reanalysis.warnings.length === 0 && unique(reanalysis.categoryIds).length > 1) {
+    return { status: "REQUIRES_REVIEW", reason: "PRIMARY_CATEGORY_DECISION_REQUIRED" };
   }
 
   if (!analysis.requiresReview && analysis.unresolvedTokens.length === 0 && analysis.warnings.length === 0 && unique(analysis.categoryIds).length === 1) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveEffectiveCategory, type CategoryAnalysisState, type CategoryDecisionCategory, type PersistedCategoryDecision } from "../src/lib/imports/category-decisions.ts";
+import { parseCategoryReanalysis, resolveEffectiveCategory, type CategoryAnalysisState, type CategoryDecisionCategory, type PersistedCategoryDecision } from "../src/lib/imports/category-decisions.ts";
 
 const categories: CategoryDecisionCategory[] = [
   { id: "food", active: true },
@@ -58,4 +58,26 @@ test("rejects duplicate selected category IDs", () => {
 
 test("supports legacy singleton analysis without multi-category provenance", () => {
   assert.deepEqual(resolveEffectiveCategory(analysis({ categoryIds: ["food"] }), null, categories), { status: "AUTO_SINGLE", primaryCategoryId: "food", categoryIds: ["food"] });
+});
+
+test("persisted multi reanalysis stays a primary-category proposal and never selects first", () => {
+  const reanalysis = parseCategoryReanalysis({
+    version: 1,
+    sourceValue: "pomoc-prawna; pomoc-socjalna",
+    analyzedAt: "2026-08-29T00:00:00.000Z",
+    analyzedByAdminUserId: "admin",
+    result: {
+      sourceValue: "pomoc-prawna; pomoc-socjalna",
+      tokens: [],
+      matchedCategoryIds: ["legal", "social"],
+      matchedCategorySlugs: ["pomoc-prawna", "pomoc-socjalna"],
+      unresolvedTokens: [],
+      warnings: [],
+      status: "FULLY_MATCHED",
+      requiresReview: false,
+    },
+  });
+  assert.deepEqual(reanalysis, { categoryIds: ["legal", "social"], requiresReview: false, unresolvedTokens: [], warnings: [] });
+  assert.deepEqual(resolveEffectiveCategory(analysis(), null, [{ id: "legal", active: true }, { id: "social", active: true }], reanalysis), { status: "REQUIRES_REVIEW", reason: "PRIMARY_CATEGORY_DECISION_REQUIRED" });
+  assert.deepEqual(resolveEffectiveCategory(analysis(), { primaryCategoryId: "social", categories: [{ categoryId: "social", sortOrder: 0 }, { categoryId: "legal", sortOrder: 1 }] }, [{ id: "legal", active: true }, { id: "social", active: true }], reanalysis), { status: "ADMIN_DECISION", primaryCategoryId: "social", categoryIds: ["social", "legal"] });
 });

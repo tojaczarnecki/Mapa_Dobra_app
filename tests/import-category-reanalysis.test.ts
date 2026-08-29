@@ -3,6 +3,7 @@ import test from "node:test";
 import type { Prisma } from "../src/generated/prisma/client.ts";
 import { reanalyseImportCandidateCategory, type CategoryReanalysisDatabase, type CategoryReanalysisTransaction } from "../src/lib/imports/category-reanalysis.ts";
 import { resolveEffectiveCategory } from "../src/lib/imports/category-decisions.ts";
+import type { ImportPlaceReference } from "../src/lib/imports/matching.ts";
 
 const candidateId = "11111111-1111-4111-8111-111111111111";
 const adminId = "22222222-2222-4222-8222-222222222222";
@@ -31,10 +32,16 @@ class FakeDatabase implements CategoryReanalysisDatabase {
     organizationDecision: { decision: "NO_ORGANIZATION", organizationId: null } as { decision: string; organizationId: string | null } | null,
     categoryDecision: null,
   };
-  categories = [{ id: "category-social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true }];
+  categories = [
+    { id: "category-social", slug: "pomoc-socjalna", name: "Pomoc socjalna", active: true },
+    { id: "category-legal", slug: "pomoc-prawna", name: "Pomoc prawna", active: true },
+    { id: "category-psychological", slug: "pomoc-psychologiczna", name: "Pomoc psychologiczna", active: true },
+    { id: "category-medical", slug: "pomoc-medyczna", name: "Pomoc medyczna", active: true },
+  ];
   updates: Prisma.ImportCandidateUpdateArgs["data"][] = [];
   audits: Prisma.AuditLogCreateArgs["data"][] = [];
   duplicateCandidate: { id: string; candidateKey: string; proposedData: Prisma.JsonValue } | null = null;
+  places: ImportPlaceReference[] = [];
 
   private transaction(): CategoryReanalysisTransaction {
     return {
@@ -47,6 +54,7 @@ class FakeDatabase implements CategoryReanalysisDatabase {
       importCandidateDuplicateDecision: { findMany: async () => [] },
       category: { findMany: async () => this.categories },
       organization: { findUnique: async () => null },
+      place: { findMany: async () => this.places },
       auditLog: { create: async (args) => { this.audits.push(args.data); return {}; } },
     };
   }
@@ -93,8 +101,8 @@ test("effective category resolver gives admin decision priority over reanalysis"
   assert.deepEqual(result, { status: "ADMIN_DECISION", primaryCategoryId: "category-b", categoryIds: ["category-b", "category-a"] });
 });
 
-test("controlled reanalysis rejects multi-category and partial results", async () => {
-  for (const source of ["pomoc-prawna; pomoc-socjalna", "pomoc-socjalna; inne"]) {
+test("controlled reanalysis rejects partial and unresolved results", async () => {
+  for (const source of ["pomoc-socjalna; inne", "inne"]) {
     const db = new FakeDatabase();
     db.candidate.proposedData = { mappedValues: { primaryCategory: source }, analysis: originalAnalysis };
     const result = await reanalyseImportCandidateCategory(db, { candidateId, resolvedByAdminUserId: adminId });
@@ -102,6 +110,68 @@ test("controlled reanalysis rejects multi-category and partial results", async (
     assert.equal(db.updates.length, 0);
     assert.equal(db.audits.length, 0);
   }
+});
+
+test("controlled reanalysis stores a fully matched multi-category proposal without choosing primary", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = { mappedValues: { primaryCategory: "pomoc-prawna; pomoc-socjalna" }, analysis: originalAnalysis };
+  const before = structuredClone(db.candidate.proposedData);
+  const result = await reanalyseImportCandidateCategory(db, { candidateId, resolvedByAdminUserId: adminId });
+
+  assert.equal(result.status, "REANALYZED");
+  assert.equal(db.candidate.status, "REQUIRES_REVIEW");
+  assert.equal(db.candidate.queueStatus, null);
+  assert.deepEqual(db.candidate.categorySlugs, ["pomoc-prawna", "pomoc-socjalna"]);
+  assert.equal(db.candidate.primaryCategorySlug, null);
+  assert.deepEqual(db.candidate.reviewReasons, ["PRIMARY_CATEGORY_DECISION_REQUIRED"]);
+  assert.deepEqual((db.candidate.proposedData as Record<string, unknown>).analysis, before.analysis);
+  assert.equal(db.audits.length, 1);
+  assert.equal(db.candidate.categoryDecision, null);
+  if (result.status === "REANALYZED") {
+    assert.equal(result.reanalysis.result.status, "FULLY_MATCHED");
+    assert.deepEqual(result.reanalysis.result.matchedCategorySlugs, ["pomoc-prawna", "pomoc-socjalna"]);
+  }
+});
+
+test("controlled reanalysis preserves stable order and no primary for three matched categories", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = { mappedValues: { primaryCategory: "pomoc-prawna; pomoc-psychologiczna; pomoc-socjalna" }, analysis: originalAnalysis };
+  const result = await reanalyseImportCandidateCategory(db, { candidateId, resolvedByAdminUserId: adminId });
+
+  assert.equal(result.status, "REANALYZED");
+  assert.deepEqual(db.candidate.categorySlugs, ["pomoc-prawna", "pomoc-psychologiczna", "pomoc-socjalna"]);
+  assert.equal(db.candidate.primaryCategorySlug, null);
+  assert.deepEqual(db.candidate.reviewReasons, ["PRIMARY_CATEGORY_DECISION_REQUIRED"]);
+});
+
+test("multi reanalysis preserves live place and organization blockers", async () => {
+  const db = new FakeDatabase();
+  db.candidate.proposedData = {
+    mappedValues: { name: "Pomoc", addressLine: "ul. Testowa 1", primaryCategory: "pomoc-prawna; pomoc-socjalna" },
+    analysis: { ...originalAnalysis, organization: { status: "NEW_CANDIDATE", organizationId: null } },
+  } as unknown as typeof db.candidate.proposedData;
+  db.candidate.reviewReasons = ["UNRESOLVED_CATEGORY", "NEW_ORGANIZATION_CANDIDATE"];
+  db.candidate.organizationDecision = null;
+  db.places = [{
+    id: "place-live",
+    name: "Inne",
+    addressLine: "ul. Testowa 1",
+    street: "Testowa",
+    buildingNumber: "1",
+    phone: null,
+    website: null,
+    organizationId: null,
+    primaryCategoryId: "category-social",
+    publicationStatus: "PUBLISHED",
+  }];
+  const result = await reanalyseImportCandidateCategory(db, { candidateId, resolvedByAdminUserId: adminId });
+
+  assert.equal(result.status, "REANALYZED");
+  assert.equal(db.candidate.status, "REQUIRES_REVIEW");
+  assert.equal(db.candidate.queueStatus, "PENDING");
+  assert.equal(db.candidate.reviewReasons.includes("PRIMARY_CATEGORY_DECISION_REQUIRED"), true);
+  assert.equal(db.candidate.reviewReasons.includes("NEW_ORGANIZATION_CANDIDATE"), true);
+  assert.equal(db.candidate.reviewReasons.includes("SAME_NORMALIZED_ADDRESS"), true);
 });
 
 test("controlled reanalysis keeps other blockers and rejects inactive singleton", async () => {

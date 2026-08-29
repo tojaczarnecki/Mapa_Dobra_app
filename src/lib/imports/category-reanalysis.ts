@@ -153,10 +153,12 @@ export async function reanalyseImportCandidateCategory(
     if (!sourceValue) return { status: "SOURCE_VALUE_MISSING" };
     const catalog = await transaction.category.findMany({ select: { id: true, slug: true, name: true, active: true }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] });
     const result: MultiCategoryMatch = matchCategories(sourceValue, catalog);
-    if (result.status !== "FULLY_MATCHED" || result.matchedCategorySlugs.length !== 1 || result.unresolvedTokens.length > 0 || result.requiresReview) return { status: "CATEGORY_REVIEW_REQUIRED" };
-    const matchedCategory = catalog.find((category) => category.slug === result.matchedCategorySlugs[0]);
-    if (!matchedCategory) return { status: "CATEGORY_NOT_FOUND" };
-    if (!matchedCategory.active || result.warnings.length > 0) return { status: "CATEGORY_INACTIVE" };
+    if (result.status !== "FULLY_MATCHED" || result.matchedCategorySlugs.length === 0 || result.unresolvedTokens.length > 0 || result.requiresReview) return { status: "CATEGORY_REVIEW_REQUIRED" };
+    const matchedCategories = result.matchedCategoryIds.map((id) => catalog.find((category) => category.id === id));
+    if (matchedCategories.some((category) => !category)) return { status: "CATEGORY_NOT_FOUND" };
+    if (matchedCategories.some((category) => !category!.active) || result.warnings.length > 0) return { status: "CATEGORY_INACTIVE" };
+    const isMulti = result.matchedCategorySlugs.length > 1;
+    if (new Set(result.matchedCategoryIds).size !== result.matchedCategoryIds.length) return { status: "CATEGORY_REVIEW_REQUIRED" };
 
     const reanalysis: CategoryReanalysis = {
       version: 1,
@@ -186,16 +188,17 @@ export async function reanalyseImportCandidateCategory(
     const organization = organizationId ? await transaction.organization.findUnique({ where: { id: organizationId }, select: { id: true, active: true } }) : null;
     const effectiveOrganization = orgAnalysis ? resolveEffectiveOrganization(orgAnalysis, orgDecision, organization) : { status: "UNRESOLVED" as const, organizationId: null };
     const reviewReasons = withoutCategoryReviewReasons(candidate.reviewReasons);
-    const effectiveCategory = resolveEffectiveCategory(analysisCategoryState(candidate.proposedData), null, [matchedCategory], { categoryIds: result.matchedCategoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] });
+    const effectiveCategory = resolveEffectiveCategory(analysisCategoryState(candidate.proposedData), null, matchedCategories as ImportCategoryReference[], { categoryIds: result.matchedCategoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] });
     const livePlaceMatch: LivePlaceMatch | undefined = transaction.place
       ? findLivePlaceMatch(importValuesForLivePlace(candidate.proposedData), await transaction.place.findMany({ select: { id: true, name: true, addressLine: true, street: true, buildingNumber: true, phone: true, website: true, organizationId: true, primaryCategoryId: true, publicationStatus: true } }), ["USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status) ? effectiveOrganization.organizationId : null)
       : undefined;
-    const reconciliation = reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons }, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW", livePlaceMatch);
+    const reconciliation = reconcileCandidateAfterDuplicateDecision({ ...candidate, reviewReasons }, duplicateDisposition, ["NO_ORGANIZATION", "USE_MATCHED_ORGANIZATION", "USE_SELECTED_ORGANIZATION"].includes(effectiveOrganization.status), effectiveCategory.status !== "REQUIRES_REVIEW", livePlaceMatch, isMulti ? "PRIMARY_CATEGORY_DECISION_REQUIRED" : undefined);
     const nextReviewReasons = reconciliation?.reviewReasons ?? reviewReasons;
-    const derivedChanged = !sameJson(candidate.categorySlugs, result.matchedCategorySlugs) || candidate.primaryCategorySlug !== result.matchedCategorySlugs[0] || !sameJson(candidate.reviewReasons, nextReviewReasons) || !sameReanalysisResult(previousReanalysis, reanalysis);
+    const nextPrimaryCategorySlug = isMulti ? null : result.matchedCategorySlugs[0] ?? null;
+    const derivedChanged = !sameJson(candidate.categorySlugs, result.matchedCategorySlugs) || candidate.primaryCategorySlug !== nextPrimaryCategorySlug || !sameJson(candidate.reviewReasons, nextReviewReasons) || !sameReanalysisResult(previousReanalysis, reanalysis);
     const reconciliationChanged = reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus);
     if (derivedChanged || reconciliationChanged) {
-      await transaction.importCandidate.update({ where: { id: candidate.id }, data: { ...(derivedChanged ? { proposedData: nextProposedData as Prisma.InputJsonValue, categorySlugs: result.matchedCategorySlugs, primaryCategorySlug: result.matchedCategorySlugs[0], reviewReasons: nextReviewReasons } : {}), ...(reconciliationChanged ? { status: reconciliation!.status, queueStatus: reconciliation!.queueStatus } : {}) } });
+      await transaction.importCandidate.update({ where: { id: candidate.id }, data: { ...(derivedChanged ? { proposedData: nextProposedData as Prisma.InputJsonValue, categorySlugs: result.matchedCategorySlugs, primaryCategorySlug: nextPrimaryCategorySlug, reviewReasons: nextReviewReasons } : {}), ...(reconciliationChanged ? { status: reconciliation!.status, queueStatus: reconciliation!.queueStatus } : {}) } });
     }
     if (!derivedChanged) return { status: "NO_OP", candidateStatus: reconciliation?.status ?? candidate.status, queueStatus: reconciliation?.queueStatus ?? candidate.queueStatus, reanalysis: persistedReanalysis };
     await transaction.auditLog.create({
@@ -206,7 +209,7 @@ export async function reanalyseImportCandidateCategory(
         entityId: candidate.id,
         changedFields: ["categoryReanalysis", "categorySlugs", "primaryCategorySlug", "reviewReasons"],
         previousValues: { kind: "CATEGORY_REANALYSIS", candidateId: candidate.id, sourceValue, previousCategorySlugs: candidate.categorySlugs, previousPrimaryCategorySlug: candidate.primaryCategorySlug },
-        newValues: { kind: "CATEGORY_REANALYSIS", candidateId: candidate.id, sourceValue, newCategorySlugs: result.matchedCategorySlugs, newPrimaryCategorySlug: result.matchedCategorySlugs[0] },
+        newValues: { kind: "CATEGORY_REANALYSIS", candidateId: candidate.id, sourceValue, newCategorySlugs: result.matchedCategorySlugs, newPrimaryCategorySlug: nextPrimaryCategorySlug },
         changeOrigin: "SOURCE_IMPORT",
         sourceReferenceId: candidate.id,
         note: "Kontrolowana reanaliza kategorii kandydata.",
