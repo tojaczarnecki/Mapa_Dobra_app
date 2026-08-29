@@ -12,6 +12,7 @@ import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
 import { resolveLocationSource } from "@/lib/verification/location";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
+import { resolveEffectiveCategory, type PersistedCategoryDecision } from "@/lib/imports/category-decisions";
 import { canUndoCandidateResolution, hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate, restoreMatcherMatchedPlaceId } from "@/lib/imports/spreadsheet-place-review";
 import { findLivePlaceMatch, lockLivePlaceIdentity } from "@/lib/imports/live-place-match";
 import type { ImportPlaceReference } from "@/lib/imports/matching";
@@ -677,13 +678,14 @@ export async function resolveCandidateDifferentPlace(
   let primaryCategorySlug = formText(formData, "primaryCategorySlug", 120, !spreadsheetPlaceReview);
   let categorySlugs = [...new Set(formData.getAll("categorySlugs").filter((value): value is string => typeof value === "string"))];
   let organizationId = formText(formData, "organizationId", 36);
+  let effectiveCategoryIds: string[] | null = null;
   const reviewedPlaceId = formText(formData, "reviewedPlaceId", 36, true);
   const note = formText(formData, "note", 1000);
   if (note === null || (!spreadsheetPlaceReview && (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug)))) return { error: "Uzupełnij nazwę, stały adres oraz aktywną kategorię główną." };
   try {
     const result = await prisma.$transaction(async (transaction): Promise<{ kind: "CREATED"; placeId: string } | { kind: "LIVE_CONFLICT"; matchedPlaceId: string | null }> => {
       await transaction.$queryRaw(Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" = ${candidateId}::uuid FOR UPDATE`);
-      const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, include: { importBatch: true, organizationDecision: { select: { decision: true, organizationId: true } } } });
+      const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, include: { importBatch: true, organizationDecision: { select: { decision: true, organizationId: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } } });
       if (!candidate) throw new Error("NOT_FOUND");
       if (candidate.resolution || candidate.createdPlaceId) throw new Error("ALREADY_RESOLVED");
       const proposedRecord = candidate.proposedData as Record<string, unknown>;
@@ -705,8 +707,6 @@ export async function resolveCandidateDifferentPlace(
         categorySlugs = categoryStatus === "MATCHED" && sourceCategorySlug ? [sourceCategorySlug] : (selectedCategorySlug ? [selectedCategorySlug] : []);
         const organizationStatus = jsonText(organization?.status, 40);
         const sourceOrganizationId = jsonText(organization?.organizationId, 36);
-        if (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug)) throw new Error("CATEGORY_SELECTION");
-        if (categoryStatus !== "MATCHED" && selectedCategorySlug === null) throw new Error("CATEGORY_SELECTION");
         const persistedOrganizationDecision = parseOrganizationDecision(candidate.organizationDecision);
         const organizationLookupId = persistedOrganizationDecision?.decision === "SELECTED_ORGANIZATION"
           ? persistedOrganizationDecision.organizationId
@@ -721,13 +721,35 @@ export async function resolveCandidateDifferentPlace(
         );
         if (effectiveOrganization.status === "UNRESOLVED" || effectiveOrganization.status === "BLOCKED_INACTIVE_MATCH") throw new Error("ORGANIZATION");
         organizationId = effectiveOrganization.organizationId;
+        const persistedCategoryDecision: PersistedCategoryDecision | null = candidate.categoryDecision
+          ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories }
+          : null;
+        if (!name || !addressLine || (!persistedCategoryDecision && categoryStatus !== "MATCHED" && selectedCategorySlug === null)) throw new Error("CATEGORY_SELECTION");
+        const persistedCategoryIds = persistedCategoryDecision?.categories.map((item) => item.categoryId) ?? [];
+        const sourceCategory = !persistedCategoryDecision && categoryStatus === "MATCHED" && sourceCategorySlug
+          ? await transaction.category.findMany({ where: { slug: sourceCategorySlug }, select: { id: true, slug: true, active: true } })
+          : [];
+        const categoryAnalysis = {
+          categoryIds: persistedCategoryIds.length > 0 ? persistedCategoryIds : (jsonRecord(analysis?.categories)?.matchedCategoryIds as unknown[] | undefined)?.filter((id): id is string => typeof id === "string") ?? sourceCategory.map((item) => item.id),
+          requiresReview: typeof jsonRecord(analysis?.categories)?.requiresReview === "boolean" ? Boolean(jsonRecord(analysis?.categories)?.requiresReview) : categoryStatus !== "MATCHED",
+          unresolvedTokens: (jsonRecord(analysis?.categories)?.unresolvedTokens as unknown[] | undefined)?.filter((item): item is string => typeof item === "string") ?? [],
+          warnings: (jsonRecord(analysis?.categories)?.warnings as unknown[] | undefined)?.filter((item): item is string => typeof item === "string") ?? [],
+        };
+        const categorySnapshots = await transaction.category.findMany({ where: { id: { in: categoryAnalysis.categoryIds } }, select: { id: true, active: true } });
+        const effectiveCategory = resolveEffectiveCategory(categoryAnalysis, persistedCategoryDecision, categorySnapshots);
+        if (effectiveCategory.status === "REQUIRES_REVIEW") throw new Error("CATEGORY_SELECTION");
+        effectiveCategoryIds = effectiveCategory.categoryIds;
         if (!reviewedPlaceId) throw new Error("REVIEWED_PLACE_REQUIRED");
       }
-      const categories = await transaction.category.findMany({ where: { slug: { in: categorySlugs }, active: true } });
-      if (categories.length !== categorySlugs.length) throw new Error("CATEGORY");
-      const primary = categories.find((item) => item.slug === primaryCategorySlug);
+      const categories = effectiveCategoryIds
+        ? await transaction.category.findMany({ where: { id: { in: effectiveCategoryIds }, active: true } })
+        : await transaction.category.findMany({ where: { slug: { in: categorySlugs }, active: true } });
+      if (categories.length !== (effectiveCategoryIds?.length ?? categorySlugs.length)) throw new Error("CATEGORY");
+      const primary = effectiveCategoryIds
+        ? categories.find((item) => item.id === effectiveCategoryIds?.[0])
+        : categories.find((item) => item.slug === primaryCategorySlug);
       if (!primary) throw new Error("CATEGORY");
-      if (!name || !addressLine || !primaryCategorySlug) throw new Error("CATEGORY");
+      if (!name || !addressLine || (!effectiveCategoryIds && !primaryCategorySlug)) throw new Error("CATEGORY");
       const finalName = name;
       const finalAddressLine = addressLine;
       if (organizationId && !await transaction.organization.findFirst({ where: { id: organizationId, active: true }, select: { id: true } })) throw new Error("ORGANIZATION");
@@ -789,7 +811,7 @@ export async function resolveCandidateDifferentPlace(
           audience: Array.isArray(proposed.audience) ? proposed.audience.filter((item): item is string => typeof item === "string").slice(0, 30) : [],
           services: Array.isArray(proposed.services) ? proposed.services.filter((item): item is string => typeof item === "string").slice(0, 30) : [],
           lastEditedByAdminUserId: session.user.id,
-          categories: { create: categorySlugs.map((slug, sortOrder) => ({ categoryId: categories.find((item) => item.slug === slug)!.id, sortOrder })) },
+          categories: { create: (effectiveCategoryIds ?? categorySlugs.map((slug) => categories.find((item) => item.slug === slug)!.id)).map((categoryId, sortOrder) => ({ categoryId, sortOrder })) },
         },
       });
       const hours = [

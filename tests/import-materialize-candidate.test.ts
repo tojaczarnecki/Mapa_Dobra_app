@@ -76,6 +76,7 @@ function snapshot(overrides: Partial<{
     importBatch: { id: "33333333-3333-4333-8333-333333333333", key: "spreadsheet-hash", status: ImportBatchStatus.STAGED as ImportBatchStatusValue },
     sources: [{ sourceEntry: { id: "44444444-4444-4444-8444-444444444444", parsedData: null } }],
     organizationDecision: null,
+    categoryDecision: null,
     ...overrides,
   };
 }
@@ -83,6 +84,7 @@ function snapshot(overrides: Partial<{
 class FakeDatabase implements MaterializeCandidateDatabase {
   candidate = snapshot();
   category: { id: string; slug: string; active: boolean } | null = { id: "category-1", slug: "jedzenie", active: true };
+  categoryDecision: { id: string; primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null = null;
   organization: { id: string; active: boolean } | null = null;
   createdPlaceId = "place-1";
   createdPlaceData: Prisma.PlaceCreateArgs["data"] | null = null;
@@ -94,6 +96,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
   private forcedSlugRace = false;
   failAudit = false;
   livePlaces: ImportPlaceReference[] = [];
+  inactiveCategoryIds = new Set<string>();
 
   constructor(slugs = new Set<string>()) {
     this.slugs = slugs;
@@ -106,7 +109,7 @@ class FakeDatabase implements MaterializeCandidateDatabase {
         return [{ id: this.candidate.id }] as T[];
       },
       importCandidate: {
-        findUnique: async () => this.candidate,
+        findUnique: async () => ({ ...this.candidate, categoryDecision: this.categoryDecision }),
         update: async (args) => {
           this.candidateUpdate = args.data;
           return { id: candidateId };
@@ -114,6 +117,10 @@ class FakeDatabase implements MaterializeCandidateDatabase {
       },
       category: {
         findFirst: async () => this.category,
+        findMany: async (args) => {
+          const ids = (args.where as { id: { in: string[] } }).id.in;
+          return ids.map((id) => ({ id, active: !this.inactiveCategoryIds.has(id) }));
+        },
       },
       organization: {
         findUnique: async () => this.organization,
@@ -255,6 +262,54 @@ test("accepts the new persisted singleton category shape", async () => {
   const result = await materializeImportCandidate(db, { candidateId, adminUserId, action: "CREATE_NEW_PLACE" });
 
   assert.notEqual(result.status, "INVALID_CANDIDATE");
+});
+
+test("uses an admin category decision for the primary and complete selected set", async () => {
+  const db = new FakeDatabase();
+  db.candidate = snapshot({
+    proposedData: persistedCategoryData({ status: "UNRESOLVED", categorySlug: null, categories: { status: "FULLY_MATCHED", matchedCategoryIds: ["category-a", "category-b", "category-c"], matchedCategorySlugs: ["a", "b", "c"] } }),
+  });
+  db.categoryDecision = { id: "decision-1", primaryCategoryId: "category-b", categories: [{ categoryId: "category-a", sortOrder: 1 }, { categoryId: "category-b", sortOrder: 0 }, { categoryId: "category-c", sortOrder: 2 }] };
+
+  assert.deepEqual(await materialize(db), { status: "CREATED", placeId: "place-1" });
+  assert.equal(db.createdPlaceData?.primaryCategoryId, "category-b");
+  assert.deepEqual(db.createdPlaceData?.categories, { create: [{ categoryId: "category-b", sortOrder: 0 }, { categoryId: "category-a", sortOrder: 1 }, { categoryId: "category-c", sortOrder: 2 }] });
+});
+
+test("create-new uses the persisted category decision instead of stale source category data", async () => {
+  const db = new FakeDatabase();
+  db.candidate = snapshot({
+    proposedData: persistedCategoryData({ status: "MATCHED", categorySlug: "category-a", categories: { status: "FULLY_MATCHED", matchedCategoryIds: ["category-a", "category-b"], matchedCategorySlugs: ["a", "b"] } }),
+  });
+  db.categoryDecision = { id: "decision-1", primaryCategoryId: "category-b", categories: [{ categoryId: "category-b", sortOrder: 0 }, { categoryId: "category-a", sortOrder: 1 }] };
+
+  const result = await materialize(db);
+
+  assert.deepEqual(result, { status: "CREATED", placeId: "place-1" });
+  assert.equal(db.createdPlaceData?.primaryCategoryId, "category-b");
+  assert.deepEqual(db.createdPlaceData?.categories, { create: [{ categoryId: "category-b", sortOrder: 0 }, { categoryId: "category-a", sortOrder: 1 }] });
+});
+
+test("admin category decision overrides partial and unresolved analysis", async () => {
+  for (const categories of [
+    { status: "PARTIALLY_MATCHED", matchedCategoryIds: ["category-1"], unresolvedTokens: ["inne"] },
+    { status: "UNRESOLVED", matchedCategoryIds: [], unresolvedTokens: ["inne"] },
+  ]) {
+    const db = new FakeDatabase();
+    db.candidate = snapshot({ proposedData: persistedCategoryData({ status: "UNRESOLVED", categorySlug: null, categories }) });
+    db.categoryDecision = { id: "decision-1", primaryCategoryId: "category-1", categories: [{ categoryId: "category-1", sortOrder: 0 }] };
+    assert.deepEqual(await materialize(db), { status: "CREATED", placeId: "place-1" });
+  }
+});
+
+test("blocks an inactive persisted category decision without creating a place", async () => {
+  const db = new FakeDatabase();
+  db.candidate = snapshot({ proposedData: persistedCategoryData({ status: "UNRESOLVED", categorySlug: null, categories: { status: "UNRESOLVED", matchedCategoryIds: [] } }) });
+  db.categoryDecision = { id: "decision-1", primaryCategoryId: "category-1", categories: [{ categoryId: "category-1", sortOrder: 0 }] };
+  db.inactiveCategoryIds.add("category-1");
+
+  assert.deepEqual(await materialize(db), { status: "CATEGORY_REVIEW_REQUIRED" });
+  assert.equal(db.createdPlaceData, null);
 });
 
 test("returns a category blocker for new persisted multi, partial and empty categories", async () => {

@@ -43,7 +43,11 @@ export function resolveEffectiveCategory(
   }
 
   if (!analysis.requiresReview && analysis.unresolvedTokens.length === 0 && analysis.warnings.length === 0 && unique(analysis.categoryIds).length === 1) {
-    return { status: "AUTO_SINGLE", primaryCategoryId: analysis.categoryIds[0]!, categoryIds: [analysis.categoryIds[0]!] };
+    const primaryCategoryId = analysis.categoryIds[0]!;
+    const category = categories.find((item) => item.id === primaryCategoryId);
+    if (category && !category.active) return { status: "REQUIRES_REVIEW", reason: "INACTIVE_CATEGORY" };
+    if (categories.length > 0 && !category) return { status: "REQUIRES_REVIEW", reason: "INVALID_ADMIN_DECISION" };
+    return { status: "AUTO_SINGLE", primaryCategoryId, categoryIds: [primaryCategoryId] };
   }
   return { status: "REQUIRES_REVIEW", reason: "ANALYSIS_REVIEW_REQUIRED" };
 }

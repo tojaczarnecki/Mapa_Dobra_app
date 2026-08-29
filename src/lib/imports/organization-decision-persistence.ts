@@ -3,6 +3,7 @@ import { ImportCandidateStatus } from "../../generated/prisma/enums.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
 import { resolveEffectiveOrganization, type OrganizationDecision, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
+import { resolveEffectiveCategory } from "./category-decisions.ts";
 
 type CandidateSnapshot = {
   id: string;
@@ -15,6 +16,7 @@ type CandidateSnapshot = {
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue | null };
   sources: Array<{ sourceEntryId: string }>;
+  categoryDecision?: { primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null;
 };
 
 type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "proposedData">;
@@ -32,6 +34,9 @@ export type OrganizationDecisionPersistenceTransaction = {
   };
   organization: {
     findUnique(args: Prisma.OrganizationFindUniqueArgs): Promise<{ id: string; active: boolean } | null>;
+  };
+  category?: {
+    findMany(args: Prisma.CategoryFindManyArgs): Promise<Array<{ id: string; active: boolean }>>;
   };
   importCandidateDuplicateDecision: {
     findMany(args: Prisma.ImportCandidateDuplicateDecisionFindManyArgs): Promise<Array<{ candidateAId: string; candidateBId: string; decision: string }>>;
@@ -82,6 +87,13 @@ function currentOrganizationId(analysis: PersistedOrganizationAnalysis, decision
   return decision.decision === "SELECTED_ORGANIZATION" ? decision.organizationId : analysis.organizationId;
 }
 
+function analysisStatusForCandidate(value: unknown): string | null {
+  const analysis = record(record(value)?.analysis);
+  const category = record(analysis?.category);
+  const status = category?.status ?? analysis?.categoryStatus;
+  return typeof status === "string" ? status : null;
+}
+
 export async function saveImportCandidateOrganizationDecision(
   database: OrganizationDecisionPersistenceDatabase,
   input: SaveOrganizationDecisionInput,
@@ -104,7 +116,7 @@ export async function saveImportCandidateOrganizationDecision(
 
     const candidate = await transaction.importCandidate.findUnique({
       where: { id: input.candidateId },
-      include: { importBatch: { select: { metadata: true } }, sources: { select: { sourceEntryId: true } } },
+      include: { importBatch: { select: { metadata: true } }, sources: { select: { sourceEntryId: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } },
     });
     if (!candidate || !isSpreadsheetBatchMetadata(candidate.importBatch.metadata) || candidate.resolution || candidate.createdPlaceId || candidate.status === ImportCandidateStatus.IMPORTED || candidate.status === ImportCandidateStatus.SKIPPED || candidate.status === ImportCandidateStatus.MATCH_EXISTING) return { status: "INVALID_CANDIDATE" };
 
@@ -133,7 +145,18 @@ export async function saveImportCandidateOrganizationDecision(
     const duplicateDisposition = (item: BatchCandidate) => getDuplicateDisposition(getDuplicateDecisionState(item.id, duplicateRowNumbers(item.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, decisions));
     const disposition = duplicateDisposition(candidate);
     const effective = resolveEffectiveOrganization(analysis, decision, currentOrganization);
-    const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION");
+    let categoryResolved = analysisStatusForCandidate(candidate.proposedData) === "MATCHED";
+    if (candidate.categoryDecision && transaction.category) {
+      const categoryIds = candidate.categoryDecision.categories.map((item) => item.categoryId);
+      const categorySnapshots = await transaction.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, active: true } });
+      const categoryResult = resolveEffectiveCategory(
+        { categoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] },
+        candidate.categoryDecision,
+        categorySnapshots,
+      );
+      categoryResolved = categoryResult.status !== "REQUIRES_REVIEW";
+    }
+    const reconciliation = reconcileCandidateAfterDuplicateDecision(candidate, disposition, effective.status === "NO_ORGANIZATION" || effective.status === "USE_MATCHED_ORGANIZATION" || effective.status === "USE_SELECTED_ORGANIZATION", categoryResolved);
     if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) {
       await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
     }

@@ -124,6 +124,7 @@ export function reconcileCandidateAfterDuplicateDecision(
   candidate: DuplicateReconciliationCandidate,
   disposition: DuplicateDisposition,
   organizationResolved = false,
+  categoryResolved = false,
 ): DuplicateReconciliationResult {
   if (candidate.resolution || candidate.createdPlaceId || candidate.status === "SKIPPED" || candidate.status === "IMPORTED" || candidate.status === "MATCH_EXISTING") return null;
   if (disposition === "UNRESOLVED" || disposition === "LOSER") return { status: "REQUIRES_REVIEW", queueStatus: null };
@@ -140,7 +141,7 @@ export function reconcileCandidateAfterDuplicateDecision(
   const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
 
   if (placeClassification && placeClassification !== "NEW") return { status: "REQUIRES_REVIEW", queueStatus: "PENDING" };
-  if (analysisStatus === "ERROR" || errors.length > 0 || categoryStatus !== "MATCHED" || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
+  if (analysisStatus === "ERROR" || errors.length > 0 || (!categoryResolved && categoryStatus !== "MATCHED") || (!organizationResolved && ["POSSIBLE", "CONFLICT", "NEW_CANDIDATE"].includes(organizationStatus ?? ""))) {
     return { status: "REQUIRES_REVIEW", queueStatus: null };
   }
   return { status: "IMPORT_READY", queueStatus: null };

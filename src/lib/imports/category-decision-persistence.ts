@@ -1,16 +1,25 @@
 import { Prisma } from "../../generated/prisma/client.ts";
 import { ImportCandidateStatus } from "../../generated/prisma/enums.ts";
+import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
+import { parseOrganizationDecision, resolveEffectiveOrganization, type PersistedOrganizationAnalysis } from "./organization-decisions.ts";
 import { isSpreadsheetBatchMetadata } from "./spreadsheet-place-review.ts";
+import { resolveEffectiveCategory } from "./category-decisions.ts";
 
 type CandidateSnapshot = {
   id: string;
+  importBatchId: string;
+  candidateKey: string;
   status: string;
   resolution: string | null;
+  queueStatus: string | null;
   createdPlaceId: string | null;
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue | null };
   sources: Array<{ sourceEntryId: string }>;
+  organizationDecision: { decision: string; organizationId: string | null } | null;
 };
+
+type BatchCandidate = Pick<CandidateSnapshot, "id" | "candidateKey" | "status" | "resolution" | "createdPlaceId" | "queueStatus" | "proposedData">;
 
 type PersistedDecision = {
   id: string;
@@ -26,6 +35,14 @@ export type CategoryDecisionPersistenceTransaction = {
   $queryRaw<T>(query: Prisma.Sql): Promise<T[]>;
   importCandidate: {
     findUnique(args: Prisma.ImportCandidateFindUniqueArgs): Promise<CandidateSnapshot | null>;
+    findMany(args: Prisma.ImportCandidateFindManyArgs): Promise<BatchCandidate[]>;
+    update(args: Prisma.ImportCandidateUpdateArgs): Promise<{ id: string }>;
+  };
+  importCandidateDuplicateDecision: {
+    findMany(args: Prisma.ImportCandidateDuplicateDecisionFindManyArgs): Promise<Array<{ candidateAId: string; candidateBId: string; decision: string }>>;
+  };
+  organization: {
+    findUnique(args: Prisma.OrganizationFindUniqueArgs): Promise<{ id: string; active: boolean } | null>;
   };
   category: {
     findMany(args: Prisma.CategoryFindManyArgs): Promise<Array<{ id: string; active: boolean }>>;
@@ -76,6 +93,26 @@ function decisionCategoryIds(decision: PersistedDecision | null): string[] {
     .map((item) => item.categoryId);
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function organizationAnalysis(value: unknown): PersistedOrganizationAnalysis | null {
+  const analysis = record(record(value)?.analysis);
+  const organization = record(analysis?.organization);
+  const status = organization?.status;
+  const organizationId = organization?.organizationId;
+  if ((status !== "NONE" && status !== "MATCHED" && status !== "POSSIBLE" && status !== "CONFLICT" && status !== "NEW_CANDIDATE") || (organizationId !== null && typeof organizationId !== "string")) return null;
+  return { status, organizationId: organizationId as string | null };
+}
+
+function candidateRowNumber(candidateKey: string): number | null {
+  const match = /^row-(\d+)$/.exec(candidateKey);
+  if (!match) return null;
+  const rowNumber = Number(match[1]);
+  return Number.isSafeInteger(rowNumber) && rowNumber > 0 ? rowNumber : null;
+}
+
 function snapshotArgs(candidateId: string): Prisma.ImportCandidateCategoryDecisionFindUniqueArgs {
   return {
     where: { candidateId },
@@ -109,7 +146,7 @@ export async function saveImportCandidateCategoryDecision(
 
     const candidate = await transaction.importCandidate.findUnique({
       where: { id: input.candidateId },
-      include: { importBatch: { select: { metadata: true } }, sources: { select: { sourceEntryId: true } } },
+      include: { importBatch: { select: { metadata: true } }, sources: { select: { sourceEntryId: true } }, organizationDecision: { select: { decision: true, organizationId: true } } },
     });
     if (!candidate || !isSpreadsheetBatchMetadata(candidate.importBatch.metadata) || candidate.resolution || candidate.createdPlaceId || candidate.status === ImportCandidateStatus.IMPORTED || candidate.status === ImportCandidateStatus.SKIPPED || candidate.status === ImportCandidateStatus.MATCH_EXISTING) {
       return { status: "INVALID_CANDIDATE" };
@@ -137,6 +174,48 @@ export async function saveImportCandidateCategoryDecision(
     });
     const persisted = await transaction.importCandidateCategoryDecision.findUnique(snapshotArgs(candidate.id));
     if (!persisted) return { status: "INVALID_DECISION" };
+
+    const batchCandidates = await transaction.importCandidate.findMany({
+      where: { importBatchId: candidate.importBatchId },
+      select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true },
+    });
+    const rowNumberToCandidateId = new Map<number, string>();
+    for (const item of batchCandidates) {
+      const rowNumber = candidateRowNumber(item.candidateKey);
+      if (rowNumber !== null) rowNumberToCandidateId.set(rowNumber, item.id);
+    }
+    const storedDecisions = await transaction.importCandidateDuplicateDecision.findMany({
+      where: { candidateA: { importBatchId: candidate.importBatchId } },
+      select: { candidateAId: true, candidateBId: true, decision: true },
+    });
+    const decisions = storedDecisions.map((item) => ({ ...item, decision: item.decision as StoredDuplicateDecision["decision"] }));
+    const duplicateDisposition = getDuplicateDisposition(getDuplicateDecisionState(
+      candidate.id,
+      duplicateRowNumbers(candidate.proposedData).map((rowNumber) => ({ rowNumber })),
+      rowNumberToCandidateId,
+      decisions,
+    ));
+    const orgAnalysis = organizationAnalysis(candidate.proposedData);
+    const organizationDecision = parseOrganizationDecision(candidate.organizationDecision);
+    const organizationId = organizationDecision?.decision === "SELECTED_ORGANIZATION" ? organizationDecision.organizationId : orgAnalysis?.organizationId ?? null;
+    const organization = organizationId ? await transaction.organization.findUnique({ where: { id: organizationId }, select: { id: true, active: true } }) : null;
+    const effectiveOrganization = orgAnalysis
+      ? resolveEffectiveOrganization(orgAnalysis, organizationDecision, organization)
+      : { status: "UNRESOLVED" as const, organizationId: null };
+    const effective = resolveEffectiveCategory(
+      { categoryIds: selectedCategoryIds, requiresReview: false, unresolvedTokens: [], warnings: [] },
+      { primaryCategoryId: persisted.primaryCategoryId, categories: persisted.categories },
+      categories,
+    );
+    const reconciliation = reconcileCandidateAfterDuplicateDecision(
+      candidate,
+      duplicateDisposition,
+      effectiveOrganization.status === "NO_ORGANIZATION" || effectiveOrganization.status === "USE_MATCHED_ORGANIZATION" || effectiveOrganization.status === "USE_SELECTED_ORGANIZATION",
+      effective.status !== "REQUIRES_REVIEW",
+    );
+    if (reconciliation && (candidate.status !== reconciliation.status || candidate.queueStatus !== reconciliation.queueStatus)) {
+      await transaction.importCandidate.update({ where: { id: candidate.id }, data: reconciliation });
+    }
 
     if (changed) {
       await transaction.auditLog.create({

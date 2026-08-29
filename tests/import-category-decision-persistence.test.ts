@@ -12,12 +12,16 @@ const categoryC = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 type FakeCandidate = {
   id: string;
+  importBatchId: string;
+  candidateKey: string;
   status: string;
   resolution: string | null;
+  queueStatus: string | null;
   createdPlaceId: string | null;
   proposedData: Prisma.JsonValue;
   importBatch: { metadata: Prisma.JsonValue };
   sources: Array<{ sourceEntryId: string }>;
+  organizationDecision: { decision: string; organizationId: string | null } | null;
 };
 
 type FakeDecision = {
@@ -34,12 +38,16 @@ type FakeJoin = { decisionId: string; categoryId: string; sortOrder: number };
 function makeCandidate(overrides: Partial<FakeCandidate> = {}): FakeCandidate {
   return {
     id: candidateId,
+    importBatchId: "33333333-3333-4333-8333-333333333333",
+    candidateKey: "row-1",
     status: ImportCandidateStatus.REQUIRES_REVIEW,
     resolution: null,
+    queueStatus: null,
     createdPlaceId: null,
     proposedData: { mappedValues: { name: "Punkt" }, analysis: { category: { status: "UNRESOLVED" } } },
     importBatch: { metadata: { kind: "SPREADSHEET" } },
     sources: [{ sourceEntryId: "source-1" }],
+    organizationDecision: null,
     ...overrides,
   };
 }
@@ -73,7 +81,11 @@ class FakeDatabase implements CategoryDecisionPersistenceDatabase {
     };
     return {
       $queryRaw: async <T>() => (this.lockPresent ? [{ id: this.candidate.id }] : []) as T[],
-      importCandidate: { findUnique: async () => this.candidate },
+      importCandidate: {
+        findUnique: async () => this.candidate,
+        findMany: async () => [this.candidate],
+        update: async (args) => { this.candidate = { ...this.candidate, ...args.data } as FakeCandidate; return { id: this.candidate.id }; },
+      },
       category: {
         findMany: async (args) => {
           const ids = (args.where as { id: { in: string[] } }).id.in;
@@ -83,6 +95,8 @@ class FakeDatabase implements CategoryDecisionPersistenceDatabase {
           });
         },
       },
+      importCandidateDuplicateDecision: { findMany: async () => [] },
+      organization: { findUnique: async () => null },
       importCandidateCategoryDecision: {
         findUnique: async () => readDecision(),
         upsert: async (args) => {
@@ -124,8 +138,29 @@ test("creates a decision and persists primary first", async () => {
   const result = await saveImportCandidateCategoryDecision(db, input());
   assert.equal(result.status, "SAVED");
   assert.deepEqual(db.joins.map(({ categoryId, sortOrder }) => [categoryId, sortOrder]), [[categoryA, 0], [categoryB, 1]]);
-  assert.equal(db.candidate.status, ImportCandidateStatus.REQUIRES_REVIEW);
+  assert.equal(db.candidate.status, ImportCandidateStatus.IMPORT_READY);
   assert.equal(db.audits.length, 1);
+});
+
+test("multi-category decision clears the category blocker and reconciles to ready", async () => {
+  const db = new FakeDatabase(makeCandidate({
+    proposedData: { mappedValues: { name: "Punkt" }, analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" } } },
+  }));
+  const result = await saveImportCandidateCategoryDecision(db, input({ primaryCategoryId: categoryB, selectedCategoryIds: [categoryB, categoryA] }));
+  assert.equal(result.status, "SAVED");
+  if (result.status === "SAVED") assert.equal(result.changed, true);
+  assert.equal(db.candidate.status, ImportCandidateStatus.IMPORT_READY);
+  assert.equal(db.candidate.queueStatus, null);
+});
+
+test("multi-category decision leaves an unresolved organization blocker", async () => {
+  const db = new FakeDatabase(makeCandidate({
+    proposedData: { mappedValues: { name: "Punkt" }, analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NEW_CANDIDATE", organizationId: null } } },
+  }));
+  const result = await saveImportCandidateCategoryDecision(db, input());
+  assert.equal(result.status, "SAVED");
+  assert.equal(db.candidate.status, ImportCandidateStatus.REQUIRES_REVIEW);
+  assert.equal(db.candidate.queueStatus, null);
 });
 
 test("orders the primary first without sorting secondary input alphabetically", async () => {

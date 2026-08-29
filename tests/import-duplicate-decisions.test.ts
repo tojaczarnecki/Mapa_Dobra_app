@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { activeImportIssueCodesForCandidate } from "../src/lib/imports/issue-labels.ts";
+import { resolveEffectiveCategory } from "../src/lib/imports/category-decisions.ts";
 import { canonicalizeDuplicatePair, getDuplicateDecisionState, getDuplicateDisposition, isOriginalDuplicateEdge, mapDuplicateDecision, reconcileCandidateAfterDuplicateDecision, type StoredDuplicateDecision } from "../src/lib/imports/duplicate-decisions.ts";
 
 test("canonical duplicate pair is identical in either direction", () => {
@@ -127,6 +128,33 @@ test("reapplying a resolved decision restores ready flow or keeps an unresolved 
   const review = { analysis: { category: { status: "MATCHED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } };
   assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: ready }, "RESOLVED_DIFFERENT"), { status: "IMPORT_READY", queueStatus: null });
   assert.deepEqual(reconcileCandidateAfterDuplicateDecision({ status: "REQUIRES_REVIEW", resolution: null, createdPlaceId: null, proposedData: review }, "UNRESOLVED"), { status: "REQUIRES_REVIEW", queueStatus: null });
+});
+
+test("duplicate reconciliation keeps a valid persisted category decision resolved", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    proposedData: { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", false, true), { status: "IMPORT_READY", queueStatus: null });
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", false, false), { status: "REQUIRES_REVIEW", queueStatus: null });
+});
+
+test("duplicate reconciliation blocks an invalid or inactive persisted category decision", () => {
+  const candidate = {
+    status: "REQUIRES_REVIEW",
+    resolution: null,
+    createdPlaceId: null,
+    proposedData: { analysis: { category: { status: "UNRESOLVED" }, organization: { status: "NONE" }, place: { classification: "NEW" }, errors: [] } },
+  };
+  const effective = resolveEffectiveCategory(
+    { categoryIds: ["category-a"], requiresReview: false, unresolvedTokens: [], warnings: [] },
+    { primaryCategoryId: "category-a", categories: [{ categoryId: "category-a", sortOrder: 0 }] },
+    [{ id: "category-a", active: false }],
+  );
+  assert.equal(effective.status, "REQUIRES_REVIEW");
+  assert.deepEqual(reconcileCandidateAfterDuplicateDecision(candidate, "RESOLVED_DIFFERENT", false, effective.status !== "REQUIRES_REVIEW"), { status: "REQUIRES_REVIEW", queueStatus: null });
 });
 
 test("manual terminal states are not changed by duplicate reconciliation", () => {

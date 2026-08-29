@@ -4,6 +4,7 @@ import { slugifyImportValue } from "./caritas-gdzie-parser.ts";
 import { duplicateRowNumbers, getDuplicateDecisionState, getDuplicateDisposition, type StoredDuplicateDecision } from "./duplicate-decisions.ts";
 import { findLivePlaceMatch, lockLivePlaceIdentity } from "./live-place-match.ts";
 import type { ImportPlaceReference } from "./matching.ts";
+import { resolveEffectiveCategory, type CategoryAnalysisState, type PersistedCategoryDecision } from "./category-decisions.ts";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "./organization-decisions.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -50,6 +51,7 @@ type CandidateSnapshot = {
   importBatch: { id: string; key: string; status: ImportBatchStatus };
   sources: Array<{ sourceEntry: { id: string; parsedData: Prisma.JsonValue | null } }>;
   organizationDecision: { decision: string; organizationId: string | null } | null;
+  categoryDecision?: { id: string; primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null;
 };
 
 export type MaterializeCandidateTransaction = {
@@ -64,6 +66,7 @@ export type MaterializeCandidateTransaction = {
   };
   category: {
     findFirst(args: Prisma.CategoryFindFirstArgs): Promise<{ id: string; slug: string; active: boolean } | null>;
+    findMany?(args: Prisma.CategoryFindManyArgs): Promise<Array<{ id: string; active: boolean }>>;
   };
   organization: {
     findUnique(args: Prisma.OrganizationFindUniqueArgs): Promise<{ id: string; active: boolean } | null>;
@@ -212,6 +215,22 @@ function blockedByMatch(candidate: CandidateSnapshot, analysis: ProposedAnalysis
   return null;
 }
 
+function categoryAnalysis(value: Prisma.JsonValue, legacyCategoryId: string | null): CategoryAnalysisState {
+  const root = record(value);
+  const analysis = record(root?.analysis);
+  const category = record(analysis?.category);
+  const categories = record(analysis?.categories);
+  const ids = stringList(categories?.matchedCategoryIds);
+  const legacyStatus = stringValue(category?.status) ?? stringValue(analysis?.categoryStatus);
+  const legacyId = legacyCategoryId ? [legacyCategoryId] : [];
+  return {
+    categoryIds: ids.length > 0 ? ids : legacyId,
+    requiresReview: typeof categories?.requiresReview === "boolean" ? categories.requiresReview : legacyStatus !== "MATCHED",
+    unresolvedTokens: stringList(categories?.unresolvedTokens),
+    warnings: stringList(categories?.warnings),
+  };
+}
+
 export async function materializeImportCandidate(
   db: MaterializeCandidateDatabase,
   input: MaterializeImportCandidateInput,
@@ -240,6 +259,7 @@ export async function materializeImportCandidate(
         importBatch: { select: { id: true, key: true, status: true } },
         sources: { select: { sourceEntry: { select: { id: true, parsedData: true } } } },
         organizationDecision: { select: { decision: true, organizationId: true } },
+        categoryDecision: { select: { id: true, primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } },
       },
     });
     if (!candidate) return { status: "INVALID_CANDIDATE" };
@@ -277,9 +297,19 @@ export async function materializeImportCandidate(
     const matchBlock = blockedByMatch(candidate, proposed.analysis, duplicateDisposition);
     if (matchBlock) return matchBlock;
     if (candidate.status !== ImportCandidateStatus.IMPORT_READY) return { status: "INVALID_CANDIDATE" };
-    if (proposed.analysis.categoryStatus !== "MATCHED" || !proposed.analysis.categorySlug) return { status: "CATEGORY_REVIEW_REQUIRED" };
-    const category = await transaction.category.findFirst({ where: { slug: proposed.analysis.categorySlug, active: true }, select: { id: true, slug: true, active: true } });
-    if (!category) return { status: "CATEGORY_REVIEW_REQUIRED" };
+    const legacyCategory = proposed.analysis.categorySlug
+      ? await transaction.category.findFirst({ where: { slug: proposed.analysis.categorySlug }, select: { id: true, slug: true, active: true } })
+      : null;
+    const analysis = categoryAnalysis(candidate.proposedData, legacyCategory?.id ?? null);
+    const persistedDecision: PersistedCategoryDecision | null = candidate.categoryDecision
+      ? { primaryCategoryId: candidate.categoryDecision.primaryCategoryId, categories: candidate.categoryDecision.categories }
+      : null;
+    const selectedIds = persistedDecision?.categories.map((item) => item.categoryId) ?? analysis.categoryIds;
+    const categorySnapshots = transaction.category.findMany
+      ? await transaction.category.findMany({ where: { id: { in: selectedIds } }, select: { id: true, active: true } })
+      : legacyCategory ? [{ id: legacyCategory.id, active: legacyCategory.active }] : [];
+    const effectiveCategory = resolveEffectiveCategory(analysis, persistedDecision, categorySnapshots);
+    if (effectiveCategory.status === "REQUIRES_REVIEW") return { status: "CATEGORY_REVIEW_REQUIRED" };
 
     const organizationDecision = parseOrganizationDecision(candidate.organizationDecision);
     const organizationLookupId = organizationDecision?.decision === "SELECTED_ORGANIZATION"
@@ -318,7 +348,7 @@ export async function materializeImportCandidate(
         slug: await uniquePlaceSlug(transaction, values.name, candidate.id),
         name: values.name,
         organizationId,
-        primaryCategoryId: category.id,
+        primaryCategoryId: effectiveCategory.primaryCategoryId,
         typeLabel: null,
         description: values.description,
         street: values.street,
@@ -343,7 +373,7 @@ export async function materializeImportCandidate(
         recordKind: "PRODUCTION",
         isDemo: false,
         lastEditedByAdminUserId: input.adminUserId,
-        categories: { create: [{ categoryId: category.id, sortOrder: 0 }] },
+        categories: { create: effectiveCategory.categoryIds.map((categoryId, sortOrder) => ({ categoryId, sortOrder })) },
       },
       select: { id: true },
     });

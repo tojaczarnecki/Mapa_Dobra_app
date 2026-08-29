@@ -15,6 +15,7 @@ import { canonicalizeDuplicatePair, duplicateRowNumbers, getDuplicateDecisionSta
 import { isSpreadsheetBatchMetadata } from "@/lib/imports/spreadsheet-place-review";
 import { saveImportCandidateOrganizationDecision, type OrganizationDecisionPersistenceTransaction, type SaveOrganizationDecisionInput } from "@/lib/imports/organization-decision-persistence";
 import { saveImportCandidateCategoryDecision, type SaveCategoryDecisionInput } from "@/lib/imports/category-decision-persistence";
+import { resolveEffectiveCategory } from "@/lib/imports/category-decisions";
 import type { OrganizationDecision } from "@/lib/imports/organization-decisions";
 
 const PREVIEW_LIMIT = 100;
@@ -264,6 +265,29 @@ function candidateRowNumber(candidateKey: string): number | null {
   return Number.isSafeInteger(rowNumber) && rowNumber > 0 ? rowNumber : null;
 }
 
+function categoryStatus(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const analysis = (value as Record<string, unknown>).analysis;
+  if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) return null;
+  const category = (analysis as Record<string, unknown>).category;
+  if (!category || typeof category !== "object" || Array.isArray(category)) return null;
+  const status = (category as Record<string, unknown>).status;
+  return typeof status === "string" ? status : null;
+}
+
+function categoryResolvedForDuplicateReconciliation(
+  proposedData: unknown,
+  decision: { primaryCategoryId: string; categories: Array<{ categoryId: string; sortOrder: number }> } | null,
+  categorySnapshots: Array<{ id: string; active: boolean }>,
+): boolean {
+  if (!decision) return categoryStatus(proposedData) === "MATCHED";
+  return resolveEffectiveCategory(
+    { categoryIds: decision.categories.map((item) => item.categoryId), requiresReview: false, unresolvedTokens: [], warnings: [] },
+    decision,
+    categorySnapshots,
+  ).status !== "REQUIRES_REVIEW";
+}
+
 export async function saveDuplicateDecision(formData: FormData): Promise<DuplicateDecisionActionState> {
   const session = await requirePermission("MANAGE_IMPORTS");
   const candidateId = formData.get("candidateId");
@@ -278,7 +302,7 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
       await transaction.$queryRaw`SELECT "id" FROM "import_candidates" WHERE "id" IN (${requestedPair.candidateAId}::uuid, ${requestedPair.candidateBId}::uuid) ORDER BY "id" FOR UPDATE`;
       const candidates = await transaction.importCandidate.findMany({
         where: { id: { in: [candidateId, duplicateCandidateId] } },
-        select: { id: true, candidateKey: true, importBatchId: true, proposedData: true, importBatch: { select: { metadata: true } } },
+        select: { id: true, candidateKey: true, importBatchId: true, proposedData: true, importBatch: { select: { metadata: true } }, categoryDecision: { select: { primaryCategoryId: true, categories: { select: { categoryId: true, sortOrder: true } } } } },
       });
       if (candidates.length !== 2 || candidates[0]?.importBatchId !== candidates[1]?.importBatchId || !isSpreadsheetBatchMetadata(candidates[0]?.importBatch.metadata)) throw new Error("INVALID_DUPLICATE_EDGE");
       const current = candidates.find((candidate) => candidate.id === candidateId);
@@ -292,6 +316,10 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
         where: { importBatchId: current.importBatchId },
         select: { id: true, candidateKey: true, proposedData: true, status: true, resolution: true, createdPlaceId: true, queueStatus: true },
       });
+      const categoryDecisionIds = candidates.flatMap((candidate) => candidate.categoryDecision?.categories.map((item) => item.categoryId) ?? []);
+      const categorySnapshots = categoryDecisionIds.length > 0
+        ? await transaction.category.findMany({ where: { id: { in: [...new Set(categoryDecisionIds)] } }, select: { id: true, active: true } })
+        : [];
       const rowNumberToCandidateId = new Map<number, string>();
       for (const candidate of batchCandidates) {
         const rowNumber = candidateRowNumber(candidate.candidateKey);
@@ -319,7 +347,13 @@ export async function saveDuplicateDecision(formData: FormData): Promise<Duplica
         const snapshot = currentById.get(candidate.id);
         if (!snapshot) continue;
         const state = getDuplicateDecisionState(candidate.id, duplicateRowNumbers(snapshot.proposedData).map((rowNumber) => ({ rowNumber })), rowNumberToCandidateId, decisionsWithNext);
-        const reconciliation = reconcileCandidateAfterDuplicateDecision(snapshot, getDuplicateDisposition(state));
+        const categoryDecision = candidate.categoryDecision;
+        const reconciliation = reconcileCandidateAfterDuplicateDecision(
+          snapshot,
+          getDuplicateDisposition(state),
+          false,
+          categoryResolvedForDuplicateReconciliation(snapshot.proposedData, categoryDecision, categorySnapshots),
+        );
         if (reconciliation && (snapshot.status !== reconciliation.status || snapshot.queueStatus !== reconciliation.queueStatus)) {
           await transaction.importCandidate.update({ where: { id: snapshot.id }, data: reconciliation });
         }
