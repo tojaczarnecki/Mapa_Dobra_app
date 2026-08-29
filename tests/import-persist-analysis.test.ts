@@ -196,6 +196,7 @@ test("persists exact place match and keeps review status", async () => {
   assert.equal(result.status, "CREATED");
   assert.equal(db.candidates[0]?.matchedPlaceId, "place-1");
   assert.equal(db.candidates[0]?.status, "REQUIRES_REVIEW");
+  assert.equal(db.candidates[0]?.queueStatus, "PENDING");
   assert.equal(db.candidates[0]?.createdPlace, undefined);
   assert.deepEqual(db.candidates[0]?.proposedData, {
     mappedValues: { name: "Punkt", addressLine: "Adres", primaryCategory: "Jedzenie" },
@@ -209,4 +210,25 @@ test("persists exact place match and keeps review status", async () => {
       inFileDuplicates: [],
     },
   });
+});
+
+test("does not queue non-place spreadsheet reviews", async () => {
+  const db = new FakeDatabase();
+  const reviewed = row(8, { name: "Punkt", addressLine: "Adres", primaryCategory: "Jedzenie" }, "REVIEW");
+  reviewed.placeMatch = { classification: "NEW", candidates: [], reasons: [], conflict: false };
+  const result = await persistImportAnalysis(db, input({ rows: [reviewed] }));
+
+  assert.equal(result.status, "CREATED");
+  assert.equal(db.candidates[0]?.queueStatus, undefined);
+});
+
+test("does not queue a mixed place match with an in-file duplicate", async () => {
+  const db = new FakeDatabase();
+  const mixed = row(9, { name: "Punkt", addressLine: "Adres", primaryCategory: "Jedzenie" }, "REVIEW");
+  mixed.placeMatch = { classification: "EXACT_MATCH", candidates: [{ placeId: "place-1", reasons: ["SAME_NAME_AND_ADDRESS"] }], reasons: ["SAME_NAME_AND_ADDRESS"], conflict: false };
+  mixed.inFileDuplicates = [{ rowNumber: 21, reasons: ["SAME_NAME_AND_ADDRESS"] }];
+  const result = await persistImportAnalysis(db, input({ rows: [mixed] }));
+
+  assert.equal(result.status, "CREATED");
+  assert.equal(db.candidates[0]?.queueStatus, undefined);
 });

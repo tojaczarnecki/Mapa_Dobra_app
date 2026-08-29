@@ -1,6 +1,7 @@
 import { normalizeAddress, normalizeComparable } from "@/lib/imports/caritas-gdzie-parser";
 import { prisma } from "@/lib/prisma";
 import { isPilotGPlaceId, pilotGPlaceIds } from "@/lib/verification/pilot-g";
+import { hasSpreadsheetSourceRowDuplicate, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate } from "@/lib/imports/spreadsheet-place-review";
 
 export type VerificationQueueItem = {
   id: string;
@@ -50,9 +51,14 @@ export async function getVerificationQueueItems() {
       },
     }),
     prisma.importCandidate.findMany({
-      where: { queueStatus: { not: null } },
+      where: {
+        OR: [
+          { queueStatus: { not: null } },
+          { queueStatus: null, importBatch: { metadata: { path: ["kind"], equals: "SPREADSHEET" } } },
+        ],
+      },
       include: {
-        importBatch: { select: { id: true, title: true, edition: true } },
+        importBatch: { select: { id: true, title: true, edition: true, metadata: true } },
         matchedPlace: { select: { id: true } },
         sources: { include: { sourceEntry: { select: { sourcePages: true } } } },
       },
@@ -86,13 +92,16 @@ export async function getVerificationQueueItems() {
     contactedAt: place.verificationContact?.contactedAt ?? null,
     updatedAt: place.updatedAt,
   }));
-  const candidateItems: VerificationQueueItem[] = candidates.map((candidate) => ({
+  const candidateItems: VerificationQueueItem[] = candidates.filter((candidate) => {
+    const spreadsheetMixedDuplicate = isSpreadsheetBatchMetadata(candidate.importBatch.metadata) && hasSpreadsheetSourceRowDuplicate(candidate);
+    return !spreadsheetMixedDuplicate && (candidate.queueStatus !== null || isSpreadsheetPlaceReviewCandidate(candidate));
+  }).map((candidate) => ({
     id: candidate.id,
     entityKind: "CANDIDATE",
     name: candidate.proposedName,
     address: candidate.proposedAddress,
     categories: candidate.categorySlugs,
-    queueStatus: candidate.queueStatus!,
+    queueStatus: candidate.queueStatus ?? "PENDING",
     publicationStatus: null,
     issueType: candidate.status === "MATCH_EXISTING" ? "MATCH_EXISTING" : candidate.matchedPlaceId ? "POSSIBLE_DUPLICATE" : "IMPORT_CONFLICT",
     sourceLabel: `${candidate.importBatch.title} · ${candidate.importBatch.edition}`,

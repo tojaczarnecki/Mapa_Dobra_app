@@ -11,6 +11,9 @@ import { deriveTodayHoursLabel, openingRows, validateOpeningSchedule } from "@/l
 import { getVerificationCompleteness } from "@/lib/verification/completeness";
 import { contactReasonsBlockingPublication, parseVerificationContactMethod, parseVerificationContactReasons } from "@/lib/verification/contact";
 import { resolveLocationSource } from "@/lib/verification/location";
+import { getCandidateComparisonOptions } from "@/lib/verification/queue";
+import { matchOrganization } from "@/lib/imports/matching";
+import { canUndoCandidateResolution, hasSpreadsheetSourceRowDuplicate, isAllowedSpreadsheetPlaceId, isSpreadsheetBatchMetadata, isSpreadsheetPlaceReviewCandidate, restoreMatcherMatchedPlaceId } from "@/lib/imports/spreadsheet-place-review";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const verificationSources = ["PHONE_CALL", "ORGANIZATION_EMAIL", "VISIT", "OFFICIAL_WEBSITE", "SOCIAL_MEDIA", "OTHER"] as const;
@@ -30,6 +33,14 @@ function formText(formData: FormData, key: string, max: number, required = false
   const normalized = value.trim();
   if ((required && !normalized) || normalized.length > max) return null;
   return normalized;
+}
+
+function jsonRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function jsonText(value: unknown, max: number): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;
 }
 
 function optionalUrl(value: string | null) {
@@ -519,8 +530,9 @@ export async function startCandidateVerification(candidateId: string) {
   const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(candidateId)) return;
   await prisma.$transaction(async (transaction) => {
-    const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, select: { queueStatus: true } });
-    if (!candidate || candidate.queueStatus !== "PENDING") return;
+    const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, select: { queueStatus: true, status: true, resolution: true, proposedData: true, importBatch: { select: { metadata: true } } } });
+    const legacySpreadsheetReview = candidate ? isSpreadsheetPlaceReviewCandidate(candidate) : false;
+    if (!candidate || (candidate.queueStatus !== "PENDING" && !legacySpreadsheetReview)) return;
     await transaction.importCandidate.update({ where: { id: candidateId }, data: { queueStatus: "IN_PROGRESS" } });
     await transaction.auditLog.create({ data: { adminUserId: session.user.id, action: "VERIFICATION_STARTED", entityType: "IMPORT_CANDIDATE", entityId: candidateId, changedFields: ["queueStatus"], previousValues: { queueStatus: "PENDING" }, newValues: { queueStatus: "IN_PROGRESS" }, changeOrigin: "SOURCE_IMPORT", sourceReferenceId: candidateId, note: "Rozpoczęto analizę kandydata importowego." } });
   });
@@ -536,14 +548,22 @@ export async function resolveCandidateSamePlace(
   const placeId = formText(formData, "placeId", 36, true);
   const note = formText(formData, "note", 1000);
   if (!uuidPattern.test(candidateId) || !placeId || !uuidPattern.test(placeId) || note === null) return { error: "Wybierz prawidłowe istniejące miejsce." };
+  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { matchedPlaceId: true, status: true, resolution: true, proposedData: true, importBatch: { select: { metadata: true } } } });
+  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) : false;
+  if (candidateContext && isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && !spreadsheetPlaceReview && !candidateContext.resolution) return { error: "Ten kandydat ma inny typ konfliktu i nie może zostać rozstrzygnięty w tym kroku." };
+  const allowedSpreadsheetPlaceIds = spreadsheetPlaceReview
+    ? new Set((await getCandidateComparisonOptions(candidateId)).suggestions.map((place) => place.id).concat(candidateContext?.matchedPlaceId ?? ""))
+    : null;
+  if (spreadsheetPlaceReview && !isAllowedSpreadsheetPlaceId([...allowedSpreadsheetPlaceIds ?? []], placeId)) return { error: "Wybierz miejsce wskazane w analizie tego kandydata." };
   try {
     await prisma.$transaction(async (transaction) => {
       const [candidate, place] = await Promise.all([
-        transaction.importCandidate.findUnique({ where: { id: candidateId }, select: { id: true, status: true, matchedPlaceId: true, resolution: true } }),
+        transaction.importCandidate.findUnique({ where: { id: candidateId }, select: { id: true, status: true, matchedPlaceId: true, resolution: true, proposedData: true, importBatch: { select: { metadata: true } } } }),
         transaction.place.findUnique({ where: { id: placeId }, select: { id: true, name: true } }),
       ]);
       if (!candidate || !place) throw new Error("NOT_FOUND");
       if (candidate.resolution) throw new Error("ALREADY_RESOLVED");
+      if (isSpreadsheetPlaceReviewCandidate(candidate) && !isAllowedSpreadsheetPlaceId([...allowedSpreadsheetPlaceIds ?? []], placeId)) throw new Error("INVALID_PLACE_OPTION");
       await transaction.importCandidate.update({ where: { id: candidateId }, data: { status: "MATCH_EXISTING", matchedPlaceId: placeId, resolution: "SAME_PLACE", queueStatus: "VERIFIED", resolvedAt: new Date(), resolvedByAdminUserId: session.user.id, resolutionNote: note || null } });
       await transaction.auditLog.create({ data: { adminUserId: session.user.id, action: "IMPORT_CONFLICT_RESOLVED", entityType: "IMPORT_CANDIDATE", entityId: candidateId, changedFields: ["status", "matchedPlaceId", "resolution", "queueStatus"], previousValues: { status: candidate.status, matchedPlaceId: candidate.matchedPlaceId }, newValues: { status: "MATCH_EXISTING", matchedPlaceId: placeId, resolution: "SAME_PLACE", queueStatus: "VERIFIED" }, changeOrigin: "SOURCE_IMPORT", sourceReferenceId: candidateId, note: note || `Połączono źródło z miejscem: ${place.name}.` } });
     });
@@ -551,6 +571,7 @@ export async function resolveCandidateSamePlace(
     return { success: "Źródło powiązano z istniejącym miejscem bez nadpisywania jego danych." };
   } catch (error) {
     if (error instanceof Error && error.message === "ALREADY_RESOLVED") return { error: "Ten kandydat został już rozstrzygnięty." };
+    if (error instanceof Error && error.message === "INVALID_PLACE_OPTION") return { error: "Wybierz miejsce wskazane w analizie tego kandydata." };
     return { error: "Nie udało się powiązać kandydata z miejscem." };
   }
 }
@@ -632,22 +653,64 @@ export async function resolveCandidateDifferentPlace(
 ): Promise<VerificationActionState> {
   const session = await requirePermission("VERIFY_PLACES");
   if (!uuidPattern.test(candidateId)) return { error: "Nieprawidłowy identyfikator kandydata." };
-  const name = formText(formData, "name", 250, true);
-  const addressLine = formText(formData, "addressLine", 400, true);
-  const primaryCategorySlug = formText(formData, "primaryCategorySlug", 120, true);
-  const categorySlugs = [...new Set(formData.getAll("categorySlugs").filter((value): value is string => typeof value === "string"))];
-  const organizationId = formText(formData, "organizationId", 36);
+  const candidateContext = await prisma.importCandidate.findUnique({ where: { id: candidateId }, select: { status: true, resolution: true, createdPlaceId: true, proposedData: true, importBatch: { select: { metadata: true } } } });
+  const spreadsheetPlaceReview = candidateContext ? isSpreadsheetPlaceReviewCandidate(candidateContext) : false;
+  if (candidateContext && isSpreadsheetBatchMetadata(candidateContext.importBatch.metadata) && !candidateContext.resolution && !spreadsheetPlaceReview) return { error: "Najpierw rozstrzygnij pozostałe konflikty tego rekordu." };
+  let name = formText(formData, "name", 250, !spreadsheetPlaceReview);
+  let addressLine = formText(formData, "addressLine", 400, !spreadsheetPlaceReview);
+  let primaryCategorySlug = formText(formData, "primaryCategorySlug", 120, !spreadsheetPlaceReview);
+  let categorySlugs = [...new Set(formData.getAll("categorySlugs").filter((value): value is string => typeof value === "string"))];
+  let organizationId = formText(formData, "organizationId", 36);
   const note = formText(formData, "note", 1000);
-  if (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug) || note === null) return { error: "Uzupełnij nazwę, stały adres oraz aktywną kategorię główną." };
+  if (note === null || (!spreadsheetPlaceReview && (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug)))) return { error: "Uzupełnij nazwę, stały adres oraz aktywną kategorię główną." };
   try {
     const placeId = await prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" = ${candidateId}::uuid FOR UPDATE`);
       const candidate = await transaction.importCandidate.findUnique({ where: { id: candidateId }, include: { importBatch: true } });
       if (!candidate) throw new Error("NOT_FOUND");
-      if (candidate.resolution) throw new Error("ALREADY_RESOLVED");
+      if (candidate.resolution || candidate.createdPlaceId) throw new Error("ALREADY_RESOLVED");
+      const spreadsheetCandidate = isSpreadsheetBatchMetadata(candidate.importBatch.metadata);
+      if (spreadsheetCandidate) {
+        if (!isSpreadsheetPlaceReviewCandidate(candidate) || hasSpreadsheetSourceRowDuplicate(candidate)) throw new Error("SPREADSHEET_REVIEW");
+        const proposed = jsonRecord(candidate.proposedData);
+        const mapped = jsonRecord(proposed?.mappedValues);
+        const analysis = jsonRecord(proposed?.analysis);
+        const category = jsonRecord(analysis?.category);
+        const organization = jsonRecord(analysis?.organization);
+        name = jsonText(mapped?.name, 250);
+        addressLine = jsonText(mapped?.addressLine, 400);
+        const categoryStatus = jsonText(category?.status, 40);
+        const sourceCategorySlug = jsonText(category?.categorySlug, 120) ?? candidate.primaryCategorySlug;
+        const selectedCategorySlug = primaryCategorySlug;
+        primaryCategorySlug = categoryStatus === "MATCHED" ? sourceCategorySlug : selectedCategorySlug;
+        categorySlugs = categoryStatus === "MATCHED" && sourceCategorySlug ? [sourceCategorySlug] : (selectedCategorySlug ? [selectedCategorySlug] : []);
+        const organizationStatus = jsonText(organization?.status, 40);
+        const sourceOrganizationId = jsonText(organization?.organizationId, 36);
+        const organizationCandidates = Array.isArray(organization?.candidateIds) ? organization.candidateIds.filter((id): id is string => typeof id === "string") : [];
+        if (!name || !addressLine || !primaryCategorySlug || !categorySlugs.includes(primaryCategorySlug)) throw new Error("CATEGORY_SELECTION");
+        if (categoryStatus !== "MATCHED" && selectedCategorySlug === null) throw new Error("CATEGORY_SELECTION");
+        organizationId = organizationStatus === "MATCHED" ? sourceOrganizationId : organizationId;
+        const currentOrganizations = await transaction.organization.findMany({ select: { id: true, name: true, nip: true, regon: true, krs: true, active: true } });
+        const currentOrganizationMatch = matchOrganization({
+          organizationName: jsonText(mapped?.organizationName, 500),
+          organizationNip: jsonText(mapped?.organizationNip, 40),
+          organizationRegon: jsonText(mapped?.organizationRegon, 40),
+          organizationKrs: jsonText(mapped?.organizationKrs, 40),
+        }, currentOrganizations);
+        const currentOrganization = currentOrganizations.find((item) => item.id === currentOrganizationMatch.organizationId);
+        if (currentOrganizationMatch.status === "MATCHED" && currentOrganization?.active) organizationId = currentOrganization.id;
+        if (organizationStatus === "MATCHED" && !currentOrganization?.active) organizationId = organizationId && organizationCandidates.includes(organizationId) ? organizationId : null;
+        if (organizationStatus !== "NONE" && organizationStatus !== "MATCHED" && organizationId && !organizationCandidates.includes(organizationId)) throw new Error("ORGANIZATION_OPTION");
+        if (organizationStatus !== "NONE" && !organizationId && organizationStatus !== "MATCHED") organizationId = null;
+        if (organizationStatus === "MATCHED" && !organizationId) organizationId = null;
+      }
       const categories = await transaction.category.findMany({ where: { slug: { in: categorySlugs }, active: true } });
       if (categories.length !== categorySlugs.length) throw new Error("CATEGORY");
       const primary = categories.find((item) => item.slug === primaryCategorySlug);
       if (!primary) throw new Error("CATEGORY");
+      if (!name || !addressLine || !primaryCategorySlug) throw new Error("CATEGORY");
+      const finalName = name;
+      const finalAddressLine = addressLine;
       if (organizationId && !await transaction.organization.findFirst({ where: { id: organizationId, active: true }, select: { id: true } })) throw new Error("ORGANIZATION");
       const proposed = candidate.proposedData as Record<string, unknown>;
       const proposedAccommodation = candidateAccommodation(proposed.accommodation);
@@ -657,13 +720,13 @@ export async function resolveCandidateDifferentPlace(
         : "PRODUCTION";
       const place = await transaction.place.create({
         data: {
-          slug: await uniquePlaceSlug(transaction, name, candidateId),
-          name,
+          slug: await uniquePlaceSlug(transaction, finalName, candidateId),
+          name: finalName,
           organizationId: organizationId || null,
           primaryCategoryId: primary.id,
           typeLabel: proposed.accommodation ? "Miejsce noclegowe" : "Punkt pomocy",
           description: typeof proposed.description === "string" ? proposed.description.slice(0, 4000) : null,
-          addressLine,
+          addressLine: finalAddressLine,
           street: typeof proposed.street === "string" ? proposed.street.slice(0, 300) : null,
           buildingNumber: typeof proposed.buildingNumber === "string" ? proposed.buildingNumber.slice(0, 40) : null,
           postalCode: typeof proposed.postalCode === "string" ? proposed.postalCode.slice(0, 20) : null,
@@ -731,6 +794,9 @@ export async function resolveCandidateDifferentPlace(
   } catch (error) {
     const reason = error instanceof Error ? error.message : "";
     if (reason === "ALREADY_RESOLVED") return { error: "Ten kandydat został już rozstrzygnięty." };
+    if (reason === "SPREADSHEET_REVIEW") return { error: "Ten rekord ma nierozstrzygnięty konflikt, którego nie można obejść tą decyzją." };
+    if (reason === "CATEGORY_SELECTION") return { error: "Kategoria z importu wymaga rozstrzygnięcia przed utworzeniem placówki." };
+    if (reason === "ORGANIZATION_OPTION") return { error: "Wybierz organizację wskazaną w analizie albo opcję bez organizacji." };
     if (reason === "CATEGORY") return { error: "Wybrana kategoria jest nieaktywna lub nie istnieje." };
     if (reason === "ORGANIZATION") return { error: "Wybrana organizacja jest nieaktywna lub nie istnieje." };
     return { error: "Nie udało się utworzyć osobnego szkicu." };
@@ -758,5 +824,54 @@ export async function skipImportCandidate(
   } catch (error) {
     if (error instanceof Error && error.message === "ALREADY_RESOLVED") return { error: "Ten kandydat został już rozstrzygnięty." };
     return { error: "Nie udało się pominąć kandydata." };
+  }
+}
+
+export async function undoCandidateResolution(candidateId: string): Promise<VerificationActionState> {
+  const session = await requirePermission("VERIFY_PLACES");
+  if (!uuidPattern.test(candidateId)) return { error: "Nieprawidłowy identyfikator kandydata." };
+  try {
+    await prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(Prisma.sql`SELECT "id" FROM "import_candidates" WHERE "id" = ${candidateId}::uuid FOR UPDATE`);
+      const candidate = await transaction.importCandidate.findUnique({
+        where: { id: candidateId },
+        select: { id: true, resolution: true, createdPlaceId: true, matchedPlaceId: true, resolvedAt: true, resolvedByAdminUserId: true, resolutionNote: true, queueStatus: true, status: true, proposedData: true, importBatch: { select: { metadata: true } } },
+      });
+      if (!candidate) throw new Error("NOT_FOUND");
+      if (!canUndoCandidateResolution(candidate)) throw new Error("NOT_UNDOABLE");
+      const spreadsheetPlaceReview = isSpreadsheetPlaceReviewCandidate(candidate);
+      const restoredMatchedPlaceId = restoreMatcherMatchedPlaceId(candidate.proposedData);
+      await transaction.importCandidate.update({
+        where: { id: candidateId },
+        data: {
+          status: "REQUIRES_REVIEW",
+          matchedPlaceId: restoredMatchedPlaceId,
+          resolution: null,
+          queueStatus: spreadsheetPlaceReview ? "PENDING" : "PENDING",
+          resolvedAt: null,
+          resolvedByAdminUserId: null,
+          resolutionNote: null,
+        },
+      });
+      await transaction.auditLog.create({
+        data: {
+          adminUserId: session.user.id,
+          action: "IMPORT_CANDIDATE_REOPENED",
+          entityType: "IMPORT_CANDIDATE",
+          entityId: candidateId,
+          changedFields: ["status", "matchedPlaceId", "resolution", "queueStatus", "resolvedAt", "resolvedByAdminUserId", "resolutionNote"],
+          previousValues: { status: candidate.status, matchedPlaceId: candidate.matchedPlaceId, resolution: candidate.resolution, queueStatus: candidate.queueStatus },
+          newValues: { status: "REQUIRES_REVIEW", matchedPlaceId: restoredMatchedPlaceId, resolution: null, queueStatus: "PENDING" },
+          changeOrigin: "SOURCE_IMPORT",
+          sourceReferenceId: candidateId,
+          note: "Cofnięto decyzję i ponownie skierowano kandydata do weryfikacji.",
+        },
+      });
+    });
+    revalidateVerification(candidateId);
+    return { success: "Decyzja została cofnięta. Rekord wrócił do weryfikacji." };
+  } catch (error) {
+    if (error instanceof Error && error.message === "NOT_UNDOABLE") return { error: "Tej decyzji nie można cofnąć." };
+    return { error: "Nie udało się cofnąć decyzji." };
   }
 }

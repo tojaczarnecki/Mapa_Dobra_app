@@ -4,6 +4,7 @@ import { ImportBatchStatus, ImportCandidateStatus } from "../../generated/prisma
 import type { ImportBatchStatus as ImportBatchStatusValue } from "../../generated/prisma/enums.ts";
 import type { ColumnMapping, MappedImportRow } from "./column-mapping.ts";
 import type { MatchingAnalysisRow } from "./matching.ts";
+import { isSpreadsheetPlaceReviewCandidate } from "./spreadsheet-place-review.ts";
 
 const CHUNK_SIZE = 50;
 
@@ -151,6 +152,14 @@ function candidateData(row: PersistImportAnalysisInput["rows"][number]) {
   });
 }
 
+function candidateQueueStatus(row: PersistImportAnalysisInput["rows"][number]) {
+  return isSpreadsheetPlaceReviewCandidate({
+    batchMetadata: { kind: "SPREADSHEET" },
+    status: candidateStatus(row),
+    proposedData: candidateData(row),
+  }) ? "PENDING" as const : undefined;
+}
+
 function candidateName(row: PersistImportAnalysisInput["rows"][number]): string | null {
   return text(row.source.values.name);
 }
@@ -260,6 +269,7 @@ export async function persistImportAnalysis(db: ImportAnalysisDatabase, input: P
               reviewReasons: reviewReasons(row),
               proposedData: candidateData(row),
               matchedPlaceId: row.placeMatch.classification === "EXACT_MATCH" && row.placeMatch.candidates.length === 1 ? row.placeMatch.candidates[0]?.placeId : null,
+              queueStatus: candidateQueueStatus(row),
             },
             select: { id: true },
           });

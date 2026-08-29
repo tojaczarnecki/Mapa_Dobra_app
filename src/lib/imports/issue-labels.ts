@@ -41,7 +41,7 @@ const labels: Record<ImportIssueCode, string> = {
   INACTIVE_CATEGORY: "Dopasowana kategoria jest nieaktywna",
   SAME_NORMALIZED_ADDRESS: "Znaleziono zgodny adres",
   SAME_WEBSITE: "Znaleziono tę samą stronę WWW",
-  SIMILAR_NAME: "Znaleziono podobną nazwę miejsca",
+  SIMILAR_NAME: "Podobna nazwa organizacji lub miejsca",
   MULTIPLE_EXACT_CANDIDATES: "Znaleziono więcej niż jedno dokładne dopasowanie",
   UNRESOLVED_CATEGORY: "Nie udało się dopasować kategorii",
   MISSING_REQUIRED_FIELD: "Brak wymaganej wartości",
