@@ -112,14 +112,16 @@ export function LaunchSplash() {
   return (
     <div className={`launch-splash${exiting ? " launch-splash-exiting" : ""}`} role="status" aria-label="Ładowanie Mapy Dobra">
       <div className="launch-splash-content">
-        <div className="launch-splash-logo" aria-hidden="true">
-          <Image className="launch-splash-logo-outline" src="/brand/mapa-dobra-wordmark.svg" alt="" width={170} height={41} priority />
-          <div className="launch-splash-logo-fill" style={{ "--launch-fill-height": fillHeight } as React.CSSProperties}>
+        <span className="launch-splash-progress" aria-hidden="true">{Math.round(clampProgress(progress))}%</span>
+        <div className="launch-splash-symbol" aria-hidden="true">
+          <div className="launch-splash-symbol-ghost" />
+          <div className="launch-splash-symbol-fill" style={{ "--launch-fill-height": fillHeight } as React.CSSProperties}>
             <span className="launch-splash-liquid" />
           </div>
         </div>
-        <p className="launch-splash-claim">Wszędzie tam, gdzie dzieje się dobro</p>
-        <span className="launch-splash-progress" aria-hidden="true">{Math.round(clampProgress(progress))}%</span>
+        <div className="launch-splash-wordmark" aria-hidden="true">
+          <Image src="/brand/mapa-dobra-wordmark.svg" alt="" width={322} height={64} priority />
+        </div>
       </div>
     </div>
   );

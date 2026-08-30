@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: "#0f766e",
-    theme_color: "#0f766e",
+    background_color: "#0B4F48",
+    theme_color: "#0B4F48",
     lang: "pl",
     icons: [
       { src: "/icons/mapa-dobra-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
