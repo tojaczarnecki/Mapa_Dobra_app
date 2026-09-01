@@ -63,7 +63,7 @@ test("UNKNOWN criterion requires confirmation instead of becoming a mismatch", (
   const result = getAccommodationConditions(
     accommodation("unknown", { referralRequired: "UNKNOWN" }),
     {
-    profile: "man",
+    partyProfile: "man",
     needs: ["noReferral"],
     },
   );
@@ -74,7 +74,7 @@ test("UNKNOWN criterion requires confirmation instead of becoming a mismatch", (
 
 test("unknown accessibility and pet policy remain confirmation conditions", () => {
   const result = getAccommodationConditions(accommodation("unknown-details"), {
-    profile: "man",
+    partyProfile: "man",
     wheelchair: "yes",
     pet: "dog",
     needs: [],
@@ -92,10 +92,67 @@ test("explicit mismatch ranks below a match and an unknown criterion", () => {
       accommodation("unknown", { referralRequired: "UNKNOWN", distanceKm: 0.2 }),
       accommodation("match", { referralRequired: "NO", distanceKm: 3 }),
     ],
-    { profile: "man", needs: ["noReferral"] },
+    { partyProfile: "man", needs: ["noReferral"] },
   );
 
   assert.deepEqual(ranked.map((item) => item.accommodation.id), ["match", "unknown", "mismatch"]);
   assert.ok(ranked[1].confirmationConditions.length > 0);
   assert.ok(ranked[2].unmetConditions.includes("Wymaga skierowania."));
+});
+
+test("party profiles remain separate from the disability profile stored by places", () => {
+  const result = getAccommodationConditions(
+    accommodation("disability-only", { acceptedProfiles: ["disability", "other"] }),
+    { partyProfile: "woman", needs: [] },
+  );
+  assert.deepEqual(result.unmetConditions, []);
+  assert.ok(result.confirmationConditions.includes("Grupa odbiorców tego miejsca wymaga potwierdzenia."));
+
+  const compatible = getAccommodationConditions(
+    accommodation("woman-with-disability", { acceptedProfiles: ["disability", "woman"], accessibility: "YES" }),
+    { partyProfile: "woman", wheelchair: "yes", needs: [] },
+  );
+  assert.deepEqual(compatible.unmetConditions, []);
+  assert.deepEqual(compatible.confirmationConditions, []);
+});
+
+test("all supported party profiles map to the existing acceptedProfiles values", () => {
+  for (const partyProfile of ["woman", "man", "womanWithChildren", "family", "other"] as const) {
+    const result = getAccommodationConditions(
+      accommodation(partyProfile, { acceptedProfiles: [partyProfile] }),
+      { partyProfile, needs: [] },
+    );
+    assert.deepEqual(result.unmetConditions, []);
+  }
+});
+
+test("specific care and accessibility needs remain independent criteria", () => {
+  const result = getAccommodationConditions(
+    accommodation("needs", { acceptedProfiles: ["woman"], accessibility: "YES", careServices: "YES", partialDependencySupport: "YES" }),
+    { partyProfile: "woman", wheelchair: "yes", needs: ["careServices", "partialDependency"] },
+  );
+  assert.deepEqual(result.unmetConditions, []);
+  assert.deepEqual(result.confirmationConditions, []);
+});
+
+test("hard mismatches are excluded while UNKNOWN remains a safe confirmation fallback", () => {
+  const woman = { partyProfile: "woman" as const, needs: [] };
+  const maleOnly = accommodation("male-only", { acceptedProfiles: ["man"] });
+  const unknown = accommodation("unknown-profile", { acceptedProfiles: ["disability", "other"] });
+  const ranked = rankAccommodations([maleOnly, unknown], woman);
+
+  assert.equal(ranked.find((item) => item.accommodation.id === "male-only")?.hardMismatch, true);
+  assert.equal(ranked.find((item) => item.accommodation.id === "unknown-profile")?.hardMismatch, false);
+  assert.ok(ranked.find((item) => item.accommodation.id === "unknown-profile")?.confirmationConditions.length);
+});
+
+test("confirmed pet and accessibility conflicts are hard mismatches", () => {
+  assert.equal(
+    rankAccommodations([accommodation("no-dog", { petPolicy: "NOT_ACCEPTED" })], { partyProfile: "man", pet: "dog", needs: [] })[0].hardMismatch,
+    true,
+  );
+  assert.equal(
+    rankAccommodations([accommodation("no-wheelchair", { accessibility: "NO" })], { partyProfile: "man", wheelchair: "yes", needs: [] })[0].hardMismatch,
+    true,
+  );
 });

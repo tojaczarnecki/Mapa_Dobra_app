@@ -27,7 +27,7 @@ export const helpRequestNeedLabels: Record<HelpRequestNeed, string> = {
   DAILY_TASKS: "Zakupy lub codzienne sprawy",
   SAFETY_WELLBEING: "Bezpieczeństwo lub dobrostan",
   LOST_OR_DISORIENTED: "Zagubienie lub dezorientacja",
-  OTHER: "Inne",
+  OTHER: "Inne / trudno powiedzieć",
 };
 
 export async function getHelpRequestList(filters: {

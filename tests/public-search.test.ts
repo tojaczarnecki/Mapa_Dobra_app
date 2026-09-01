@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getHomeSuggestions } from "../src/lib/home/autosuggest.ts";
 import { getCategoryAccentMap } from "../src/lib/home/category-accent.ts";
-import { interpretSearchQuery, searchIntentHref } from "../src/lib/places/search-intent.ts";
+import { interpretSearchQuery, searchIntentHref, searchIntentSuggestions } from "../src/lib/places/search-intent.ts";
 import { filterPublicSearchPlaces, type PublicSearchPlace } from "../src/lib/places/search.ts";
 
 const places: PublicSearchPlace[] = [
@@ -84,6 +84,24 @@ test("intent parser recognizes psychological support and clothing needs", () => 
 test("intent parser recognizes legal and social support", () => {
   assert.equal(interpretSearchQuery("pomoc prawna").filters.category, "pomoc-prawna");
   assert.equal(interpretSearchQuery("praca socjalna").filters.category, "pomoc-socjalna");
+});
+
+test("map search suggestions reuse category aliases and natural language phrases", () => {
+  const expected = [
+    ["odzie", "Odzież"],
+    ["ubrania", "Odzież"],
+    ["jestem głodny", "Jedzenie"],
+    ["nie mam gdzie spać", "Nocleg"],
+    ["chcę się umyć", "Higiena"],
+    ["prawnik", "Pomoc prawna"],
+    ["psycholog", "Wsparcie psychologiczne"],
+    ["lodówka", "Lodówka społeczna"],
+  ] as const;
+
+  for (const [query, label] of expected) {
+    assert.equal(searchIntentSuggestions(query)[0]?.label, label);
+  }
+  assert.equal(searchIntentSuggestions("").length, 5);
 });
 
 test("homepage autosuggest builds safe category and place routes", () => {

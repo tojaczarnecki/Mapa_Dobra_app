@@ -17,6 +17,7 @@ import type {
   InformationState,
 } from "@/data/demo-accommodations";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
+import { getAccommodationPrimaryAction } from "@/lib/accommodations/presentation";
 
 type AccommodationCardProps = {
   accommodation: Accommodation;
@@ -25,7 +26,7 @@ type AccommodationCardProps = {
   confirmationConditions?: string[];
 };
 
-type RuleState = "positive" | "warning" | "unknown";
+type RuleState = "positive" | "absent" | "warning" | "unknown";
 
 type Rule = {
   state: RuleState;
@@ -78,12 +79,14 @@ function requiredRule(
 
 function RuleIcon({ state }: { state: RuleState }) {
   if (state === "positive") return <Check aria-hidden="true" size={13} />;
+  if (state === "absent") return <CircleX aria-hidden="true" size={13} />;
   if (state === "warning") return <AlertTriangle aria-hidden="true" size={13} />;
   return <CircleHelp aria-hidden="true" size={13} />;
 }
 
 function ruleChipClass(state: RuleState) {
   if (state === "positive") return "border-[#c8e5d7] bg-[#f3faf6] text-[#285e4a]";
+  if (state === "absent") return "border-border bg-surface-muted text-foreground";
   if (state === "warning") return "border-urgent-border bg-urgent-soft text-foreground";
   return "border-border bg-surface-muted text-muted-foreground";
 }
@@ -96,6 +99,13 @@ export function AccommodationCard({
 }: AccommodationCardProps) {
   const callHref = telephoneHref(accommodation.phone);
   const routeHref = directionsHref(accommodation);
+  const primaryAction = getAccommodationPrimaryAction({
+    phoneHref: callHref,
+    routeHref,
+    closedNow: accommodation.availability.state === "none" || accommodation.availability.state === "suspended",
+    needsConfirmation: accommodation.availability.state === "stale" || accommodation.availability.state === "unknown" || confirmationConditions.length > 0,
+    hasMismatch: unmetConditions.length > 0,
+  });
   const AvailabilityIcon = availabilityConfig[accommodation.availability.state].icon;
   const availabilityClass = availabilityConfig[accommodation.availability.state].className;
 
@@ -120,12 +130,12 @@ export function AccommodationCard({
   const accessibility: Rule = accommodation.accessibility === "YES"
     ? { state: "positive", label: "Dostępne dla wózka" }
     : accommodation.accessibility === "NO"
-      ? { state: "warning", label: "Brak dostępności dla wózka" }
+      ? { state: "absent", label: "Brak dostępności dla wózka" }
       : { state: "unknown", label: "Dostępność: wymaga potwierdzenia" };
   const pet: Rule = accommodation.petPolicy === "UNKNOWN"
     ? { state: "unknown", label: "Zwierzęta: wymaga potwierdzenia" }
     : accommodation.petPolicy === "NOT_ACCEPTED"
-      ? { state: "warning", label: "Nie przyjmuje zwierząt" }
+      ? { state: "absent", label: "Nie przyjmuje zwierząt" }
       : { state: "positive", label: accommodation.petPolicyNote ?? "Możliwe przyjęcie ze zwierzęciem" };
   const sobriety: Rule = accommodation.sobrietyPolicy === "UNKNOWN"
     ? { state: "unknown", label: "Trzeźwość: wymaga potwierdzenia" }
@@ -136,7 +146,8 @@ export function AccommodationCard({
       ? { state: "positive", label: "Usługi opiekuńcze" }
       : { state: "unknown", label: "Usługi opiekuńcze: wymaga potwierdzenia" };
 
-  const rules = [registration, referral, document, sobriety, pet, accessibility, ...(care ? [care] : [])];
+  const rules = [registration, referral, document, sobriety, pet, accessibility, ...(care ? [care] : [])]
+    .filter((rule) => rule.state !== "positive");
 
   return (
     <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-3.5 shadow-[0_8px_22px_rgb(17_24_39_/_5%)] sm:p-4">
@@ -214,19 +225,25 @@ export function AccommodationCard({
           </div>
         ) : null}
 
-        <div className="grid min-w-0 grid-cols-3 gap-2 border-t border-border pt-3">
-          {callHref ? (
+        <div className="grid min-w-0 gap-2 border-t border-border pt-3 sm:grid-cols-3">
+          {primaryAction?.kind === "call" ? (
+            <a className="place-card-action place-card-action-primary" href={primaryAction.href}>
+              <Phone aria-hidden="true" size={17} />
+              {primaryAction.label}
+            </a>
+          ) : primaryAction?.kind === "search" ? (
+            <Link className="place-card-action place-card-action-primary" href={primaryAction.href}>
+              <CircleHelp aria-hidden="true" size={17} />
+              {primaryAction.label}
+            </Link>
+          ) : null}
+          {primaryAction?.kind !== "call" && callHref ? (
             <a className="place-card-action" href={callHref}>
               <Phone aria-hidden="true" size={17} />
               Zadzwoń
             </a>
-          ) : (
-            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-              <Phone aria-hidden="true" size={17} />
-              Telefon
-            </span>
-          )}
-          {routeHref ? (
+          ) : null}
+          {primaryAction?.kind !== "route" && routeHref ? (
             <a className="place-card-action" href={routeHref} target="_blank" rel="noreferrer">
               <Navigation aria-hidden="true" size={17} />
               Trasa
@@ -238,7 +255,7 @@ export function AccommodationCard({
             </span>
           )}
           <Link
-            className="place-card-action place-card-action-primary"
+            className="place-card-action"
             href={`/lodz/${accommodation.categorySlug}/${accommodation.slug}`}
           >
             Szczegóły

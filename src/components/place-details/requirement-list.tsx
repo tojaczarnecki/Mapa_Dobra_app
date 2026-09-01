@@ -1,5 +1,6 @@
-import { AlertTriangle, Check, CircleHelp } from "lucide-react";
 import type { DetailListItem, DetailTone } from "@/data/demo-place-details";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { detailToneToPublicStatus } from "@/lib/public/status-presentation";
 
 type RequirementListProps = {
   items: DetailListItem[];
@@ -12,24 +13,11 @@ const toneClass: Record<DetailTone, string> = {
   unknown: "text-muted-foreground",
 };
 
-function RequirementIcon({ status }: { status: DetailTone }) {
-  if (status === "positive") {
-    return <Check aria-hidden="true" size={18} className="mt-0.5 shrink-0" />;
-  }
-
-  if (status === "warning") {
-    return <AlertTriangle aria-hidden="true" size={18} className="mt-0.5 shrink-0" />;
-  }
-
-  return <CircleHelp aria-hidden="true" size={18} className="mt-0.5 shrink-0" />;
-}
-
 export function RequirementList({ items }: RequirementListProps) {
   if (items.length === 0) {
     return (
       <p className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-muted-foreground">
-        <CircleHelp aria-hidden="true" size={18} className="mt-0.5 shrink-0" />
-        <span>Brak potwierdzonych informacji o warunkach. Przed wizytą warto skontaktować się z miejscem.</span>
+        <StatusIndicator status="unknown">Brak potwierdzonych informacji o warunkach. Przed wizytą warto skontaktować się z miejscem.</StatusIndicator>
       </p>
     );
   }
@@ -41,11 +29,10 @@ export function RequirementList({ items }: RequirementListProps) {
           key={`${item.label}-${item.status}`}
           className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground"
         >
-          <span className={toneClass[item.status]}>
-            <RequirementIcon status={item.status} />
-          </span>
           <span className="min-w-0">
-            {item.label}
+            <StatusIndicator status={detailToneToPublicStatus(item.status)} className={toneClass[item.status]}>
+              {item.label}
+            </StatusIndicator>
             {item.note ? (
               <span className="block text-sm font-semibold text-muted-foreground">
                 {item.note}

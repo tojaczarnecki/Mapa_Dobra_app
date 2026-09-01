@@ -17,6 +17,7 @@ export default async function FindAccommodationPage() {
   const accommodations = await getPublicAccommodations();
   return (
     <>
+      <div className="guided-flow-page">
       <div className="mx-auto flex w-full max-w-[1200px] justify-end px-4 pt-3 sm:px-6 sm:pt-5 lg:px-8">
         <Link
           className="touch-target inline-flex items-center gap-2 rounded-lg px-2.5 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
@@ -27,6 +28,7 @@ export default async function FindAccommodationPage() {
         </Link>
       </div>
       <AccommodationWizard accommodations={accommodations} />
+      </div>
     </>
   );
 }

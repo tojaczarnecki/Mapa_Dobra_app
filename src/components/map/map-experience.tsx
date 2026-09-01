@@ -12,7 +12,6 @@ import { MapControls } from "./map-controls";
 import { MapEmptyState } from "./map-empty-state";
 import { MapErrorBoundary } from "./map-error-boundary";
 import type { MapCategoryFilter } from "./map-filters";
-import { MapPlaceCard } from "./map-place-card";
 import { MapResultsPanel } from "./map-results-panel";
 import type { MapViewportSnapshot } from "./map-viewport-types";
 import styles from "./map.module.css";
@@ -48,6 +47,7 @@ const mapCategoryByPublicCategory: Record<string, MapCategoryFilter> = {
   "pomoc-socjalna": "social",
   odziez: "clothing",
   inne: "other",
+  "lodowka-spoleczna": "other",
 };
 
 type LocationState =
@@ -69,6 +69,7 @@ type MapExperienceProps = {
   initialNoReferral: boolean;
   initialNoDocuments: boolean;
   initialLocate: boolean;
+  initialResultQuery: string;
   todayEligibleIds: string[];
   noReferralEligibleIds: string[];
   noDocumentsEligibleIds: string[];
@@ -119,11 +120,11 @@ function locationMessage(location: LocationState) {
     case "success":
       return "Mapa została wycentrowana na Twojej lokalizacji. Nie zapisujemy jej.";
     case "denied":
-      return "Nie uzyskaliśmy dostępu do lokalizacji. Nadal pokazujemy miejsca w Łodzi.";
+      return "Brak dostępu do lokalizacji · pokazujemy Łódź.";
     case "unavailable":
-      return "Przeglądarka nie może teraz ustalić lokalizacji. Nadal pokazujemy Łódź.";
+      return "Lokalizacja niedostępna · pokazujemy Łódź.";
     case "error":
-      return "Nie udało się ustalić lokalizacji. Spróbuj ponownie lub korzystaj z mapy Łodzi.";
+      return "Nie udało się ustalić lokalizacji · pokazujemy Łódź.";
     default:
       return undefined;
   }
@@ -140,6 +141,7 @@ export function MapExperience({
   initialNoReferral,
   initialNoDocuments,
   initialLocate,
+  initialResultQuery,
   todayEligibleIds,
   noReferralEligibleIds,
   noDocumentsEligibleIds,
@@ -153,6 +155,7 @@ export function MapExperience({
   const [noReferral, setNoReferral] = useState(initialNoReferral);
   const [noDocuments, setNoDocuments] = useState(initialNoDocuments);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
   const [viewport, setViewport] = useState<MapViewportSnapshot>();
   const [appliedAreaPlaceIds, setAppliedAreaPlaceIds] = useState<string[]>();
@@ -202,12 +205,24 @@ export function MapExperience({
   const panelPlaces = areaFiltered ? areaPlaces : visiblePlaces;
 
   const selectedPlace = filteredPlaces.find((place) => place.id === selectedPlaceId);
-  const compactAccommodationSheet =
-    selectedPlace?.status.kind === "accommodation" &&
-    selectedPlace.status.availabilityState !== "available";
+  const mapMode = searching
+    ? "searching"
+    : filtersOpen
+      ? "filters"
+      : selectedPlace
+        ? "place"
+        : "idle";
+
+  useEffect(() => {
+    document.body.dataset.mapMode = mapMode;
+    return () => {
+      if (document.body.dataset.mapMode === mapMode) delete document.body.dataset.mapMode;
+    };
+  }, [mapMode]);
 
   const listHref = useMemo(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(initialResultQuery);
+    for (const key of ["q", "zapytanie", "kategoria", "otwarte", "dzisiaj", "bezplatne", "bez_skierowania", "bez_dokumentow"]) params.delete(key);
     if (intentText.trim()) params.set("zapytanie", intentText.trim());
     else if (query.trim()) params.set("q", query.trim());
     if (category !== "all") params.set("kategoria", publicCategoryByMapCategory[category] ?? category);
@@ -218,7 +233,7 @@ export function MapExperience({
     if (noDocuments) params.set("bez_dokumentow", "1");
     const queryString = params.toString();
     return queryString ? `/szukaj?${queryString}` : "/szukaj";
-  }, [category, free, intentText, noDocuments, noReferral, openNow, query, today]);
+  }, [category, free, initialResultQuery, intentText, noDocuments, noReferral, openNow, query, today]);
 
   const resetArea = useCallback(() => {
     setAppliedAreaPlaceIds(undefined);
@@ -236,11 +251,33 @@ export function MapExperience({
   const handlePlaceSelect = useCallback(
     (place: MapPlace) => {
       if (appliedAreaPlaceIds && !appliedAreaPlaceIds.includes(place.id)) resetArea();
+      setFiltersOpen(false);
+      setSearching(false);
       setSelectedPlaceId(place.id);
       focusMap([place.latitude, place.longitude], 16);
     },
     [appliedAreaPlaceIds, focusMap, resetArea],
   );
+
+  const handleFiltersOpenChange = useCallback((value: boolean) => {
+    setFiltersOpen(value);
+    if (value) {
+      setSelectedPlaceId(undefined);
+      setSearching(false);
+    }
+  }, []);
+
+  const handlePlaceDeselect = useCallback((placeId: string) => {
+    setSelectedPlaceId((current) => current === placeId ? undefined : current);
+  }, []);
+
+  const handleSearchFocusChange = useCallback((value: boolean) => {
+    setSearching(value);
+    if (value) {
+      setFiltersOpen(false);
+      setSelectedPlaceId(undefined);
+    }
+  }, []);
 
   const handleLocate = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -267,6 +304,12 @@ export function MapExperience({
     initialLocateRequested.current = true;
     handleLocate();
   }, [handleLocate, initialLocate]);
+
+  useEffect(() => {
+    if (!["denied", "unavailable", "error"].includes(location.status)) return;
+    const timeout = window.setTimeout(() => setLocation({ status: "idle" }), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [location.status]);
 
   const handleViewportChange = useCallback(
     (snapshot: MapViewportSnapshot) => {
@@ -339,8 +382,8 @@ export function MapExperience({
     setNoDocuments(value);
   }, [resetArea]);
 
-  const handleQuerySubmit = useCallback(() => {
-    const source = (intentText || query).trim();
+  const handleQuerySubmit = useCallback((queryOverride?: string) => {
+    const source = (queryOverride ?? (intentText || query)).trim();
     if (!source) return;
     const intent = interpretSearchQuery(source);
     if (!intent.recognized) return;
@@ -389,7 +432,7 @@ export function MapExperience({
   const activeResultsEmpty = areaFiltered ? areaPlaces.length === 0 : visiblePlaces.length === 0;
 
   return (
-    <div className={styles.mapPage}>
+    <div className={`${styles.mapPage} map-page`}>
       <h1 className="sr-only">Mapa miejsc pomocy w Łodzi</h1>
       <MapControls
         query={intentText || query}
@@ -401,9 +444,6 @@ export function MapExperience({
         noReferral={noReferral}
         noDocuments={noDocuments}
         filtersOpen={filtersOpen}
-        resultCount={areaFiltered ? areaPlaces.length : filteredPlaces.length}
-        areaFiltered={areaFiltered}
-        listHref={listHref}
         locationPending={location.status === "pending"}
         locationMessage={locationMessage(location)}
         onQueryChange={handleQueryChange}
@@ -414,12 +454,15 @@ export function MapExperience({
         onFreeChange={handleFreeChange}
         onNoReferralChange={handleNoReferralChange}
         onNoDocumentsChange={handleNoDocumentsChange}
-        onFiltersOpenChange={setFiltersOpen}
+        onFiltersOpenChange={handleFiltersOpenChange}
         onLocate={handleLocate}
+        onSearchFocusChange={handleSearchFocusChange}
       />
 
       <div className={styles.mapLayout}>
         <div className={styles.mapStage}>
+          <div className={`${styles.mapBrandEdgeFade} ${styles.mapBrandEdgeFadeTop}`} aria-hidden="true" />
+          <div className={`${styles.mapBrandEdgeFade} ${styles.mapBrandEdgeFadeBottom}`} aria-hidden="true" />
           <MapErrorBoundary
             resetKey={mapResetKey}
             fallback={<MapUnavailable onRetry={retryMap} />}
@@ -431,6 +474,8 @@ export function MapExperience({
               userPosition={location.status === "success" ? location.position : undefined}
               focusTarget={focusTarget}
               onPlaceSelect={handlePlaceSelect}
+              onPlaceDeselect={handlePlaceDeselect}
+              returnTo={listHref}
               onViewportChange={handleViewportChange}
               onTileError={() => setTileError(true)}
             />
@@ -473,26 +518,7 @@ export function MapExperience({
             />
           ) : null}
 
-          {selectedPlace ? (
-            <div
-              className={[
-                styles.mobileSheet,
-                compactAccommodationSheet ? styles.mobileSheetAccommodation : "",
-              ].join(" ")}
-              role="dialog"
-              aria-label={`Wybrane miejsce: ${selectedPlace.name}`}
-            >
-              <button
-                type="button"
-                className={styles.closeSheetButton}
-                aria-label="Zamknij kartę miejsca"
-                onClick={() => setSelectedPlaceId(undefined)}
-              >
-                <X aria-hidden="true" size={21} />
-              </button>
-              <MapPlaceCard place={selectedPlace} compactAccommodation={compactAccommodationSheet} />
-            </div>
-          ) : (
+          {!selectedPlace ? (
             <div className={styles.mobileResultSummary} aria-live="polite">
               <div>
                 <strong>{summaryCount}</strong>
@@ -503,7 +529,7 @@ export function MapExperience({
                 Lista
               </a>
             </div>
-          )}
+          ) : null}
 
           <div className={styles.mapPurpose}>
             <MapPinned aria-hidden="true" size={15} />
@@ -516,6 +542,7 @@ export function MapExperience({
           selectedPlace={selectedPlace}
           onSelect={handlePlaceSelect}
           onClearSelection={() => setSelectedPlaceId(undefined)}
+          returnTo={listHref}
         />
       </div>
     </div>

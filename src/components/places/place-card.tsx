@@ -1,7 +1,5 @@
 import Link from "next/link";
 import {
-  BadgeCheck,
-  Check,
   ChevronRight,
   Clock3,
   MapPin,
@@ -9,13 +7,16 @@ import {
   Phone,
 } from "lucide-react";
 import type { DemoPlace } from "@/data/demo-places";
-import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import { PlaceStatusBadge } from "./place-status-badge";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { publicStatusForLabel } from "@/lib/public/status-presentation";
+import { getResultPrimaryAction } from "@/lib/places/result-presentation";
 
-export function PlaceCard({ place }: { place: DemoPlace }) {
+export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: string }) {
   const Icon = place.primaryIcon;
-  const callHref = telephoneHref(place.phone);
-  const routeHref = directionsHref(place);
+  const primaryAction = getResultPrimaryAction(place);
+  const importantCondition = place.conditions.find((condition) => publicStatusForLabel(condition) === "condition");
+  const primaryActionIsCall = primaryAction?.label.startsWith("Zadzwoń") ?? false;
 
   return (
     <article className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-3.5 shadow-[0_8px_22px_rgb(17_24_39_/_5%)] sm:p-4">
@@ -34,12 +35,12 @@ export function PlaceCard({ place }: { place: DemoPlace }) {
             <p className="mt-0.5 text-sm font-bold leading-5 text-muted-foreground">
               {place.helpTypes.join(" • ")}
             </p>
-            <div className="mt-2"><PlaceStatusBadge status={place.status} /></div>
+            <div className="mt-2"><PlaceStatusBadge status={place.status} compact freshnessWarning={place.freshnessWarning} /></div>
           </div>
         </div>
 
         <div className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground sm:grid-cols-2">
-          <p className="flex min-w-0 items-center gap-2">
+          <p className={`flex min-w-0 items-center gap-2 ${place.status === "unknownHours" ? "hidden" : ""}`}>
             <Clock3 aria-hidden="true" size={16} className="shrink-0 text-brand-strong" />
             <span className="min-w-0">{place.todayHours}</span>
           </p>
@@ -53,54 +54,26 @@ export function PlaceCard({ place }: { place: DemoPlace }) {
           </p>
         </div>
 
-        {place.conditions.length > 0 ? (
-          <ul className="flex min-w-0 flex-wrap gap-1.5 text-xs font-bold text-foreground">
-            {place.conditions.map((condition) => (
-              <li key={condition} className="inline-flex min-h-7 max-w-full items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5">
-                <Check aria-hidden="true" size={13} className="shrink-0 text-brand-strong" />
-                <span className="min-w-0">{condition}</span>
-              </li>
-            ))}
+        {importantCondition ? (
+            <ul className="flex min-w-0 flex-wrap gap-1.5 text-xs font-bold text-foreground">
+            <li className="inline-flex min-h-7 max-w-full items-center rounded-full border border-border bg-surface-muted px-2.5">
+              <StatusIndicator status="condition" className="min-w-0">
+                {importantCondition}
+              </StatusIndicator>
+            </li>
           </ul>
         ) : null}
 
-        {place.freshnessWarning ? (
-          <p className="rounded-lg border border-urgent-border bg-urgent-soft px-3 py-2 text-xs font-semibold leading-5 text-foreground">
-            {place.freshness}
-          </p>
-        ) : (
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <BadgeCheck aria-hidden="true" size={15} className="shrink-0 text-brand-strong" />
-            {place.freshness}
-          </p>
-        )}
-
-        <div className="grid min-w-0 grid-cols-3 gap-2 border-t border-border pt-3">
-          {callHref ? (
-            <a className="place-card-action" href={callHref}>
-              <Phone aria-hidden="true" size={17} />
-              Zadzwoń
+        <div className="grid min-w-0 grid-cols-2 gap-2 border-t border-border pt-3">
+          {primaryAction ? (
+            <a className="place-card-action place-card-action-primary" href={primaryAction.href} target={primaryAction.external ? "_blank" : undefined} rel={primaryAction.external ? "noreferrer" : undefined}>
+              {primaryActionIsCall ? <Phone aria-hidden="true" size={17} /> : <Navigation aria-hidden="true" size={17} />}
+              {primaryAction.label}
             </a>
-          ) : (
-            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-              <Phone aria-hidden="true" size={17} />
-              Brak telefonu
-            </span>
-          )}
-          {routeHref ? (
-            <a className="place-card-action" href={routeHref} target="_blank" rel="noreferrer">
-              <Navigation aria-hidden="true" size={17} />
-              Trasa
-            </a>
-          ) : (
-            <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-              <Navigation aria-hidden="true" size={17} />
-              Brak trasy
-            </span>
-          )}
+          ) : null}
           <Link
-            className="place-card-action place-card-action-primary"
-            href={`/lodz/${place.categorySlug}/${place.slug}`}
+            className={"place-card-action" + (!primaryAction ? " place-card-action-primary col-span-2" : "")}
+            href={{ pathname: `/lodz/${place.categorySlug}/${place.slug}`, query: returnTo ? { returnTo } : undefined }}
           >
             Szczegóły
             <ChevronRight aria-hidden="true" size={17} />

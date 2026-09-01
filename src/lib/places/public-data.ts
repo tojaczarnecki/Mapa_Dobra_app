@@ -23,6 +23,7 @@ import {
   normalizeSobrietyPolicy,
 } from "@/lib/accommodations/types";
 import { resolveAvailabilityFreshness, resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
+import { getAccommodationPetPresentation, getAccommodationSobrietyLabel } from "@/lib/accommodations/presentation";
 import { evaluateCurrentOpening } from "@/lib/places/current-opening";
 import type { PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
@@ -110,7 +111,7 @@ function relativeAge(value: Date | null, verified = false) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${verified ? "Zweryfikowano" : "Dane sprzed"} ${hours} godz. temu`;
   const days = Math.round(hours / 24);
-  return `${verified ? "Zweryfikowano" : "Dane sprzed"} ${days} ${days === 1 ? "dzień" : "dni"} temu`;
+  return `${verified ? "Zweryfikowano" : "Dane sprzed"} ${days} ${days === 1 ? "dzień" : "dni"}`;
 }
 
 function verificationPresentation(place: PublicPlaceRecord) {
@@ -169,7 +170,7 @@ function requirementTone(item: PublicPlaceRecord["requirements"][number]): Detai
 }
 
 function accessibilityTone(state: "YES" | "NO" | "UNKNOWN"): DetailListItem["status"] {
-  return state === "YES" ? "positive" : state === "NO" ? "warning" : "unknown";
+  return state === "YES" ? "positive" : state === "NO" ? "neutral" : "unknown";
 }
 
 function formatPeriods(rows: PublicPlaceRecord["openingHours"]) {
@@ -203,8 +204,14 @@ function statusDetails(place: PublicPlaceRecord): PlaceDetail["status"] {
 }
 
 function triRequirement(label: string, value: "YES" | "NO" | "UNKNOWN") : DetailListItem {
-  if (value === "UNKNOWN") return { label: `${label}: brak potwierdzonych danych`, status: "unknown" };
-  return { label: value === "YES" ? `Wymagany ${label}` : `${label} niewymagany`, status: value === "YES" ? "warning" : "positive" };
+  const labels = {
+    "ostatni meldunek w Łodzi": ["Wymagany ostatni meldunek w Łodzi", "Ostatni meldunek w Łodzi niewymagany", "Brak potwierdzenia wymogu ostatniego meldunku w Łodzi"],
+    skierowanie: ["Wymagane skierowanie", "Bez skierowania", "Brak potwierdzenia wymogu skierowania"],
+    dokument: ["Wymagany dokument", "Dokument niewymagany", "Brak potwierdzenia wymogu dokumentu"],
+  } as const;
+  const [yes, no, unknown] = labels[label as keyof typeof labels] ?? [`Wymagany ${label}`, `${label} niewymagany`, `Brak potwierdzenia wymogu: ${label}`];
+  if (value === "UNKNOWN") return { label: unknown, status: "unknown" };
+  return { label: value === "YES" ? yes : no, status: value === "YES" ? "warning" : "positive" };
 }
 
 function accommodationAvailability(place: PublicPlaceRecord): NonNullable<PlaceDetail["accommodation"]>["availability"] {
@@ -223,7 +230,7 @@ function accommodationAvailability(place: PublicPlaceRecord): NonNullable<PlaceD
       : accommodation.availabilityLabel ?? ({ available: "Są wolne miejsca", few: "Niewiele miejsc", full: "Brak miejsc", unknown: "Brak aktualnych danych", stale: "Dane o wolnych miejscach są nieaktualne", suspended: "Przyjęcia czasowo wstrzymane" } as const)[state],
     confirmed: relativeAge(accommodation.availabilityConfirmedAt),
     note: state === "stale"
-      ? staleAvailabilityNote(accommodation.availabilityState, reportedFreePlaces)
+      ? staleAvailabilityNote(reportedFreePlaces !== undefined ? "AVAILABLE" : "STALE", reportedFreePlaces)
       : freshness === "AGING"
         ? "Dane warto potwierdzić telefonicznie."
         : freshness === "UNKNOWN"
@@ -248,13 +255,13 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
       triRequirement("dokument", accommodation.documentRequired),
     ],
     sobriety: {
-      label: ({ SOBRIETY_REQUIRED: "Wymagana trzeźwość", ZERO_TOLERANCE: "Wymagane 0,0", INDIVIDUAL_ASSESSMENT: "Przyjęcie po indywidualnej ocenie", SEPARATE_PROCEDURE: "Osobna procedura dla osób po spożyciu", UNKNOWN: "Brak potwierdzonych zasad trzeźwości" } as const)[accommodation.sobrietyPolicy],
+      label: getAccommodationSobrietyLabel(accommodation.sobrietyPolicy),
       status: accommodation.sobrietyPolicy === "UNKNOWN" ? "unknown" : "warning",
       note: accommodation.sobrietyNote ?? undefined,
     },
     animals: [{
-      label: ({ ACCEPTED: "Zwierzęta przyjmowane", NOT_ACCEPTED: "Zwierzęta nieprzyjmowane", DOG_ONLY: "Przyjmowany tylko pies", BY_ARRANGEMENT: "Zwierzęta po uzgodnieniu", ASSISTANCE_DOG_ONLY: "Przyjmowany pies asystujący", UNKNOWN: "Brak danych o przyjmowaniu zwierząt" } as const)[accommodation.petPolicy],
-      status: accommodation.petPolicy === "UNKNOWN" ? "unknown" : accommodation.petPolicy === "NOT_ACCEPTED" ? "warning" : "positive",
+      ...getAccommodationPetPresentation(accommodation.petPolicy),
+      status: getAccommodationPetPresentation(accommodation.petPolicy).status === "confirmed" ? "positive" : getAccommodationPetPresentation(accommodation.petPolicy).status === "absent" ? "neutral" : getAccommodationPetPresentation(accommodation.petPolicy).status === "condition" ? "warning" : "unknown",
       note: accommodation.petNote ?? undefined,
     }],
     accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
@@ -386,7 +393,7 @@ function toAccommodation(place: PublicPlaceRecord): Accommodation | null {
     referralRequired: normalizeInformationState(accommodation.referralRequired),
     documentRequired: normalizeInformationState(accommodation.documentRequired),
     sobrietyPolicy: normalizeSobrietyPolicy(accommodation.sobrietyPolicy),
-    sobrietyRule: ({ SOBRIETY_REQUIRED: "Wymagana trzeźwość", ZERO_TOLERANCE: "Wymagane 0,0", INDIVIDUAL_ASSESSMENT: "Przyjęcie po indywidualnej ocenie", SEPARATE_PROCEDURE: "Osobna procedura dla osób po spożyciu", UNKNOWN: "Brak potwierdzonych zasad" } as const)[accommodation.sobrietyPolicy],
+    sobrietyRule: getAccommodationSobrietyLabel(accommodation.sobrietyPolicy),
     petPolicy: normalizePetPolicy(accommodation.petPolicy),
     petPolicyNote: accommodation.petNote ?? undefined,
     accessibility: normalizeInformationState(accommodation.wheelchairAccessibility),

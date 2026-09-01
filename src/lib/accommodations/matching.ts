@@ -1,17 +1,18 @@
 import type {
   Accommodation,
   AccommodationNeed,
-  AccommodationProfile,
   InformationState,
   PetAnswer,
   RegistrationAnswer,
   WheelchairNeed,
 } from "./types";
+import type { PartyProfile } from "./types";
 
 export type WizardAnswers = {
-  profile?: AccommodationProfile;
+  partyProfile?: PartyProfile;
   wheelchair?: WheelchairNeed;
   registration?: RegistrationAnswer;
+  petPresent?: boolean;
   pet?: PetAnswer;
   needs: AccommodationNeed[];
 };
@@ -21,6 +22,7 @@ export type MatchResult = {
   score: number;
   unmetConditions: string[];
   confirmationConditions: string[];
+  hardMismatch: boolean;
 };
 
 export type CriterionResult = "MATCH" | "MISMATCH" | "UNKNOWN";
@@ -80,6 +82,25 @@ function petResult(accommodation: Accommodation, answer: PetAnswer): CriterionRe
     : "MISMATCH";
 }
 
+export function hasHardAccommodationMismatch(
+  accommodation: Accommodation,
+  answers: WizardAnswers,
+): boolean {
+  if (answers.partyProfile && answers.partyProfile !== "other") {
+    const hasPartyProfile = accommodation.acceptedProfiles.includes(answers.partyProfile);
+    const hasDisabilityOnlyProfile = accommodation.acceptedProfiles.includes("disability") && !hasPartyProfile;
+    if (!hasPartyProfile && !hasDisabilityOnlyProfile) return true;
+  }
+
+  if (answers.wheelchair === "yes" && accommodation.accessibility === "NO") return true;
+  if (answers.pet && answers.pet !== "none" && petResult(accommodation, answers.pet) === "MISMATCH") return true;
+  if (answers.needs.includes("noReferral") && accommodation.referralRequired === "YES") return true;
+  if (answers.needs.includes("noDocuments") && accommodation.documentRequired === "YES") return true;
+  if (answers.needs.includes("careServices") && accommodation.careServices === "NO") return true;
+  if (answers.needs.includes("partialDependency") && accommodation.partialDependencySupport === "NO") return true;
+  return false;
+}
+
 export function getAccommodationConditions(
   accommodation: Accommodation,
   answers: WizardAnswers,
@@ -87,12 +108,15 @@ export function getAccommodationConditions(
   const unmetConditions: string[] = [];
   const confirmationConditions: string[] = [];
 
-  if (
-    answers.profile &&
-    answers.profile !== "other" &&
-    !accommodation.acceptedProfiles.includes(answers.profile)
-  ) {
-    unmetConditions.push("Miejsce nie jest wskazane dla wybranej grupy.");
+  if (answers.partyProfile && answers.partyProfile !== "other") {
+    const hasPartyProfile = accommodation.acceptedProfiles.includes(answers.partyProfile);
+    const hasDisabilityOnlyProfile = accommodation.acceptedProfiles.includes("disability") && !hasPartyProfile;
+
+    if (!hasPartyProfile && hasDisabilityOnlyProfile) {
+      confirmationConditions.push("Grupa odbiorców tego miejsca wymaga potwierdzenia.");
+    } else if (!hasPartyProfile) {
+      unmetConditions.push("Miejsce nie jest wskazane dla wybranej grupy.");
+    }
   }
 
   if (answers.wheelchair === "yes") {
@@ -211,9 +235,9 @@ export function rankAccommodations(
         answers,
       );
       const groupMatch =
-        !answers.profile ||
-        answers.profile === "other" ||
-        accommodation.acceptedProfiles.includes(answers.profile);
+        !answers.partyProfile ||
+        answers.partyProfile === "other" ||
+        accommodation.acceptedProfiles.includes(answers.partyProfile);
       let score = 0;
 
       score += groupMatch ? 180 : -160;
@@ -230,7 +254,13 @@ export function rankAccommodations(
           : 0;
       score -= accommodation.distanceKm * 4;
 
-      return { accommodation, score, unmetConditions, confirmationConditions };
+      return {
+        accommodation,
+        score,
+        unmetConditions,
+        confirmationConditions,
+        hardMismatch: hasHardAccommodationMismatch(accommodation, answers),
+      };
     })
     .sort((first, second) => {
       if (first.unmetConditions.length !== second.unmetConditions.length) {

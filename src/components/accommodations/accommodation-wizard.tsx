@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   Accessibility,
   Baby,
@@ -21,17 +22,24 @@ import { AccommodationCard } from "@/components/accommodations/accommodation-car
 import {
   type Accommodation,
   type AccommodationNeed,
-  type AccommodationProfile,
   type PetAnswer,
-  type RegistrationAnswer,
-  type WheelchairNeed,
 } from "@/data/demo-accommodations";
+import type { PartyProfile } from "@/lib/accommodations/types";
+import { getAccommodationResultHeading } from "@/lib/accommodations/presentation";
 import {
   rankAccommodations,
   type WizardAnswers,
 } from "@/lib/accommodations/matching";
+import {
+  ACCOMMODATION_WIZARD_STORAGE_KEY,
+  LEGACY_ACCOMMODATION_WIZARD_STORAGE_KEY,
+  clearAccommodationWizardState,
+  getAccommodationWizardProgress,
+  parseAccommodationWizardState,
+  serializeAccommodationWizardState,
+} from "@/lib/accommodations/wizard-state";
 
-type WizardStep = "profile" | "wheelchair" | "registration" | "pet" | "needs";
+type WizardStep = "profile" | "needs" | "pet";
 
 const steps: Array<{
   id: WizardStep;
@@ -41,35 +49,24 @@ const steps: Array<{
 }> = [
   {
     id: "profile",
-    eyebrow: "Krok 1 z 5",
+    eyebrow: "Krok 1 z 4",
     title: "Dla kogo szukasz miejsca?",
   },
   {
-    id: "wheelchair",
-    eyebrow: "Krok 2 z 5",
-    title: "Czy potrzebujesz miejsca dostępnego dla osoby poruszającej się na wózku?",
-  },
-  {
-    id: "registration",
-    eyebrow: "Krok 3 z 5",
-    title: "Czy masz ostatnie zameldowanie w Łodzi?",
-    note: "Ta odpowiedź służy tylko do bieżącego dopasowania miejsc.",
+    id: "needs",
+    eyebrow: "Krok 2 z 3",
+    title: "Czy któraś z tych rzeczy jest dla Ciebie ważna?",
+    note: "Możesz zaznaczyć kilka odpowiedzi albo przejść dalej bez wyboru.",
   },
   {
     id: "pet",
-    eyebrow: "Krok 4 z 5",
-    title: "Czy jesteś ze zwierzęciem?",
-  },
-  {
-    id: "needs",
-    eyebrow: "Krok 5 z 5",
-    title: "Dodatkowe potrzeby",
-    note: "Ten krok możesz pominąć.",
+    eyebrow: "Krok 3 z 3",
+    title: "Z jakim zwierzęciem jesteś?",
   },
 ];
 
 const profileOptions: Array<{
-  value: AccommodationProfile;
+  value: PartyProfile;
   label: string;
   icon: LucideIcon;
 }> = [
@@ -77,20 +74,7 @@ const profileOptions: Array<{
   { value: "man", label: "Mężczyzna", icon: Mars },
   { value: "womanWithChildren", label: "Kobieta z dzieckiem / dziećmi", icon: Baby },
   { value: "family", label: "Rodzina", icon: Home },
-  { value: "disability", label: "Osoba z niepełnosprawnością", icon: Accessibility },
   { value: "other", label: "Inna sytuacja", icon: CircleHelp },
-];
-
-const wheelchairOptions: Array<{ value: WheelchairNeed; label: string }> = [
-  { value: "yes", label: "Tak" },
-  { value: "no", label: "Nie" },
-  { value: "unknown", label: "Nie dotyczy / Nie wiem" },
-];
-
-const registrationOptions: Array<{ value: RegistrationAnswer; label: string }> = [
-  { value: "yes", label: "Tak" },
-  { value: "no", label: "Nie" },
-  { value: "unknown", label: "Nie wiem" },
 ];
 
 const petOptions: Array<{ value: PetAnswer; label: string; icon: LucideIcon }> = [
@@ -100,12 +84,12 @@ const petOptions: Array<{ value: PetAnswer; label: string; icon: LucideIcon }> =
 ];
 
 const needOptions: Array<{ value: AccommodationNeed; label: string }> = [
-  { value: "noReferral", label: "Bez skierowania" },
-  { value: "noDocuments", label: "Bez dokumentów" },
+  { value: "noReferral", label: "Potrzebuję miejsca bez skierowania" },
+  { value: "noDocuments", label: "Potrzebuję miejsca bez dokumentu" },
   { value: "careServices", label: "Potrzebuję usług opiekuńczych" },
   {
     value: "partialDependency",
-    label: "Potrzebuję miejsca dla osoby częściowo niesamodzielnej",
+    label: "Potrzebuję wsparcia, bo nie jestem w pełni samodzielna/y",
   },
 ];
 
@@ -115,7 +99,7 @@ const initialAnswers: WizardAnswers = {
 
 const profileLabel = Object.fromEntries(
   profileOptions.map((option) => [option.value, option.label]),
-) as Record<AccommodationProfile, string>;
+) as Record<PartyProfile, string>;
 
 function optionClasses(isSelected: boolean, compact = false) {
   return [
@@ -147,27 +131,66 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>(initialAnswers);
   const [showResults, setShowResults] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const step = steps[currentStep];
   const progress = ((currentStep + 1) / steps.length) * 100;
   const canContinue =
+    (step.id === "profile" && answers.partyProfile) ||
     step.id === "needs" ||
-    (step.id === "profile" && answers.profile) ||
-    (step.id === "wheelchair" && answers.wheelchair) ||
-    (step.id === "registration" && answers.registration) ||
     (step.id === "pet" && answers.pet);
   const matches = rankAccommodations(accommodations, answers);
-  const exactMatches = matches.filter(
+  const safeMatches = matches.filter((match) => !match.hardMismatch);
+  const exactMatches = safeMatches.filter(
     (match) =>
       match.unmetConditions.length === 0 && match.confirmationConditions.length === 0,
   );
-  const visibleMatches = exactMatches.length > 0 ? exactMatches : matches.slice(0, 6);
+  const visibleMatches = exactMatches.length > 0 ? exactMatches : safeMatches.slice(0, 6);
+  const bestMatch = visibleMatches[0];
+  const otherMatches = visibleMatches.slice(1);
+  const confirmationMatches = exactMatches.length === 0
+    ? visibleMatches.filter((match) => match !== bestMatch && match.confirmationConditions.length > 0 && match.unmetConditions.length === 0)
+    : [];
+  const alternativeMatches = exactMatches.length === 0
+    ? visibleMatches.filter((match) => match !== bestMatch && !confirmationMatches.includes(match))
+    : otherMatches;
+
+  useEffect(() => {
+    window.sessionStorage.removeItem(LEGACY_ACCOMMODATION_WIZARD_STORAGE_KEY);
+    const saved = parseAccommodationWizardState(window.sessionStorage.getItem(ACCOMMODATION_WIZARD_STORAGE_KEY));
+    queueMicrotask(() => {
+      if (saved) {
+        setCurrentStep(Math.min(saved.step, steps.length - 1));
+        setAnswers(saved.answers);
+        setShowResults(saved.showResults);
+      }
+      setHydrated(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.sessionStorage.setItem(
+      ACCOMMODATION_WIZARD_STORAGE_KEY,
+      serializeAccommodationWizardState({ version: 3, step: currentStep, answers, showResults }),
+    );
+  }, [answers, currentStep, hydrated, showResults]);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [currentStep, showResults]);
 
   function goNext() {
     if (!canContinue) {
       return;
     }
 
-    if (currentStep === steps.length - 1) {
+    if (step.id === "needs" && answers.petPresent && !answers.pet) {
+      setCurrentStep((value) => value + 1);
+      return;
+    }
+
+    if (currentStep === steps.length - 1 || step.id === "needs") {
       setShowResults(true);
       return;
     }
@@ -177,6 +200,18 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
 
   function goBack() {
     setCurrentStep((value) => Math.max(0, value - 1));
+  }
+
+  function restart() {
+    clearAccommodationWizardState(window.sessionStorage);
+    setCurrentStep(0);
+    setAnswers(initialAnswers);
+    setShowResults(false);
+  }
+
+  function editAnswers() {
+    setShowResults(false);
+    setCurrentStep(0);
   }
 
   function toggleNeed(need: AccommodationNeed) {
@@ -192,10 +227,21 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
     });
   }
 
+  function toggleWheelchair() {
+    setAnswers((current) => {
+      if (current.wheelchair === "yes") {
+        const next = { ...current };
+        delete next.wheelchair;
+        return next;
+      }
+      return { ...current, wheelchair: "yes" };
+    });
+  }
+
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <section className="min-w-0 space-y-4">
+        <section className={["min-w-0 space-y-4", showResults ? "hidden lg:block" : ""].join(" ")}>
           <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
             <div className="min-w-0 space-y-4">
               <div className="space-y-2">
@@ -213,7 +259,14 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
 
               <div className="rounded-lg border border-border bg-surface-muted p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-extrabold text-foreground">{step.eyebrow}</p>
+                  <p
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-sm font-extrabold text-foreground focus:outline-none"
+                    aria-live="polite"
+                  >
+                    {getAccommodationWizardProgress(currentStep, answers.petPresent === true)}
+                  </p>
                   <p className="text-sm font-bold text-muted-foreground">
                     Łódź
                   </p>
@@ -245,24 +298,25 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
 
               {step.id === "profile" ? (
                 <div
-                  role="group"
+                  role="radiogroup"
                   aria-labelledby="profile-title"
                   className="grid min-w-0 gap-2"
                 >
                   {profileOptions.map((option) => {
                     const Icon = option.icon;
-                    const isSelected = answers.profile === option.value;
+                    const isSelected = answers.partyProfile === option.value;
 
                     return (
                       <button
                         key={option.value}
                         type="button"
-                        aria-pressed={isSelected}
+                        role="radio"
+                        aria-checked={isSelected}
                         className={optionClasses(isSelected)}
                         onClick={() =>
                           setAnswers((current) => ({
                             ...current,
-                            profile: option.value,
+                            partyProfile: option.value,
                           }))
                         }
                       >
@@ -277,75 +331,9 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 </div>
               ) : null}
 
-              {step.id === "wheelchair" ? (
-                <div
-                  role="group"
-                  aria-labelledby="wheelchair-title"
-                  className="grid min-w-0 gap-2"
-                >
-                  {wheelchairOptions.map((option) => {
-                    const isSelected = answers.wheelchair === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={isSelected}
-                        className={optionClasses(isSelected)}
-                        onClick={() =>
-                          setAnswers((current) => ({
-                            ...current,
-                            wheelchair: option.value,
-                          }))
-                        }
-                      >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                          <Accessibility aria-hidden="true" size={23} strokeWidth={2.2} />
-                        </span>
-                        <span className="min-w-0">{option.label}</span>
-                        {selectedMarker(isSelected)}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              {step.id === "registration" ? (
-                <div
-                  role="group"
-                  aria-labelledby="registration-title"
-                  className="grid min-w-0 gap-2"
-                >
-                  {registrationOptions.map((option) => {
-                    const isSelected = answers.registration === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={isSelected}
-                        className={optionClasses(isSelected)}
-                        onClick={() =>
-                          setAnswers((current) => ({
-                            ...current,
-                            registration: option.value,
-                          }))
-                        }
-                      >
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                          <Home aria-hidden="true" size={23} strokeWidth={2.2} />
-                        </span>
-                        <span className="min-w-0">{option.label}</span>
-                        {selectedMarker(isSelected)}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
               {step.id === "pet" ? (
                 <div
-                  role="group"
+                  role="radiogroup"
                   aria-labelledby="pet-title"
                   className="grid min-w-0 gap-2"
                 >
@@ -357,11 +345,13 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                       <button
                         key={option.value}
                         type="button"
-                        aria-pressed={isSelected}
+                        role="radio"
+                        aria-checked={isSelected}
                         className={optionClasses(isSelected)}
                         onClick={() =>
                           setAnswers((current) => ({
                             ...current,
+                            petPresent: true,
                             pet: option.value,
                           }))
                         }
@@ -378,7 +368,33 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               ) : null}
 
               {step.id === "needs" ? (
-                <div className="grid min-w-0 gap-2">
+                <div role="group" aria-label="Dodatkowe potrzeby" className="grid min-w-0 gap-2">
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={answers.wheelchair === "yes"}
+                    className={optionClasses(answers.wheelchair === "yes")}
+                    onClick={toggleWheelchair}
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                      <Accessibility aria-hidden="true" size={23} strokeWidth={2.2} />
+                    </span>
+                    <span className="min-w-0">Potrzebuję miejsca dostępnego dla osoby poruszającej się na wózku</span>
+                    {selectedMarker(answers.wheelchair === "yes")}
+                  </button>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={answers.petPresent === true}
+                    className={optionClasses(answers.petPresent === true)}
+                    onClick={() => setAnswers((current) => ({ ...current, petPresent: !current.petPresent, pet: undefined }))}
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                      <Dog aria-hidden="true" size={23} strokeWidth={2.2} />
+                    </span>
+                    <span className="min-w-0">Jestem ze zwierzęciem</span>
+                    {selectedMarker(answers.petPresent === true)}
+                  </button>
                   {needOptions.map((option) => {
                     const isSelected = answers.needs.includes(option.value);
 
@@ -386,7 +402,8 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                       <button
                         key={option.value}
                         type="button"
-                        aria-pressed={isSelected}
+                        role="checkbox"
+                        aria-checked={isSelected}
                         className={optionClasses(isSelected, true)}
                         onClick={() => toggleNeed(option.value)}
                       >
@@ -417,7 +434,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                   disabled={!canContinue}
                   onClick={goNext}
                 >
-                  {currentStep === steps.length - 1 ? "Pokaż miejsca" : "Dalej"}
+                  {currentStep === steps.length - 1 || (step.id === "needs" && !answers.petPresent) ? "Pokaż miejsca" : "Dalej"}
                   <ChevronRight aria-hidden="true" size={17} />
                 </button>
               </div>
@@ -454,14 +471,21 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                     <p className="text-sm font-extrabold text-brand-strong">
                       Wyniki kreatora
                     </p>
-                    <h2 className="mt-1 text-2xl font-extrabold leading-tight text-foreground">
+                    <h2 ref={headingRef} tabIndex={-1} className="mt-1 text-2xl font-extrabold leading-tight text-foreground focus:outline-none">
                       Proponowane miejsca
                     </h2>
                   </div>
+                  <button
+                    type="button"
+                    className="touch-target inline-flex w-fit items-center rounded-lg border border-border px-3 py-2 text-sm font-extrabold text-foreground transition hover:bg-surface-muted"
+                    onClick={restart}
+                  >
+                    Zacznij od nowa
+                  </button>
                   <div className="flex min-w-0 flex-wrap gap-2">
-                    {answers.profile ? (
+                    {answers.partyProfile ? (
                       <span className="inline-flex min-h-8 max-w-full items-center rounded-full border border-border bg-surface-muted px-3 text-sm font-semibold text-foreground">
-                        {profileLabel[answers.profile]}
+                        {profileLabel[answers.partyProfile]}
                       </span>
                     ) : null}
                     {answers.wheelchair === "yes" ? (
@@ -483,7 +507,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 </div>
               </div>
 
-              {exactMatches.length === 0 ? (
+              {exactMatches.length === 0 && bestMatch ? (
                 <div className="rounded-xl border border-urgent-border bg-urgent-soft p-4 sm:p-5">
                   <h2 className="text-xl font-extrabold leading-tight text-foreground">
                     Nie znaleźliśmy miejsca z potwierdzonym spełnieniem wszystkich warunków.
@@ -495,21 +519,54 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                 </div>
               ) : null}
 
-              <div className="grid min-w-0 gap-3 sm:gap-4">
-                {visibleMatches.map((match, index) => (
+              {!bestMatch ? (
+                <div className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+                  <h2 className="text-xl font-extrabold leading-tight text-foreground">
+                    Nie znaleźliśmy noclegu, który pasuje do wskazanej sytuacji.
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+                    Nie pokazujemy miejsc z potwierdzonym konfliktem. Możesz zmienić odpowiedzi albo zobaczyć wszystkie noclegi.
+                  </p>
+                  <div className="mt-4 flex min-w-0 flex-wrap gap-2">
+                    <button type="button" className="touch-target rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground" onClick={editAnswers}>
+                      Zmień odpowiedzi
+                    </button>
+                    <Link className="touch-target rounded-lg border border-border px-4 py-2 text-sm font-extrabold text-foreground" href="/szukaj?kategoria=nocleg">
+                      Pokaż wszystkie noclegi
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+
+              {bestMatch ? (
+                <section className="grid min-w-0 gap-3" aria-labelledby="best-accommodation-title">
+                  <h2 id="best-accommodation-title" className="text-xl font-extrabold text-foreground">{getAccommodationResultHeading(bestMatch.unmetConditions, bestMatch.confirmationConditions)}</h2>
                   <AccommodationCard
-                    key={match.accommodation.id}
-                    accommodation={match.accommodation}
-                    isBestMatch={
-                      index === 0 &&
-                      match.unmetConditions.length === 0 &&
-                      match.confirmationConditions.length === 0
-                    }
-                    unmetConditions={match.unmetConditions}
-                    confirmationConditions={match.confirmationConditions}
+                    accommodation={bestMatch.accommodation}
+                    isBestMatch={exactMatches.length > 0 && bestMatch.unmetConditions.length === 0 && bestMatch.confirmationConditions.length === 0}
+                    unmetConditions={bestMatch.unmetConditions}
+                    confirmationConditions={bestMatch.confirmationConditions}
                   />
-                ))}
-              </div>
+                </section>
+              ) : null}
+
+              {confirmationMatches.length > 0 ? (
+                <section className="grid min-w-0 gap-3" aria-labelledby="confirmation-accommodation-title">
+                  <h2 id="confirmation-accommodation-title" className="text-xl font-extrabold text-foreground">Miejsca, które warto potwierdzić</h2>
+                  {confirmationMatches.map((match) => (
+                    <AccommodationCard key={match.accommodation.id} accommodation={match.accommodation} unmetConditions={match.unmetConditions} confirmationConditions={match.confirmationConditions} />
+                  ))}
+                </section>
+              ) : null}
+
+              {alternativeMatches.length > 0 ? (
+                <section className="grid min-w-0 gap-3" aria-labelledby="alternative-accommodation-title">
+                  <h2 id="alternative-accommodation-title" className="text-xl font-extrabold text-foreground">Inne możliwe miejsca</h2>
+                  {alternativeMatches.map((match) => (
+                    <AccommodationCard key={match.accommodation.id} accommodation={match.accommodation} unmetConditions={match.unmetConditions} confirmationConditions={match.confirmationConditions} />
+                  ))}
+                </section>
+              ) : null}
             </>
           ) : (
             <div className="hidden rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] lg:block">

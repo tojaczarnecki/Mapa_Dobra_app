@@ -85,7 +85,7 @@ export function SiteFooter() {
       <div className="site-footer-inner">
         <div className="site-footer-brand">
           <Link href="/" className="site-footer-logo-link" aria-label="Mapa Dobra - strona główna">
-            <Image src="/brand/mapa-dobra-logo-footer.svg" alt="Mapa Dobra" width={171} height={86} className="site-footer-logo" />
+            <Image src="/brand/mapa-dobra-logo-footer.svg" alt="Mapa Dobra" width={516} height={335} className="site-footer-logo" />
           </Link>
         </div>
       </div>

@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { AlertTriangle, ChevronRight, Navigation } from "lucide-react";
+import { ChevronRight, Navigation } from "lucide-react";
 import type { DemoPlace, PlaceStatus } from "@/data/demo-places";
+import { DataFreshness } from "@/components/ui/data-freshness";
+import { StatusIndicator } from "@/components/ui/status-indicator";
 
-const statusConfig: Record<PlaceStatus, { label: string; tone: string }> = {
-  open: { label: "Otwarte teraz", tone: "is-open" },
-  closed: { label: "Zamknięte teraz", tone: "is-closed" },
-  openToday: { label: "Otwarte dzisiaj", tone: "is-open-today" },
-  unknownHours: { label: "Brak potwierdzonych godzin", tone: "is-warning" },
-  needsConfirmation: { label: "Dane wymagają potwierdzenia", tone: "is-warning" },
+const statusConfig: Record<PlaceStatus, { label: string; tone: string; status: "confirmed" | "absent" | "unknown" | "condition" }> = {
+  open: { label: "Otwarte teraz", tone: "is-open", status: "confirmed" },
+  closed: { label: "Zamknięte teraz", tone: "is-closed", status: "absent" },
+  openToday: { label: "Otwarte dzisiaj", tone: "is-open-today", status: "confirmed" },
+  unknownHours: { label: "Brak potwierdzonych godzin", tone: "is-warning", status: "unknown" },
+  needsConfirmation: { label: "Dane wymagają potwierdzenia", tone: "is-warning", status: "unknown" },
 };
 
 export function PlaceRow({ place }: { place: DemoPlace }) {
@@ -28,8 +30,9 @@ export function PlaceRow({ place }: { place: DemoPlace }) {
       <span className="md-place-content">
         <span className="md-place-title">{place.name}</span>
         <span className="md-place-status-line">
-          <span className={`md-status-dot ${status.tone}`} aria-hidden="true" />
-          <span className={`md-place-status-label ${status.tone}`}>{status.label}</span>
+          <StatusIndicator status={status.status} className={`md-place-status-label ${status.tone}`}>
+            {status.label}
+          </StatusIndicator>
           <span aria-hidden="true">·</span>
           <span>{place.todayHours}</span>
         </span>
@@ -39,8 +42,7 @@ export function PlaceRow({ place }: { place: DemoPlace }) {
         </span>
         {place.freshnessWarning ? (
           <span className="mt-1 flex min-w-0 items-center gap-1 text-[0.68rem] font-extrabold leading-4 text-[#8a610a]">
-            <AlertTriangle aria-hidden="true" className="shrink-0" size={12} />
-            <span className="min-w-0">{place.freshness}</span>
+            <DataFreshness kind="needsConfirmation" className="min-w-0">{place.freshness}</DataFreshness>
           </span>
         ) : null}
         {tags.length > 0 ? (

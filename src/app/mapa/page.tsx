@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import "leaflet/dist/leaflet.css";
-import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import { MapExperience } from "@/components/map/map-experience";
 import type { MapCategoryFilter } from "@/components/map/map-filters";
 import { getPublicMapPlaces, getPublicSearchPlaces } from "@/lib/places/public-data";
@@ -25,6 +23,7 @@ type MapPageProps = {
     bez_skierowania?: string | string[];
     bez_dokumentow?: string | string[];
     lokalizacja?: string | string[];
+    sort?: string | string[];
   }>;
 };
 
@@ -78,6 +77,11 @@ export default async function MapPage({ searchParams }: MapPageProps) {
   const todayEligibleIds = filterPublicSearchPlaces(searchPlaces, { today: true }).map((place) => place.id);
   const noReferralEligibleIds = filterPublicSearchPlaces(searchPlaces, { noReferral: true }).map((place) => place.id);
   const noDocumentsEligibleIds = filterPublicSearchPlaces(searchPlaces, { noDocuments: true }).map((place) => place.id);
+  const preservedParams = new URLSearchParams();
+  for (const key of ["q", "zapytanie", "kategoria", "otwarte", "dzisiaj", "bezplatne", "bez_skierowania", "bez_dokumentow", "lokalizacja", "sort"]) {
+    const value = firstValue(params[key as keyof typeof params]);
+    if (value) preservedParams.set(key, value);
+  }
 
   return (
     <MapExperience
@@ -91,6 +95,7 @@ export default async function MapPage({ searchParams }: MapPageProps) {
       initialNoReferral={firstValue(params.bez_skierowania) === "1" || intentFilters.noReferral === true}
       initialNoDocuments={firstValue(params.bez_dokumentow) === "1" || intentFilters.noDocuments === true}
       initialLocate={firstValue(params.lokalizacja) === "moja"}
+      initialResultQuery={preservedParams.toString()}
       todayEligibleIds={todayEligibleIds}
       noReferralEligibleIds={noReferralEligibleIds}
       noDocumentsEligibleIds={noDocumentsEligibleIds}

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { AlertTriangle, BadgeCheck, Phone, RefreshCcw } from "lucide-react";
+import { Phone, RefreshCcw } from "lucide-react";
 import type { VerificationDetails } from "@/data/demo-place-details";
 import { telephoneHref } from "@/lib/places/actions";
+import { DataFreshness } from "@/components/ui/data-freshness";
 
 type VerificationInfoProps = {
   verification: VerificationDetails;
@@ -20,11 +21,9 @@ export function VerificationInfo({
   if (isVerified) {
     return (
       <div id="data-verification" className="scroll-mt-20 flex min-w-0 items-start gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm">
-        <BadgeCheck aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-brand-strong" />
         <div className="min-w-0 flex-1">
           <p className="min-w-0 font-semibold leading-5 text-muted-foreground">
-            <strong className="font-extrabold text-foreground">{verification.label}</strong>
-            {verification.note ? <span> · {verification.note}</span> : null}
+            <DataFreshness kind="confirmed"><strong className="font-extrabold text-foreground">{verification.label}</strong></DataFreshness>
           </p>
           {reportHref ? (
             <Link
@@ -43,9 +42,8 @@ export function VerificationInfo({
   return (
     <div id="data-verification" className="scroll-mt-20 rounded-xl border border-urgent-border bg-urgent-soft p-4">
       <div className="flex min-w-0 items-start gap-3">
-        <AlertTriangle aria-hidden="true" size={20} className="mt-0.5 shrink-0 text-urgent" />
         <div className="min-w-0 flex-1">
-          <p className="font-extrabold leading-6 text-foreground">{verification.label}</p>
+          <DataFreshness kind="needsConfirmation" className="font-extrabold leading-6 text-foreground">{verification.label}</DataFreshness>
           <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">{verification.note}</p>
 
           {callHref || reportHref ? (

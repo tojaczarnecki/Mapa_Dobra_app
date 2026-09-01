@@ -34,7 +34,7 @@ export function PlaceFitCheck({
     <details className="mt-3 rounded-lg border border-border bg-surface-muted/45">
       <summary className="touch-target flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-extrabold text-brand-strong">
         <ShieldQuestion aria-hidden="true" size={18} />
-        Sprawdź swoją sytuację
+        Sprawdź, czy możesz skorzystać
       </summary>
 
       <div className="border-t border-border px-3 pb-3 pt-3">

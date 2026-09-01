@@ -130,5 +130,5 @@ export const helpRequestNeedLabels: Record<HelpRequestNeed, string> = {
   DAILY_TASKS: "Pomoc w zakupach lub codziennych sprawach",
   SAFETY_WELLBEING: "Niepokój o bezpieczeństwo lub dobrostan",
   LOST_OR_DISORIENTED: "Osoba wygląda na zagubioną lub zdezorientowaną",
-  OTHER: "Inne",
+  OTHER: "Inne / trudno powiedzieć",
 };

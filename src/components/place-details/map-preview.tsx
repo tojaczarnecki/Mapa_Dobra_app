@@ -1,6 +1,5 @@
-import { Map, Navigation } from "lucide-react";
+import { Map } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
-import { directionsHref } from "@/lib/places/actions";
 import { mapPreviewLocationLabel } from "@/lib/places/address-display";
 
 type MapPreviewProps = {
@@ -8,7 +7,6 @@ type MapPreviewProps = {
 };
 
 export function MapPreview({ place }: MapPreviewProps) {
-  const routeHref = directionsHref(place);
   const locationLabel = mapPreviewLocationLabel(place.address, place.coordinatesLabel);
   return (
     <div
@@ -37,21 +35,7 @@ export function MapPreview({ place }: MapPreviewProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex min-h-44 items-center justify-center rounded-lg border border-dashed border-border bg-surface-muted p-4 text-center">
-        <p className="max-w-sm text-sm font-semibold leading-6 text-muted-foreground">
-          Tu będzie podgląd mapy po podpięciu właściwego widoku mapowego.
-        </p>
-      </div>
-
-      {routeHref ? <a
-        className="touch-target mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
-        href={routeHref}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <Navigation aria-hidden="true" size={17} />
-        Wyznacz trasę
-      </a> : null}
+      <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">Dojazd do miejsca sprawdzisz po otwarciu trasy.</p>
     </div>
   );
 }

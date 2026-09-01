@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { List, LocateFixed, Search, Sparkles } from "lucide-react";
+import { LocateFixed, Search, Sparkles } from "lucide-react";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapFilters } from "./map-filters";
 import styles from "./map.module.css";
 import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
+import { searchIntentSuggestions, type SearchSuggestion } from "@/lib/places/search-intent";
 
 type MapControlsProps = {
   query: string;
@@ -18,13 +19,10 @@ type MapControlsProps = {
   noReferral: boolean;
   noDocuments: boolean;
   filtersOpen: boolean;
-  resultCount: number;
-  areaFiltered: boolean;
-  listHref: string;
   locationPending: boolean;
   locationMessage?: string;
   onQueryChange: (query: string) => void;
-  onQuerySubmit: () => void;
+  onQuerySubmit: (queryOverride?: string) => void;
   onCategoryChange: (category: MapCategoryFilter) => void;
   onOpenNowChange: (value: boolean) => void;
   onTodayChange: (value: boolean) => void;
@@ -33,15 +31,32 @@ type MapControlsProps = {
   onNoDocumentsChange: (value: boolean) => void;
   onFiltersOpenChange: (value: boolean) => void;
   onLocate: () => void;
+  onSearchFocusChange: (value: boolean) => void;
 };
 
-function placeCountLabel(count: number) {
-  if (count === 1) return "miejsce";
-  const lastTwoDigits = count % 100;
-  const lastDigit = count % 10;
-  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) return "miejsca";
-  return "miejsc";
-}
+const categoryLabels: Partial<Record<MapCategoryFilter, string>> = {
+  food: "Jedzenie",
+  accommodation: "Nocleg",
+  hygiene: "Higiena",
+  medical: "Zdrowie",
+  legal: "Prawna",
+  psychological: "Psychologiczna",
+  social: "Pomoc socjalna",
+  clothing: "Odzież",
+  other: "Inne",
+};
+
+const suggestionCategory: Record<string, MapCategoryFilter> = {
+  "category-jedzenie": "food",
+  "category-nocleg": "accommodation",
+  "category-higiena": "hygiene",
+  "category-pomoc-medyczna": "medical",
+  "category-pomoc-prawna": "legal",
+  "category-pomoc-psychologiczna": "psychological",
+  "category-pomoc-socjalna": "social",
+  "category-odziez": "clothing",
+  "category-lodowka-spoleczna": "other",
+};
 
 export function MapControls({
   query,
@@ -53,9 +68,6 @@ export function MapControls({
   noReferral,
   noDocuments,
   filtersOpen,
-  resultCount,
-  areaFiltered,
-  listHref,
   locationPending,
   locationMessage,
   onQueryChange,
@@ -68,14 +80,36 @@ export function MapControls({
   onNoDocumentsChange,
   onFiltersOpenChange,
   onLocate,
+  onSearchFocusChange,
 }: MapControlsProps) {
+  const [searchFocused, setSearchFocused] = useState(false);
+  const suggestions = searchIntentSuggestions(query).slice(0, 5);
+  const activeFilterItems = [
+    category !== "all" ? { label: categoryLabels[category] ?? category, clear: () => onCategoryChange("all") } : null,
+    openNow ? { label: "Otwarte teraz", clear: () => onOpenNowChange(false) } : null,
+    today ? { label: "Dzisiaj", clear: () => onTodayChange(false) } : null,
+    free ? { label: "Bezpłatne", clear: () => onFreeChange(false) } : null,
+    noReferral ? { label: "Bez skierowania", clear: () => onNoReferralChange(false) } : null,
+    noDocuments ? { label: "Bez dokumentów", clear: () => onNoDocumentsChange(false) } : null,
+  ].filter((item): item is { label: string; clear: () => void } => item !== null);
+  const visibleFilterItems = activeFilterItems.length > 2
+    ? [{ label: `${activeFilterItems.length} filtry`, clear: () => {
+        onCategoryChange("all");
+        onOpenNowChange(false);
+        onTodayChange(false);
+        onFreeChange(false);
+        onNoReferralChange(false);
+        onNoDocumentsChange(false);
+      } }]
+    : activeFilterItems;
+
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onQuerySubmit();
   }
 
   return (
-    <section className={styles.mapControls} aria-label="Sterowanie mapą">
+    <section className={[styles.mapControls, styles.mapTopChrome].join(" ")} aria-label="Sterowanie mapą">
       <form className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2" onSubmit={submitSearch} role="search">
         <label className="relative min-w-0">
           <span className="sr-only">Czego potrzebujesz?</span>
@@ -88,13 +122,24 @@ export function MapControls({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             onClear={() => onQueryChange("")}
+            onFocus={() => {
+              setSearchFocused(true);
+              onSearchFocusChange(true);
+            }}
+            onBlur={() => {
+              setSearchFocused(false);
+              onSearchFocusChange(false);
+            }}
+            role="combobox"
+            aria-expanded={searchFocused && suggestions.length > 0}
+            aria-controls="map-search-suggestions"
             placeholder="Czego potrzebujesz?"
-            className="h-12 w-full min-w-0 rounded-lg border border-border bg-surface pl-11 pr-3 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/30"
+            className="h-12 w-full min-w-0 rounded-2xl border border-[#d6dfdc] bg-white pl-11 pr-3 text-base font-semibold text-foreground shadow-sm placeholder:font-normal placeholder:text-muted-foreground hover:border-brand focus:border-brand-strong focus:outline-none focus:ring-2 focus:ring-brand-strong/20"
           />
         </label>
         <button
           type="button"
-          className="touch-target inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-3 text-sm font-extrabold text-brand-strong shadow-sm transition hover:bg-brand-soft disabled:cursor-wait disabled:opacity-65 sm:px-4"
+          className="touch-target inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d6dfdc] bg-white px-3 text-sm font-extrabold text-brand-strong shadow-sm transition hover:bg-brand-soft disabled:cursor-wait disabled:opacity-65 sm:px-4"
           onClick={onLocate}
           disabled={locationPending}
           aria-describedby={locationMessage ? "map-location-status" : undefined}
@@ -104,6 +149,39 @@ export function MapControls({
           <span className="sr-only min-[350px]:hidden">{locationPending ? "Ustalam lokalizację" : "Moja lokalizacja"}</span>
         </button>
       </form>
+
+      {searchFocused && suggestions.length > 0 ? (
+        <div id="map-search-suggestions" className={styles.mapSearchSuggestions} role="listbox" aria-label="Podpowiedzi wyszukiwania">
+          {suggestions.map((suggestion: SearchSuggestion) => (
+            <button
+              key={suggestion.id}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className={styles.mapSearchSuggestion}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                const categorySuggestion = suggestionCategory[suggestion.id];
+                if (categorySuggestion) {
+                  onCategoryChange(categorySuggestion);
+                  onQueryChange("");
+                } else {
+                  onQueryChange(suggestion.query);
+                  onQuerySubmit(suggestion.query);
+                }
+                setSearchFocused(false);
+                onSearchFocusChange(false);
+              }}
+            >
+              <Search aria-hidden="true" size={16} />
+              <span>
+                <strong>{suggestion.label}</strong>
+                <small>{suggestion.description}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {intentText ? (
         <div className="smart-map-intent" role="status">
@@ -115,7 +193,7 @@ export function MapControls({
       {locationMessage ? (
         <p
           id="map-location-status"
-          className="rounded-md border border-border bg-surface px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground"
+          className={styles.locationToast}
           role="status"
         >
           {locationMessage}
@@ -139,19 +217,17 @@ export function MapControls({
         onFiltersOpenChange={onFiltersOpenChange}
       />
 
-      <div className="flex min-h-11 min-w-0 items-center justify-between gap-3">
-        <p className="min-w-0 text-sm font-bold text-muted-foreground" aria-live="polite">
-          {resultCount} {placeCountLabel(resultCount)} {areaFiltered ? "w wybranym obszarze" : "na mapie"}
-        </p>
-        <Link
-          href={listHref}
-          className="touch-target inline-flex shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
-          title={areaFiltered ? "Lista zachowa filtry, ale pokaże całą Łódź" : undefined}
-        >
-          <List aria-hidden="true" size={18} />
-          {areaFiltered ? "Lista wszystkich" : "Pokaż listę"}
-        </Link>
-      </div>
+      {visibleFilterItems.length > 0 ? (
+        <div className={styles.mapActiveFilters} aria-label="Aktywne filtry">
+          {visibleFilterItems.map((item) => (
+            <button key={item.label} type="button" className="filter-chip" onClick={item.clear}>
+              <span className="truncate">{item.label}</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
     </section>
   );
 }

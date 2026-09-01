@@ -70,7 +70,8 @@ body {
   min-height: 100dvh;
   padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
   position: fixed;
-  z-index: 100;
+  /* The boot surface must cover map controls and navigation during hydration. */
+  z-index: 1000;
 }
 
 .launch-splash-content {
@@ -352,6 +353,16 @@ input {
   border-left-color: var(--home-amber);
 }
 
+.home-primary-card-guide {
+  border-left: 4px solid var(--home-teal);
+  color: var(--home-text);
+}
+
+.home-primary-card-guide:hover {
+  border-color: var(--home-border);
+  border-left-color: var(--home-teal);
+}
+
 .home-primary-icon {
   align-items: center;
   background: rgb(255 255 255 / 78%);
@@ -370,6 +381,11 @@ input {
 .home-primary-card-activate .home-primary-icon {
   background: var(--home-amber-soft);
   color: #8c6114;
+}
+
+.home-primary-card-guide .home-primary-icon {
+  background: #e7f3f0;
+  color: var(--home-teal);
 }
 
 .home-primary-copy {
@@ -1175,6 +1191,19 @@ body[data-privacy-screen-open="true"] .mobile-bottom-nav {
   z-index: 40;
 }
 
+.map-mode-nav {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (max-width: 767px) {
+  body[data-map-mode="searching"] .map-mode-nav,
+  body[data-map-mode="filters"] .map-mode-nav,
+  body[data-map-mode="place"] .map-mode-nav {
+    pointer-events: none;
+    transform: translateY(100%);
+  }
+}
+
 .mobile-bottom-nav-inner {
   display: grid;
   gap: 0.125rem;
@@ -1432,7 +1461,7 @@ body[data-privacy-screen-open="true"] .mobile-bottom-nav {
 
 @media (min-width: 1024px) {
   .home-primary-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 2rem;
   }
 

@@ -34,7 +34,7 @@ const categoryMatchers = [
   {
     slug: "higiena",
     label: "Higiena",
-    phrases: ["higiena", "prysznic", "kapiel", "umyc sie", "umycie", "umyć"],
+    phrases: ["higiena", "prysznic", "kapiel", "umyc sie", "chce sie umyc", "umycie", "umyć"],
   },
   {
     slug: "pomoc-medyczna",
@@ -62,6 +62,11 @@ const categoryMatchers = [
     phrases: [
       "odziez", "ubranie", "ubrania", "ubran", "buty", "kurtka", "kurtk", "cieple ubrania", "cieplej kurtki",
     ],
+  },
+  {
+    slug: "lodowka-spoleczna",
+    label: "Lodówka społeczna",
+    phrases: ["lodowka", "lodowka spoleczna", "jadlodzielnia"],
   },
 ] as const;
 
@@ -148,6 +153,38 @@ export function interpretSearchQuery(query: string): SearchIntent {
     filters,
     tokens,
   };
+}
+
+export type SearchSuggestion = {
+  id: string;
+  label: string;
+  description: string;
+  query: string;
+};
+
+const defaultSuggestions: SearchSuggestion[] = [
+  { id: "food", label: "Jedzenie", description: "Kategoria pomocy", query: "jedzenie" },
+  { id: "accommodation", label: "Nocleg na dzisiaj", description: "Kategoria pomocy", query: "nocleg na dzisiaj" },
+  { id: "hygiene", label: "Higiena / prysznic", description: "Kategoria pomocy", query: "higiena" },
+  { id: "medical", label: "Pomoc medyczna", description: "Kategoria pomocy", query: "pomoc medyczna" },
+  { id: "legal", label: "Pomoc prawna", description: "Kategoria pomocy", query: "pomoc prawna" },
+];
+
+export function searchIntentSuggestions(query: string): SearchSuggestion[] {
+  const normalized = normalizePublicSearch(query);
+  if (!normalized) return defaultSuggestions;
+
+  return categoryMatchers
+    .filter((category) => category.phrases.some((phrase) => {
+      const normalizedPhrase = normalizePublicSearch(phrase);
+      return normalizedPhrase.includes(normalized) || normalized.includes(normalizedPhrase);
+    }))
+    .map((category) => ({
+      id: `category-${category.slug}`,
+      label: category.label,
+      description: "Kategoria pomocy",
+      query: category.phrases[0],
+    }));
 }
 
 export function searchIntentHref(query: string) {

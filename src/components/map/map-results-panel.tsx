@@ -9,6 +9,7 @@ type MapResultsPanelProps = {
   selectedPlace?: MapPlace;
   onSelect: (place: MapPlace) => void;
   onClearSelection: () => void;
+  returnTo?: string;
 };
 
 function visiblePlaceCountLabel(count: number) {
@@ -27,6 +28,7 @@ export function MapResultsPanel({
   selectedPlace,
   onSelect,
   onClearSelection,
+  returnTo,
 }: MapResultsPanelProps) {
   return (
     <aside
@@ -55,7 +57,7 @@ export function MapResultsPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {selectedPlace ? (
           <div className="border-b border-border bg-surface-muted p-3">
-            <MapPlaceCard place={selectedPlace} />
+            <MapPlaceCard place={selectedPlace} returnTo={returnTo} />
           </div>
         ) : null}
 

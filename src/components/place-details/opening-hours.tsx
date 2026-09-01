@@ -1,14 +1,13 @@
 import { Clock3 } from "lucide-react";
 import type { OpeningDay } from "@/data/demo-place-details";
+import { StatusIndicator } from "@/components/ui/status-indicator";
 
 type OpeningHoursProps = {
   days: OpeningDay[];
 };
 
 function hoursFallbackLabel(day: OpeningDay) {
-  if (day.status === "closed") {
-    return "Zamknięte";
-  }
+  if (day.status === "closed") return "Zamknięte";
 
   if (day.status === "unknown") {
     return day.note ?? "Brak potwierdzonych godzin";
@@ -30,11 +29,26 @@ function HoursValue({ day }: { day: OpeningDay }) {
     );
   }
 
-  return <span className="min-w-0">{hoursFallbackLabel(day)}</span>;
+  return (
+    <StatusIndicator status={day.status === "closed" ? "absent" : "unknown"}>
+      {hoursFallbackLabel(day)}
+    </StatusIndicator>
+  );
 }
 
 export function OpeningHours({ days }: OpeningHoursProps) {
-  return (
+  const allUnknown = days.length > 0 && days.every((day) => day.status === "unknown");
+  if (allUnknown) {
+    return (
+      <div className="grid gap-2">
+        <StatusIndicator status="unknown" className="text-sm font-semibold text-muted-foreground">
+          Nie mamy potwierdzonych godzin.
+        </StatusIndicator>
+      </div>
+    );
+  }
+
+  const table = (
     <dl className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface">
       {days.map((day) => (
         <div
@@ -66,5 +80,20 @@ export function OpeningHours({ days }: OpeningHoursProps) {
         </div>
       ))}
     </dl>
+  );
+
+  return (
+    <>
+      <div className="md:hidden">
+        <details className="group rounded-lg border border-border bg-surface-muted">
+          <summary className="touch-target flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-extrabold text-foreground [&::-webkit-details-marker]:hidden">
+            <span>{days.find((day) => day.isToday)?.day ?? "Godziny"}: {days.find((day) => day.isToday)?.status === "open" ? days.find((day) => day.isToday)?.periods?.join(", ") : "sprawdź szczegóły"}</span>
+            <span className="text-brand-strong group-open:rotate-180" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="border-t border-border p-2">{table}</div>
+        </details>
+      </div>
+      <div className="hidden md:block">{table}</div>
+    </>
   );
 }

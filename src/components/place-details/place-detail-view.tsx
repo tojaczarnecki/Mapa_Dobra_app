@@ -11,9 +11,12 @@ import { PlaceFitCheck } from "./place-fit-check";
 import { PlaceHero } from "./place-hero";
 import { RequirementList } from "./requirement-list";
 import { VerificationInfo } from "./verification-info";
+import { StatusIndicator } from "@/components/ui/status-indicator";
 
 type PlaceDetailViewProps = {
   place: PlaceDetail;
+  backHref?: string;
+  backLabel?: string;
 };
 
 function TagList({ items }: { items: string[] }) {
@@ -38,6 +41,79 @@ function Description({ paragraphs }: { paragraphs: string[] }) {
         <p key={paragraph}>{paragraph}</p>
       ))}
     </div>
+  );
+}
+
+function HowToUse({ place }: { place: PlaceDetail }) {
+  if (place.profileKind === "ACCOMMODATION") return null;
+  if (place.profileKind === "FOOD_SHARING" && /całodobowo/iu.test(place.status.todayHours)) return null;
+
+  const unknownHours = place.status.tone === "unknown" || place.verification.tone !== "verified" || /brak potwierdzonych/iu.test(place.status.todayHours);
+  const closedNow = place.status.tone === "closed";
+  const today = place.openingHours.find((day) => day.isToday);
+  const todayIndex = today ? place.openingHours.indexOf(today) : -1;
+  const nextOpening = closedNow && todayIndex >= 0
+    ? Array.from({ length: place.openingHours.length - 1 }, (_, offset) => place.openingHours[(todayIndex + offset + 1) % place.openingHours.length])
+      .find((day) => day.status === "open" && day.periods?.length)
+    : undefined;
+  const steps = [] as Array<{ text: string; status: "positive" | "absent" | "unknown" }>;
+
+  if (place.status.todayHours) {
+    steps.push({
+      text: unknownHours
+        ? place.contact.phone ? "Zadzwoń przed wyjściem, aby potwierdzić godziny i warunki." : "Godziny wymagają potwierdzenia przed wyjściem."
+        : closedNow ? "Dzisiaj miejsce jest zamknięte." : `Przyjdź: ${place.status.todayHours}.`,
+      status: unknownHours ? "unknown" : closedNow ? "absent" : "positive",
+    });
+  }
+  if (nextOpening) {
+    steps.push({
+      text: `Najbliższa możliwość: ${nextOpening.day.toLocaleLowerCase("pl-PL")} ${nextOpening.periods!.join(", ")}.`,
+      status: "positive",
+    });
+  }
+
+  if (!steps.length) return null;
+
+  return (
+    <DetailSection title="Jak skorzystać">
+      <ul className="grid gap-2 text-sm font-semibold leading-6 text-foreground">
+        {steps.map((step) => {
+          return <li key={step.text}><StatusIndicator status={step.status === "positive" ? "confirmed" : step.status === "absent" ? "absent" : "unknown"}>{step.text}</StatusIndicator></li>;
+        })}
+      </ul>
+    </DetailSection>
+  );
+}
+
+function AccommodationHowToUse({ place }: { place: PlaceDetail }) {
+  const accommodation = place.accommodation;
+  if (!accommodation) return null;
+
+  const steps: Array<{ text: string; status: "positive" | "condition" | "unknown" }> = [];
+  if (place.contact.phone) {
+    steps.push({ text: "Zadzwoń i sprawdź, czy jest wolne miejsce.", status: "condition" });
+  }
+  if (accommodation.admissionsToday && !/brak (?:potwierdzonych|przyjęć)/iu.test(accommodation.admissionsToday)) {
+    steps.push({ text: `Zgłoś się: ${accommodation.admissionsToday}.`, status: "positive" });
+  }
+  const keyCondition = accommodation.admissionRequirements.find((item) => item.status === "warning");
+  if (keyCondition) {
+    steps.push({ text: `Pamiętaj: ${keyCondition.label}.`, status: "condition" });
+  }
+  if (!steps.length) return null;
+
+  return (
+    <DetailSection title="Jak skorzystać z noclegu">
+      <ol className="grid gap-2 text-sm font-semibold leading-6 text-foreground">
+        {steps.map((step, index) => (
+          <li key={step.text} className="flex min-w-0 items-start gap-2">
+            <span className="shrink-0 font-extrabold text-brand-strong">{index + 1}.</span>
+            <StatusIndicator status={step.status === "positive" ? "confirmed" : step.status === "condition" ? "condition" : "unknown"}>{step.text}</StatusIndicator>
+          </li>
+        ))}
+      </ol>
+    </DetailSection>
   );
 }
 
@@ -97,16 +173,12 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
         <OpeningHours days={place.openingHours} />
       </DetailSection>
 
-      {place.audience.length ? <DetailSection title="Dla kogo">
-        <TagList items={place.audience} />
-      </DetailSection> : null}
-
-      {place.services.length ? <DetailSection title="Na miejscu">
-        <TagList items={place.services} />
-      </DetailSection> : null}
-
-      {place.accessibility.length ? <DetailSection title="Dostępność">
-        <AccessibilityList items={place.accessibility} />
+      {place.audience.length || place.services.length || place.accessibility.length ? <DetailSection title="Informacje praktyczne">
+        <div className="divide-y divide-border">
+          {place.audience.length ? <div className="pb-4"><h3 className="text-sm font-extrabold text-foreground">Dla kogo</h3><p className="mt-2 text-sm font-semibold text-muted-foreground">Pomoc jest przeznaczona dla:</p><div className="mt-2"><TagList items={place.audience} /></div></div> : null}
+          {place.services.length ? <div className="py-4"><h3 className="text-sm font-extrabold text-foreground">Na miejscu</h3><div className="mt-2"><TagList items={place.services.filter((service) => !place.helpTypes.some((type) => type.toLocaleLowerCase("pl-PL") === service.toLocaleLowerCase("pl-PL")))} /></div></div> : null}
+          {place.accessibility.length ? <div className="pt-4"><h3 className="text-sm font-extrabold text-foreground">Dostępność</h3><div className="mt-2"><AccessibilityList items={place.accessibility} /></div></div> : null}
+        </div>
       </DetailSection> : null}
 
       {place.description.length ? <DetailSection title="O miejscu">
@@ -146,13 +218,13 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
 
   return (
     <>
+      <DetailSection title="Dla kogo jest nocleg">
+        <p className="text-sm font-semibold text-muted-foreground">Pomoc jest przeznaczona dla:</p>
+        <div className="mt-2"><TagList items={accommodation.audience} /></div>
+      </DetailSection>
       <DetailSection title="Czy mogę skorzystać z noclegu?">
         <RequirementList items={admissionItems} />
         <PlaceFitCheck requirements={admissionItems} phone={place.contact.phone} />
-      </DetailSection>
-
-      <DetailSection title="Dla kogo jest nocleg">
-        <TagList items={accommodation.audience} />
       </DetailSection>
 
       <DetailSection title="Godziny przyjęć">
@@ -212,10 +284,15 @@ function SideColumn({ place }: { place: PlaceDetail }) {
   );
 }
 
-export function PlaceDetailView({ place }: PlaceDetailViewProps) {
+export function PlaceDetailView({
+  place,
+  backHref: requestedBackHref,
+  backLabel: requestedBackLabel,
+}: PlaceDetailViewProps) {
   const accommodation = place.profileKind === "ACCOMMODATION" ? place.accommodation : undefined;
   const isAccommodation = place.profileKind === "ACCOMMODATION";
-  const backHref = isAccommodation ? "/znajdz-nocleg" : "/szukaj";
+  const backHref = requestedBackHref ?? (isAccommodation ? "/znajdz-nocleg" : "/szukaj");
+  const backLabel = requestedBackLabel ?? "Wróć do wyników";
   const reportHref = `/zglos-zmiane?place=${encodeURIComponent(place.id)}`;
 
   return (
@@ -225,11 +302,17 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
         href={backHref}
       >
         <ArrowLeft aria-hidden="true" size={17} />
-        Wróć do wyników
+        {backLabel}
       </Link>
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)] lg:items-start lg:gap-8">
         <div className="min-w-0 space-y-4">
+          <PlaceHero
+            place={place}
+            primaryCallLabel={isAccommodation ? "Zadzwoń i potwierdź" : "Zadzwoń"}
+            showStatus={!isAccommodation}
+          />
+
           {accommodation ? (
             <AccommodationAvailability
               availability={accommodation.availability}
@@ -239,11 +322,7 @@ export function PlaceDetailView({ place }: PlaceDetailViewProps) {
             />
           ) : null}
 
-          <PlaceHero
-            place={place}
-            primaryCallLabel={isAccommodation ? "Zadzwoń i potwierdź" : "Zadzwoń"}
-            showStatus={!isAccommodation}
-          />
+          {isAccommodation ? <AccommodationHowToUse place={place} /> : <HowToUse place={place} />}
 
           {place.profileKind === "MOBILE_SERVICE" ? <MobilePlaceSections place={place} /> : isAccommodation ? (
             <AccommodationPlaceSections place={place} />

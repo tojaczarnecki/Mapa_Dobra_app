@@ -11,6 +11,8 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 import { isConsentChoice, PRIVACY_CONSENT_COOKIE, type ConsentChoice } from "@/lib/privacy/consent";
 import "./globals.css";
 import "./compact-institutional.css";
+import "leaflet/dist/leaflet.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -20,7 +22,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Mapa Dobra",
   },
   formatDetection: { telephone: false },
@@ -31,7 +33,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B4F48",
+  viewportFit: "cover",
+  themeColor: "#e8efed",
   colorScheme: "light",
 };
 

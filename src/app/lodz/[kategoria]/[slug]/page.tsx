@@ -9,6 +9,10 @@ type PlaceDetailPageProps = {
     kategoria: string;
     slug: string;
   }>;
+  searchParams?: Promise<{
+    from?: string | string[];
+    returnTo?: string | string[];
+  }>;
 };
 
 export async function generateMetadata({
@@ -30,7 +34,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) {
+export default async function PlaceDetailPage({ params, searchParams }: PlaceDetailPageProps) {
   const { kategoria, slug } = await params;
   const place = await getPublicPlaceDetail(kategoria, slug);
 
@@ -38,5 +42,11 @@ export default async function PlaceDetailPage({ params }: PlaceDetailPageProps) 
     notFound();
   }
 
-  return <PlaceDetailView place={place} />;
+  const query = searchParams ? await searchParams : undefined;
+  const fromMap = query?.from === "mapa";
+  const returnTo = Array.isArray(query?.returnTo) ? query?.returnTo[0] : query?.returnTo;
+  const mapReturnTo = returnTo?.startsWith("/mapa") ? returnTo : undefined;
+  const backHref = mapReturnTo ?? (fromMap ? "/mapa" : returnTo?.startsWith("/szukaj") ? returnTo : undefined);
+
+  return <PlaceDetailView place={place} backHref={backHref} backLabel={fromMap ? "Wróć do mapy" : backHref ? "Wróć do wyników" : undefined} />;
 }

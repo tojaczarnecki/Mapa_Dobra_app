@@ -8,6 +8,9 @@ export type AccommodationProfile =
   | "disability"
   | "other";
 
+/** User-side profile; disability is a separate need, not a party profile. */
+export type PartyProfile = Exclude<AccommodationProfile, "disability">;
+
 export type WheelchairNeed = "yes" | "no" | "unknown";
 export type RegistrationAnswer = "yes" | "no" | "unknown";
 export type PetAnswer = "none" | "dog" | "other";

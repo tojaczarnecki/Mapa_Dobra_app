@@ -68,11 +68,12 @@ export function LaunchSplash() {
 
     const finish = () => {
       if (cancelled) return;
-      markFirstLaunchComplete(storage);
       setProgress(100);
       setExiting(true);
       exitTimer = window.setTimeout(() => {
-        if (!cancelled) setVisible(false);
+        if (cancelled) return;
+        markFirstLaunchComplete(storage);
+        setVisible(false);
       }, EXIT_MS);
     };
 

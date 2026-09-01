@@ -34,13 +34,14 @@ export function PlaceContact({ contact }: PlaceContactProps) {
           href={contact.website}
         >
           <Globe aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-          <span className="min-w-0 break-words">{contact.website}</span>
+          <span className="min-w-0 break-words">Strona internetowa</span>
         </a>
       ) : null}
       {contact.social ? (
-        <p className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-foreground">
-          {contact.social}
-        </p>
+        <a className="touch-target inline-flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-foreground transition hover:bg-brand-soft" href={contact.social}>
+          <Globe aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
+          <span className="min-w-0 break-words">Social media</span>
+        </a>
       ) : null}
     </div>
   );

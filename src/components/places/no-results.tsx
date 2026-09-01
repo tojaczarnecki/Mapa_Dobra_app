@@ -9,7 +9,7 @@ export function NoResults({ clearHref = "/szukaj" }: { clearHref?: string }) {
             Nie znaleźliśmy miejsc spełniających te kryteria.
           </h2>
           <p className="text-base leading-7 text-muted-foreground">
-            Zmień frazę lub wyczyść filtry, aby zobaczyć inne możliwości.
+            Spróbuj innej potrzeby albo zmień zakres wyszukiwania.
           </p>
         </div>
         <Link
@@ -18,6 +18,10 @@ export function NoResults({ clearHref = "/szukaj" }: { clearHref?: string }) {
         >
           Wyczyść filtry
         </Link>
+        <div className="flex flex-wrap gap-2 text-sm font-bold">
+          <Link className="inline-action" href="/szukam">Wybierz inną potrzebę</Link>
+          <Link className="inline-action" href="/szukaj?otwarte=1">Pokaż pomoc dostępną teraz</Link>
+        </div>
       </div>
     </section>
   );

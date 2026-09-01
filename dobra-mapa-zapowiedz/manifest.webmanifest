@@ -1,0 +1,16 @@
+{
+  "name": "Dobra Mapa",
+  "short_name": "Dobra Mapa",
+  "description": "Dobra Mapa powstaje po to, żeby łatwiej było znaleźć właściwą pomoc w Łodzi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff9ea",
+  "theme_color": "#0b4f48",
+  "icons": [
+    {
+      "src": "assets/brand/mapa-dobra-app-icon.png",
+      "sizes": "734x734",
+      "type": "image/png"
+    }
+  ]
+}

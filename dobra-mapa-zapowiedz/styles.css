@@ -1,0 +1,37 @@
+:root {
+  --loader-background: #0b4f48;
+  --loader-ghost: #819590;
+  --loader-fill: #ffffff;
+  --loader-text: #f6f5f3;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--loader-background); color: var(--loader-text); margin: 0; min-width: 320px; overflow: hidden; }
+img { display: block; height: auto; max-width: 100%; }
+.loader-page { align-items: center; background: var(--loader-background); display: flex; justify-content: center; min-height: 100svh; overflow: hidden; padding: 0 1rem; }
+.loader-content { align-items: center; display: flex; flex-direction: column; height: 100%; min-height: 100svh; width: 100%; }
+.loader-progress { color: var(--loader-text); font-family: Inter, "Avenir Next", Arial, sans-serif; font-size: clamp(1.15rem, 5vw, 1.65rem); font-variant-numeric: tabular-nums; font-weight: 300; margin-top: clamp(5.5rem, 24svh, 12rem); }
+.loader-symbol { aspect-ratio: 350.83 / 292.44; margin-top: clamp(2.25rem, 6svh, 4.5rem); position: relative; width: min(54vw, 22rem); }
+.loader-symbol-ghost, .loader-symbol-fill { height: 100%; inset: 0; position: absolute; width: 100%; }
+.loader-symbol-ghost, .loader-symbol-fill { mask-image: url("assets/brand/mapa-dobra-symbol.svg"); mask-position: center; mask-repeat: no-repeat; mask-size: contain; -webkit-mask-image: url("assets/brand/mapa-dobra-symbol.svg"); -webkit-mask-position: center; -webkit-mask-repeat: no-repeat; -webkit-mask-size: contain; }
+.loader-symbol-ghost { background: var(--loader-ghost); }
+.loader-symbol-fill { animation: loader-fill 3.8s cubic-bezier(.45, .05, .25, 1) infinite; background: var(--loader-fill); clip-path: inset(100% 0 0); }
+.loader-wordmark { margin-bottom: max(2.25rem, env(safe-area-inset-bottom)); margin-top: auto; width: min(50vw, 12.5rem); }
+.sr-only { clip: rect(0 0 0 0); border: 0; height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
+
+@keyframes loader-fill {
+  0%, 14% { clip-path: inset(100% 0 0); }
+  55%, 70% { clip-path: inset(0 0 0); }
+  100% { clip-path: inset(100% 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-symbol-fill { animation: none; clip-path: inset(45% 0 0); }
+}
+
+@media (max-height: 560px) {
+  .loader-progress { margin-top: 2rem; }
+  .loader-symbol { margin-top: 1.5rem; width: min(38vw, 15rem); }
+  .loader-wordmark { margin-bottom: 1.25rem; }
+}

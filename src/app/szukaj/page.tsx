@@ -5,8 +5,9 @@ import { List, LocateFixed, Map as MapIcon, MapPin, Search, SlidersHorizontal, S
 import { NoResults } from "@/components/places/no-results";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchSortSelect } from "@/components/places/search-sort-select";
+import { SearchResultsMap } from "@/components/places/search-results-map";
 import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
-import { getPublicSearchPlaces } from "@/lib/places/public-data";
+import { getPublicMapPlaces, getPublicSearchPlaces } from "@/lib/places/public-data";
 import { interpretSearchQuery, searchIntentHref, type SearchIntentToken } from "@/lib/places/search-intent";
 import { filterPublicSearchPlaces, type PublicSearchFilters } from "@/lib/places/search";
 import { canonicalAlternates } from "@/lib/site-url";
@@ -75,8 +76,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     noDocuments: first(raw.bez_dokumentow) === "1",
     sort,
   };
-  const allPlaces = await getPublicSearchPlaces();
+  const [allPlaces, allMapPlaces] = await Promise.all([getPublicSearchPlaces(), getPublicMapPlaces()]);
   const places = filterPublicSearchPlaces(allPlaces, filters);
+  const resultIds = new Set(places.map((place) => place.id));
+  const mapPlaces = allMapPlaces.filter((place) => resultIds.has(place.id));
   const current = new URLSearchParams();
   if (interpretedText) current.set("zapytanie", interpretedText);
   else if (query) current.set("q", query);
@@ -87,6 +90,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (filters.noReferral) current.set("bez_skierowania", "1");
   if (filters.noDocuments) current.set("bez_dokumentow", "1");
   if (sort !== "best") current.set("sort", sort);
+  const location = first(raw.lokalizacja);
+  if (location) current.set("lokalizacja", location);
   const categories = Array.from(
     new Map(
       allPlaces.flatMap((place) =>
@@ -176,7 +181,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             </div>
 
             <details id="filtry-kategorie" className="rounded-lg border border-border bg-surface px-3 py-2">
-              <summary className="touch-target flex cursor-pointer items-center text-sm font-extrabold text-foreground">Kategorie pomocy{category ? " - wybrano" : ""}</summary>
+              <summary className="touch-target flex cursor-pointer items-center text-sm font-extrabold text-foreground">Kategorie pomocy</summary>
               <div className="flex flex-wrap gap-2 pb-2 pt-1">
                 {categories.map(([slug, label]) => (
                   <Link key={slug} href={searchHref(current, "kategoria", slug)} className={["filter-chip", category === slug ? "filter-chip-strong bg-brand-soft" : ""].join(" ")} aria-current={category === slug ? "true" : undefined}>{label}</Link>
@@ -189,7 +194,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 <p className="text-lg font-extrabold text-foreground">{places.length} miejsc</p>
                 <span className="text-sm font-bold text-muted-foreground" aria-hidden="true">|</span>
                 <label className="flex min-w-0 items-center gap-1 text-sm font-bold text-muted-foreground"><span className="sr-only">Sortuj</span><SearchSortSelect value={sort} queryString={current.toString()} /></label>
-                <p className="min-w-0 basis-full text-xs font-semibold text-muted-foreground sm:basis-auto sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : query ? `Wyniki dla: ${query}` : category ? `Kategoria: ${categories.find(([slug]) => slug === category)?.[1] ?? category}` : "Wszystkie miejsca"}</p>
+                {interpretedText || query ? <p className="min-w-0 basis-full text-xs font-semibold text-muted-foreground sm:basis-auto sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : `Wyniki dla: ${query}`}</p> : null}
               </div>
 
               <div aria-label="Widok wyników" className="grid w-full min-w-0 max-w-full grid-cols-2 rounded-lg border border-border bg-surface p-0.5 sm:w-auto">
@@ -200,20 +205,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
 
           <div className="grid min-w-0 gap-3 sm:gap-4">
-            {places.map((place) => <PlaceCard key={place.id} place={place} />)}
+            {places.map((place) => <PlaceCard key={place.id} place={place} returnTo={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"} />)}
             {places.length === 0 ? <NoResults /> : null}
           </div>
         </section>
 
-        <aside className="hidden lg:sticky lg:top-24 lg:block">
-          <div className="rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
-            <div className="flex min-h-[420px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface-muted p-6 text-center">
-              <MapIcon aria-hidden="true" size={34} className="mb-4 text-brand-strong" />
-              <h2 className="text-xl font-extrabold text-foreground">Zobacz wyniki na mapie</h2>
-              <p className="mt-2 max-w-xs text-sm font-semibold leading-6 text-muted-foreground">Porównaj lokalizacje i wybierz miejsce, do którego najłatwiej dotrzeć.</p>
-              <Link className="touch-target mt-5 inline-flex items-center justify-center rounded-lg border border-brand bg-surface px-4 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft" href={current.toString() ? `/mapa?${current.toString()}` : "/mapa"}>Przejdź do mapy</Link>
-            </div>
-          </div>
+        <aside className="hidden lg:sticky lg:top-24 lg:block" aria-label="Mapa wyników wyszukiwania">
+          <SearchResultsMap places={mapPlaces} />
         </aside>
       </div>
     </div>

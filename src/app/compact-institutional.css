@@ -181,6 +181,75 @@
     padding-top: env(safe-area-inset-top);
   }
 
+  /* The map owns the full mobile viewport, including the top safe area. */
+  html:has(.map-page),
+  body:has(.map-page),
+  body:has(.map-page) > div {
+    background: #e8efed;
+  }
+
+  html:has(.map-page),
+  body:has(.map-page) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body:has(.map-page) {
+    padding-bottom: 0;
+  }
+
+  body:has(.map-page) .site-header,
+  body:has(.map-page) .site-footer,
+  body:has(.map-page) .mobile-bottom-nav {
+    display: none;
+  }
+
+  body:has(.guided-flow-page) .mobile-bottom-nav {
+    display: none;
+  }
+
+  body:has(.guided-flow-page) {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  #main-content:has(.guided-flow-page) {
+    min-height: calc(100dvh - env(safe-area-inset-bottom));
+  }
+
+  body:has(.guided-flow-page) .guided-flow-page.pb-28,
+  body:has(.guided-flow-page) .guided-flow-page > .pb-28 {
+    padding-bottom: 1rem !important;
+  }
+
+  .mobile-bottom-nav-item {
+    white-space: nowrap;
+  }
+
+  #main-content:has(.map-page) {
+    position: relative;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+  }
+
+  /* Installed iOS/PWA map draws edge-to-edge beneath the translucent status bar. */
+  @media (display-mode: standalone) {
+    html:has(.map-page),
+    body:has(.map-page),
+    body:has(.map-page) > div {
+      background: transparent;
+    }
+
+    #main-content:has(.map-page) {
+      background: transparent;
+    }
+
+    body:has(.map-page) .mapControls {
+      top: calc(env(safe-area-inset-top) + 0.5rem);
+    }
+  }
+
   .site-header-logo-link {
     min-height: 2.75rem;
     min-width: 2.75rem;

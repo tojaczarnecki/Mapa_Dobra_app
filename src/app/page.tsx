@@ -81,16 +81,22 @@ export default async function Home() {
 
       <section className="home-primary-actions" aria-label="Główne ścieżki">
         <PrimaryActionCard
-          href="/szukaj"
-          title="Potrzebuję pomocy"
+          href="/szukam"
+          title="Szukam wsparcia"
           description="Znajdź miejsce, usługę lub wsparcie."
           variant="help"
         />
         <PrimaryActionCard
-          href="/uruchom-pomoc"
-          title="Uruchamiam pomoc"
+          href="/pomagam"
+          title="Chcę komuś pomóc"
           description="Martwisz się o kogoś? Pomóż uruchomić wsparcie."
           variant="activate"
+        />
+        <PrimaryActionCard
+          href="/jak-pomagac"
+          title="Chcę wiedzieć, jak pomagać"
+          description="Sprawdź proste wskazówki na różne sytuacje."
+          variant="guide"
         />
       </section>
 

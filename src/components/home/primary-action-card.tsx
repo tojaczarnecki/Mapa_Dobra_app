@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { ChevronRight, HeartHandshake, Search } from "lucide-react";
+import { BookOpen, ChevronRight, HeartHandshake, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 type PrimaryActionCardProps = {
   href: string;
   title: string;
   description: string;
-  variant: "help" | "activate";
+  variant: "help" | "activate" | "guide";
 };
 
 const icons: Record<PrimaryActionCardProps["variant"], LucideIcon> = {
   help: Search,
   activate: HeartHandshake,
+  guide: BookOpen,
 };
 
 export function PrimaryActionCard({ href, title, description, variant }: PrimaryActionCardProps) {

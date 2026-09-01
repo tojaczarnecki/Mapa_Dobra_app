@@ -29,9 +29,51 @@ type HelpMapProps = {
   userPosition?: readonly [number, number];
   focusTarget?: MapFocusTarget;
   onPlaceSelect: (place: MapPlace) => void;
+  onPlaceDeselect: (placeId: string) => void;
+  returnTo?: string;
   onViewportChange: (snapshot: MapViewportSnapshot) => void;
   onTileError: () => void;
 };
+
+function MapViewportSync() {
+  const map = useMap();
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const scheduleInvalidate = () => {
+      if (frameRef.current !== null) return;
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        map.invalidateSize({ animate: false, pan: false });
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(scheduleInvalidate);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") scheduleInvalidate();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) scheduleInvalidate();
+    };
+
+    resizeObserver?.observe(map.getContainer());
+    window.addEventListener("resize", scheduleInvalidate);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", onPageShow);
+    scheduleInvalidate();
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", scheduleInvalidate);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", onPageShow);
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+    };
+  }, [map]);
+
+  return null;
+}
 
 function createClusterIcon(cluster: MarkerCluster) {
   return divIcon({
@@ -122,6 +164,8 @@ export function HelpMap({
   userPosition,
   focusTarget,
   onPlaceSelect,
+  onPlaceDeselect,
+  returnTo,
   onViewportChange,
   onTileError,
 }: HelpMapProps) {
@@ -140,6 +184,7 @@ export function HelpMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         eventHandlers={{ tileerror: onTileError }}
       />
+      <MapViewportSync />
       <ZoomControl position="bottomright" />
       <MarkerClusterGroup
         chunkedLoading
@@ -153,6 +198,8 @@ export function HelpMap({
             place={place}
             selected={selectedPlaceId === place.id}
             onSelect={onPlaceSelect}
+            onClose={() => onPlaceDeselect(place.id)}
+            returnTo={returnTo}
           />
         ))}
       </MarkerClusterGroup>

@@ -6,11 +6,15 @@ import { Download } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/szukaj", label: "Szukaj" },
-  { href: "/mapa", label: "Mapa" },
-  { href: "/znajdz-nocleg", label: "Nocleg" },
+  { href: "/szukam", label: "Szukam wsparcia" },
+  { href: "/pomagam", label: "Chcę komuś pomóc" },
+  { href: "/jak-pomagac", label: "Jak pomagać" },
   { href: "/ulubione", label: "Ulubione" },
 ];
+
+function isRoute(pathname: string, route: string) {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -40,7 +44,14 @@ export function SiteHeader() {
               key={link.href}
               href={link.href}
               className="site-header-link"
-              aria-current={pathname === link.href ? "page" : undefined}
+              aria-current={
+                (link.href === "/szukam" && (isRoute(pathname, "/szukam") || isRoute(pathname, "/szukaj"))) ||
+                (link.href === "/pomagam" && (isRoute(pathname, "/pomagam") || isRoute(pathname, "/uruchom-pomoc"))) ||
+                (link.href === "/jak-pomagac" && isRoute(pathname, "/jak-pomagac")) ||
+                (link.href === "/ulubione" && isRoute(pathname, "/ulubione"))
+                  ? "page"
+                  : undefined
+              }
             >
               {link.label}
             </Link>

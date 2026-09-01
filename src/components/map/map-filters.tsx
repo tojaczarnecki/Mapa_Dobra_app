@@ -91,7 +91,7 @@ export function MapFilters({
   ];
 
   return (
-    <div className="relative min-w-0">
+    <div className={`${styles.mapFilterControl} relative min-w-0`}>
       <div className={[styles.mapFilterViewport, showOverflowCue ? styles.mapFilterViewportFaded : ""].join(" ")}>
         <div
           ref={filtersRef}
@@ -102,7 +102,7 @@ export function MapFilters({
             <button
               key={filter.value}
               type="button"
-              className={["filter-chip", category === filter.value ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
+              className={["filter-chip", styles.mapCategoryFilter, category === filter.value ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
               aria-pressed={category === filter.value}
               onClick={() => onCategoryChange(filter.value)}
             >
@@ -112,13 +112,14 @@ export function MapFilters({
           ))}
           <button
             type="button"
-            className={["filter-chip", filtersOpen || activeAdditionalFilters > 0 ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
+            className={["filter-chip", styles.mapFiltersToggle, filtersOpen || activeAdditionalFilters > 0 ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
             aria-expanded={filtersOpen}
             aria-controls="map-additional-filters"
+            aria-label="Filtry i ustawienia mapy"
             onClick={() => onFiltersOpenChange(!filtersOpen)}
           >
             <SlidersHorizontal aria-hidden="true" size={17} />
-            Filtry
+            <span className={styles.filterToggleLabel}>Filtry</span>
             {activeAdditionalFilters > 0 ? <span aria-label={`${activeAdditionalFilters} aktywne`}>{activeAdditionalFilters}</span> : null}
           </button>
         </div>
@@ -127,7 +128,7 @@ export function MapFilters({
       {filtersOpen ? (
         <section
           id="map-additional-filters"
-          className="absolute right-0 top-[calc(100%+3.25rem)] z-[700] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]"
+          className={`${styles.mapFilterSheet} absolute right-0 top-[calc(100%+3.25rem)] z-[700] w-[min(19rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-3 shadow-[0_14px_34px_rgb(17_24_39_/_16%)]`}
           aria-label="Dodatkowe filtry mapy"
         >
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -140,6 +141,23 @@ export function MapFilters({
             >
               <X aria-hidden="true" size={20} />
             </button>
+          </div>
+          <div className={`${styles.mapFilterCategories} mb-3`} aria-label="Kategorie miejsc">
+            <p className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Kategorie</p>
+            <div className="grid gap-2">
+              {categoryFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  className={["filter-chip", category === filter.value ? "filter-chip-strong bg-brand-soft" : ""].join(" ")}
+                  aria-pressed={category === filter.value}
+                  onClick={() => onCategoryChange(filter.value)}
+                >
+                  {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {practicalFilters.map((filter) => (

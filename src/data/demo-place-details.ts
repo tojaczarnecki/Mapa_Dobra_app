@@ -379,9 +379,9 @@ const accommodationPlaces: PlaceDetail[] = [
       admissionRequirements: [
         { label: "Ostatnie zameldowanie w Łodzi niewymagane", status: "positive" },
         { label: "Bez skierowania", status: "positive" },
-        { label: "Wymagane 0,0", status: "warning" },
+        { label: "Obowiązuje pełna trzeźwość", status: "warning" },
       ],
-      sobriety: { label: "Wymagane 0,0", status: "warning" },
+        sobriety: { label: "Obowiązuje pełna trzeźwość", status: "warning" },
       animals: [{ label: "Zwierzęta nieprzyjmowane", status: "warning" }],
       accessibility: [{ label: "Dostępność nie została potwierdzona", status: "unknown" }],
       overnightInfo: [

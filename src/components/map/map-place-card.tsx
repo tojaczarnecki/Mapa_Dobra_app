@@ -15,6 +15,7 @@ import type { MapPlace } from "@/data/demo-map-places";
 import { PlaceStatusBadge } from "@/components/places/place-status-badge";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
 import styles from "./map.module.css";
+import { mapDetailsHref } from "./map-place-links";
 
 const accommodationStatus = {
   available: { icon: CheckCircle2, className: "border-brand bg-brand-soft" },
@@ -24,6 +25,10 @@ const accommodationStatus = {
   stale: { icon: AlertTriangle, className: "border-urgent-border bg-urgent-soft" },
   suspended: { icon: AlertTriangle, className: "border-urgent-border bg-urgent-soft" },
 };
+
+function hasDistanceLabel(label: string) {
+  return Boolean(label.trim()) && label !== "Odległość nieznana";
+}
 
 function compactAccommodationNote(state: MapPlace["status"]) {
   if (state.kind !== "accommodation") {
@@ -48,13 +53,35 @@ function compactAccommodationNote(state: MapPlace["status"]) {
   }
 }
 
+function compactAccommodationLabel(state: MapPlace["status"]) {
+  if (state.kind !== "accommodation") {
+    return undefined;
+  }
+
+  switch (state.availabilityState) {
+    case "available":
+      return "Dostępne";
+    case "few":
+      return "Mało miejsc";
+    case "full":
+      return "Brak miejsc";
+    default:
+      return "Do potwierdzenia";
+  }
+}
+
 export function MapPlaceCard({
   place,
   compactAccommodation = false,
+  compact = false,
+  returnTo,
 }: {
   place: MapPlace;
   compactAccommodation?: boolean;
+  compact?: boolean;
+  returnTo?: string;
 }) {
+  const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
   const isAccommodation = place.status.kind === "accommodation";
   const callHref = telephoneHref(place.phone);
   const routeHref = directionsHref(place);
@@ -136,10 +163,12 @@ export function MapPlaceCard({
 
   const placeLocation = (
     <div className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
-      <p className="flex min-w-0 items-center gap-2">
-        <Navigation aria-hidden="true" className="shrink-0 text-brand-strong" size={17} />
-        {place.distanceLabel}
-      </p>
+      {hasDistanceLabel(place.distanceLabel) ? (
+        <p className="flex min-w-0 items-center gap-2">
+          <Navigation aria-hidden="true" className="shrink-0 text-brand-strong" size={17} />
+          {place.distanceLabel}
+        </p>
+      ) : null}
       <p className="flex min-w-0 items-start gap-2 leading-5">
         <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={17} />
         <span className="min-w-0">{place.address}</span>
@@ -170,10 +199,7 @@ export function MapPlaceCard({
               : "Zadzwoń"}
         </a>
       ) : (
-        <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
-          <Phone aria-hidden="true" size={17} />
-          Zadzwoń
-        </span>
+        null
       )}
       {routeHref ? <a
         href={routeHref}
@@ -190,7 +216,7 @@ export function MapPlaceCard({
         </span>
       )}
       <Link
-        href={place.detailsHref}
+        href={detailsHref}
         className={[
           "place-card-action",
           isAccommodation ? "" : "place-card-action-primary",
@@ -201,6 +227,50 @@ export function MapPlaceCard({
       </Link>
     </div>
   );
+
+  const compactPlaceActions = (
+    <div className="grid min-w-0 grid-flow-col auto-cols-fr gap-2">
+      {routeHref ? (
+        <a href={routeHref} target="_blank" rel="noreferrer" className="place-card-action">
+          <Navigation aria-hidden="true" size={16} />
+          Trasa
+        </a>
+      ) : null}
+      <Link href={detailsHref} className="place-card-action place-card-action-primary">
+        <ChevronRight aria-hidden="true" size={16} />
+        Szczegóły
+      </Link>
+    </div>
+  );
+
+  if (compact) {
+    const compactPlaceStatus = place.status.kind === "standard" ? (
+      <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
+        <PlaceStatusBadge compact status={place.status.status} />
+        <span className="truncate">{place.status.todayHours}</span>
+      </div>
+    ) : (
+      <span className="truncate text-xs font-semibold text-foreground">
+        {compactAccommodationLabel(place.status)}
+      </span>
+    );
+
+    return (
+      <article className={styles.mobileCompactCard}>
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-extrabold leading-5 text-foreground">{place.name}</h2>
+          <p className="truncate text-xs font-bold text-muted-foreground">{place.helpTypes.join(" • ")}</p>
+        </div>
+        <div className="flex min-w-0 items-center gap-x-2 text-xs font-semibold text-foreground">
+          <MapPin aria-hidden="true" className="shrink-0 text-brand-strong" size={15} />
+          <span className="truncate">{place.address}</span>
+          {hasDistanceLabel(place.distanceLabel) ? <span className="shrink-0 text-muted-foreground">{place.distanceLabel}</span> : null}
+        </div>
+        {compactPlaceStatus}
+        {compactPlaceActions}
+      </article>
+    );
+  }
 
   return (
     <article
