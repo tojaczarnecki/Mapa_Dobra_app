@@ -12,6 +12,9 @@ on:
         required: true
         default: false
         type: boolean
+  push:
+    branches:
+      - deploy/pilot-staging
 
 permissions:
   contents: read
@@ -23,7 +26,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ inputs.confirm_staging == true }}
+    if: ${{ github.event_name == 'push' || inputs.confirm_staging == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -59,7 +62,7 @@ jobs:
           REQUESTED_RUN_ID: ${{ inputs.release_run_id }}
         run: |
           set -euo pipefail
-          RUN_ID="$REQUESTED_RUN_ID"
+          RUN_ID="${REQUESTED_RUN_ID:-}"
           if [[ -z "$RUN_ID" ]]; then
             RUN_ID="$(gh run list \
               --repo "$GITHUB_REPOSITORY" \
