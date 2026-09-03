@@ -41,14 +41,26 @@ test("IQHost release script activates atomically and can roll back", () => {
     const second = makeRelease(base, "build-two");
 
     execFileSync("bash", [script, "activate", appRoot, first, "staging"], { stdio: "pipe" });
-    assert.equal(realpathSync(join(appRoot, "current")), join(appRoot, "releases", "build-one"));
+    assert.equal(
+      realpathSync(join(appRoot, "current")),
+      realpathSync(join(appRoot, "releases", "build-one")),
+    );
 
     execFileSync("bash", [script, "activate", appRoot, second, "staging"], { stdio: "pipe" });
-    assert.equal(realpathSync(join(appRoot, "current")), join(appRoot, "releases", "build-two"));
-    assert.equal(readFileSync(join(appRoot, ".previous-release"), "utf8").trim(), join(appRoot, "releases", "build-one"));
+    assert.equal(
+      realpathSync(join(appRoot, "current")),
+      realpathSync(join(appRoot, "releases", "build-two")),
+    );
+    assert.equal(
+      readFileSync(join(appRoot, ".previous-release"), "utf8").trim(),
+      realpathSync(join(appRoot, "releases", "build-one")),
+    );
 
     execFileSync("bash", [script, "rollback", appRoot, "staging"], { stdio: "pipe" });
-    assert.equal(realpathSync(join(appRoot, "current")), join(appRoot, "releases", "build-one"));
+    assert.equal(
+      realpathSync(join(appRoot, "current")),
+      realpathSync(join(appRoot, "releases", "build-one")),
+    );
     assert.equal(readFileSync(join(appRoot, "tmp", "restart.txt"), "utf8"), "");
   } finally {
     rmSync(base, { recursive: true, force: true });

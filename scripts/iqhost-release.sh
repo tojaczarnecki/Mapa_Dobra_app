@@ -35,6 +35,17 @@ restart_passenger() {
   touch "$app_root/tmp/restart.txt"
 }
 
+replace_symlink_atomically() {
+  local source_link="$1"
+  local target_link="$2"
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    mv -fh "$source_link" "$target_link"
+  else
+    mv -Tf "$source_link" "$target_link"
+  fi
+}
+
 activate_release() {
   local app_root="$1"
   local archive="$2"
@@ -92,7 +103,7 @@ activate_release() {
 
   if [[ -n "$previous_target" ]]; then
     case "$previous_target" in
-      "$app_root"/releases/*) printf '%s\n' "$previous_target" > "$app_root/.previous-release" ;;
+      "$(realpath "$app_root")"/releases/*) printf '%s\n' "$previous_target" > "$app_root/.previous-release" ;;
       *) fail "current release points outside $app_root/releases" ;;
     esac
   else
@@ -102,8 +113,8 @@ activate_release() {
   next_link="$app_root/.current-$build_id.next"
   rm -f "$next_link"
   ln -s "$release_dir" "$next_link"
-  mv -Tf "$next_link" "$app_root/current"
-  [[ "$(realpath "$app_root/current")" == "$release_dir" ]] || fail "failed to activate release"
+  replace_symlink_atomically "$next_link" "$app_root/current"
+  [[ "$(realpath "$app_root/current")" == "$(realpath "$release_dir")" ]] || fail "failed to activate release"
 
   restart_passenger "$app_root"
   echo "Activated release $build_id"
@@ -124,13 +135,13 @@ rollback_release() {
   previous_target="$(tr -d '\r\n' < "$previous_file")"
   [[ -d "$previous_target" ]] || fail "previous release no longer exists: $previous_target"
   case "$previous_target" in
-    "$app_root"/releases/*) ;;
+    "$(realpath "$app_root")"/releases/*) ;;
     *) fail "previous release points outside $app_root/releases" ;;
   esac
 
   rm -f "$next_link"
   ln -s "$previous_target" "$next_link"
-  mv -Tf "$next_link" "$app_root/current"
+  replace_symlink_atomically "$next_link" "$app_root/current"
   restart_passenger "$app_root"
   echo "Rolled back to $(basename "$previous_target")"
 }
