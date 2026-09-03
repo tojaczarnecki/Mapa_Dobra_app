@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Mapa Dobra",
-    short_name: "Mapa Dobra",
+    name: "Dobra Mapa",
+    short_name: "Dobra Mapa",
     description: "Znajdź pomoc, której potrzebujesz w Łodzi.",
     start_url: "/",
     scope: "/",

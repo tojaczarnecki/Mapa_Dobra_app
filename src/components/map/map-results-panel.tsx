@@ -3,6 +3,7 @@
 import { ChevronRight, MapPin, X } from "lucide-react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { MapPlaceCard } from "./map-place-card";
+import styles from "./map.module.css";
 
 type MapResultsPanelProps = {
   places: MapPlace[];
@@ -32,20 +33,20 @@ export function MapResultsPanel({
 }: MapResultsPanelProps) {
   return (
     <aside
-      className="hidden h-full min-h-0 w-[22rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background lg:flex"
+      className={`${styles.mapResultsPanel} hidden h-full min-h-0 shrink-0 flex-col overflow-hidden lg:flex`}
       aria-label="Miejsca widoczne na mapie"
     >
-      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-4">
+      <div className={styles.mapResultsHeader}>
         <div>
-          <p className="text-sm font-extrabold text-foreground">Miejsca na mapie</p>
-          <p className="text-xs font-semibold text-muted-foreground">
+          <p className={styles.mapResultsTitle}>Miejsca na mapie</p>
+          <p className={styles.mapResultsCount}>
             {places.length} {visiblePlaceCountLabel(places.length)}
           </p>
         </div>
         {selectedPlace ? (
           <button
             type="button"
-            className="touch-target inline-flex items-center gap-1 rounded-md px-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft"
+            className={styles.mapResultsClear}
             onClick={onClearSelection}
           >
             <X aria-hidden="true" size={16} />
@@ -54,14 +55,14 @@ export function MapResultsPanel({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className={styles.mapResultsScroll}>
         {selectedPlace ? (
-          <div className="border-b border-border bg-surface-muted p-3">
+          <div className={styles.mapSelectedPlace}>
             <MapPlaceCard place={selectedPlace} returnTo={returnTo} />
           </div>
         ) : null}
 
-        <ul className="grid gap-2 p-3" aria-label="Lista miejsc widocznych na mapie">
+        <ul className={styles.mapResultsList} aria-label="Lista miejsc widocznych na mapie">
           {places.map((place) => {
             const selected = selectedPlace?.id === place.id;
             return (
@@ -69,33 +70,30 @@ export function MapResultsPanel({
                 <button
                   type="button"
                   className={[
-                    "flex min-h-16 w-full min-w-0 items-center gap-3 rounded-lg border bg-surface p-3 text-left transition",
+                    styles.mapResultItem,
                     selected
-                      ? "border-brand bg-brand-soft shadow-[0_0_0_1px_var(--brand)]"
-                      : "border-border hover:border-brand hover:bg-brand-soft",
+                      ? styles.mapResultItemSelected
+                      : "",
                   ].join(" ")}
                   onClick={() => onSelect(place)}
                   aria-current={selected ? "true" : undefined}
                 >
                   <span
-                    className={[
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                      selected ? "bg-brand text-foreground" : "bg-brand-soft text-brand-strong",
-                    ].join(" ")}
+                    className={`${styles.mapResultIcon} ${selected ? styles.mapResultIconSelected : ""}`}
                   >
                     <MapPin aria-hidden="true" size={20} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-extrabold leading-5 text-foreground">
+                    <span className={styles.mapResultName}>
                       {place.name}
                     </span>
-                    <span className="block text-xs font-semibold text-muted-foreground">
+                    <span className={styles.mapResultMeta}>
                       {place.helpTypes.join(" • ")} · {place.distanceLabel}
                     </span>
                   </span>
                   <ChevronRight
                     aria-hidden="true"
-                    className={selected ? "shrink-0 text-brand-strong" : "shrink-0 text-muted-foreground"}
+                    className={`${styles.mapResultChevron} ${selected ? styles.mapResultChevronSelected : ""}`}
                     size={19}
                   />
                 </button>

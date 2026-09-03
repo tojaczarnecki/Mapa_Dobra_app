@@ -1914,6 +1914,16 @@ body[data-privacy-screen-open="true"] .mobile-bottom-nav {
   color: white;
 }
 
+.search-result-card[data-selected="true"] {
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 3px rgb(11 79 72 / 15%), 0 8px 22px rgb(11 79 72 / 8%);
+}
+
+.search-result-card:focus-visible {
+  outline: 3px solid rgb(11 79 72 / 35%);
+  outline-offset: 2px;
+}
+
 .admin-place-header {
   display: none;
   grid-template-columns: minmax(300px, 2fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;

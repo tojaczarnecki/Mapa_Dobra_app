@@ -27,10 +27,10 @@ export function AdminShell({ displayName, role, permissions, children }: AdminSh
       <div className="min-h-screen bg-[#f7f5ef] text-foreground">
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex min-h-16 max-w-[1200px] items-center justify-between gap-6 px-5 py-3 lg:px-8">
-          <Link href="/admin" className="inline-flex rounded-md p-1" aria-label="Mapa Dobra - panel administratora">
+          <Link href="/admin" className="inline-flex rounded-md p-1" aria-label="Dobra Mapa - panel administratora">
             <Image
-              src="/brand/mapa-dobra-logo-header-new.svg"
-              alt="Mapa Dobra"
+              src="/brand/dobra-mapa-logo-header.svg"
+              alt="Dobra Mapa"
               width={604}
               height={120}
               priority

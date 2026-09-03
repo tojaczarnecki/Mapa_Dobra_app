@@ -4,7 +4,7 @@ import { HelpRequestWizard } from "@/components/help-requests/help-request-wizar
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Uruchom pomoc | Mapa Dobra",
+  title: "Uruchom pomoc | Dobra Mapa",
   description: "Przekaż informację o sytuacji, która budzi Twój niepokój.",
   alternates: canonicalAlternates("/uruchom-pomoc"),
 };

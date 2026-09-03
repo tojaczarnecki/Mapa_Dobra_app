@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CookieSettingsButton } from "@/components/app/cookie-settings-button";
 import { canonicalAlternates } from "@/lib/site-url";
 
-export const metadata: Metadata = { title: "Cookies | Mapa Dobra", alternates: canonicalAlternates("/cookies") };
+export const metadata: Metadata = { title: "Cookies | Dobra Mapa", alternates: canonicalAlternates("/cookies") };
 
 export default function CookiesPage() {
   return (
@@ -17,16 +17,16 @@ export default function CookiesPage() {
         </section>
 
         <section className="mt-8 space-y-3">
-          <h2 className="text-xl font-semibold text-[#18364D]">Jakich technologii używa Mapa Dobra</h2>
+          <h2 className="text-xl font-semibold text-[#18364D]">Jakich technologii używa Dobra Mapa</h2>
           <p className="leading-7 text-muted-foreground">Publiczna część serwisu nie ustawia własnych cookies. Używa natywnych mechanizmów przeglądarki opisanych poniżej. Panel administratora korzysta z technicznego cookie sesyjnego i jest oddzielony od publicznej części.</p>
         </section>
 
         <section className="mt-8 space-y-3">
           <h2 className="text-xl font-semibold text-[#18364D]">Niezbędne</h2>
           <ul className="list-disc space-y-2 pl-5 leading-7 text-muted-foreground">
-            <li><strong>localStorage</strong> — Mapa Dobra: zapis wyboru prywatności oraz zamknięcia komunikatu instalacji PWA. Okres działania: do usunięcia przez użytkownika w danych witryny.</li>
-            <li><strong>Cache Storage</strong> — Mapa Dobra: cache service workera PWA dla zasobów aplikacji i strony offline. Okres działania: do aktualizacji lub usunięcia danych witryny przez przeglądarkę.</li>
-            <li><strong>Cookie sesyjne panelu administratora</strong> — Mapa Dobra: utrzymanie zalogowanej sesji panelu. Jest używane wyłącznie w chronionej części administracyjnej.</li>
+            <li><strong>localStorage</strong> — Dobra Mapa: zapis wyboru prywatności oraz zamknięcia komunikatu instalacji PWA. Okres działania: do usunięcia przez użytkownika w danych witryny.</li>
+            <li><strong>Cache Storage</strong> — Dobra Mapa: cache service workera PWA dla zasobów aplikacji i strony offline. Okres działania: do aktualizacji lub usunięcia danych witryny przez przeglądarkę.</li>
+            <li><strong>Cookie sesyjne panelu administratora</strong> — Dobra Mapa: utrzymanie zalogowanej sesji panelu. Jest używane wyłącznie w chronionej części administracyjnej.</li>
           </ul>
         </section>
 

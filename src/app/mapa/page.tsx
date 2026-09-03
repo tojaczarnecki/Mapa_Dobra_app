@@ -7,7 +7,7 @@ import { filterPublicSearchPlaces } from "@/lib/places/search";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Mapa miejsc pomocy | Mapa Dobra",
+  title: "Mapa miejsc pomocy | Dobra Mapa",
   description: "Znajdź miejsca pomocy w swojej okolicy na mapie Łodzi.",
   alternates: canonicalAlternates("/mapa"),
 };

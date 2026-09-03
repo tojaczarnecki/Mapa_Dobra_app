@@ -20,6 +20,33 @@ import type { MapCategory, MapPlace } from "@/data/demo-map-places";
 import { MapPlacePopup } from "./map-place-popup";
 import styles from "./map.module.css";
 
+function markerStatusLabel(place: MapPlace) {
+  if (place.status.kind === "standard") {
+    switch (place.status.status) {
+      case "open":
+        return "otwarte teraz";
+      case "openToday":
+        return "otwarte później dzisiaj";
+      case "closed":
+        return "zamknięte";
+      default:
+        return "dane do potwierdzenia";
+    }
+  }
+
+  return place.status.availabilityState === "available"
+    ? "dostępność potwierdzona"
+    : "dane do potwierdzenia";
+}
+
+function escapeAttribute(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 const categoryIcon: Record<MapCategory, LucideIcon> = {
   food: Utensils,
   accommodation: BedDouble,
@@ -63,11 +90,11 @@ export function MapMarker({
     () =>
       divIcon({
         className: styles.markerHost,
-        html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" aria-hidden="true"><span>${categoryIconMarkup}</span></span>`,
+        html: `<span class="${styles.mapMarker} ${selected ? styles.mapMarkerSelected : ""}" role="img" aria-label="${escapeAttribute(`Miejsce pomocy: ${place.name}. ${markerStatusLabel(place)}`)}"><span aria-hidden="true">${categoryIconMarkup}</span></span>`,
         iconAnchor: [22, 22],
         iconSize: [44, 44],
       }),
-    [categoryIconMarkup, selected],
+    [categoryIconMarkup, place, selected],
   );
 
   useEffect(() => {

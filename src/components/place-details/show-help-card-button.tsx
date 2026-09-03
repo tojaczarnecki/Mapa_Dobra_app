@@ -73,7 +73,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
               <X aria-hidden="true" size={23} />
             </button>
 
-            <p className="pr-12 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-strong">Mapa Dobra</p>
+            <p className="pr-12 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-strong">Dobra Mapa</p>
             <h2 id="show-help-title" className="mt-2 pr-10 text-[1.65rem] font-extrabold leading-[1.08] text-foreground">
               Tu możesz otrzymać pomoc
             </h2>

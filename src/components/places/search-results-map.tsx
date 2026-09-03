@@ -5,13 +5,19 @@ import type { MapPlace } from "@/data/demo-map-places";
 
 const HelpMap = dynamic(() => import("@/components/map/help-map").then((module) => module.HelpMap), { ssr: false });
 
-export function SearchResultsMap({ places }: { places: MapPlace[] }) {
+export function SearchResultsMap({ places, selectedPlaceId, onPlaceSelect, onPlaceDeselect }: {
+  places: MapPlace[];
+  selectedPlaceId?: string;
+  onPlaceSelect: (place: MapPlace) => void;
+  onPlaceDeselect: (placeId: string) => void;
+}) {
   return (
-    <div className="h-[min(68dvh,720px)] min-h-[34rem] overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
-      <HelpMap
+    <div className="search-results-map h-full min-h-full min-w-0 overflow-hidden">
+        <HelpMap
         places={places}
-        onPlaceSelect={() => undefined}
-        onPlaceDeselect={() => undefined}
+        selectedPlaceId={selectedPlaceId}
+        onPlaceSelect={onPlaceSelect}
+        onPlaceDeselect={onPlaceDeselect}
         onViewportChange={() => undefined}
         onTileError={() => undefined}
       />

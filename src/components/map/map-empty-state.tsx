@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPinOff, RotateCcw } from "lucide-react";
+import { JourneyMotif } from "@/components/home/journey-motif";
 
 type MapEmptyStateProps = {
   areaIsEmpty: boolean;
@@ -15,9 +16,10 @@ export function MapEmptyState({
 }: MapEmptyStateProps) {
   return (
     <section
-      className="absolute left-1/2 top-1/2 z-[600] w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface p-4 text-center shadow-[0_16px_38px_rgb(17_24_39_/_18%)]"
+      className="editorial-empty-state editorial-empty-state-search absolute left-1/2 top-1/2 z-[600] w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-surface p-4 text-center shadow-[0_16px_38px_rgb(17_24_39_/_18%)]"
       aria-live="polite"
     >
+      <JourneyMotif journey="search" />
       <MapPinOff aria-hidden="true" className="mx-auto mb-2 text-brand-strong" size={26} />
       <h2 className="text-base font-extrabold leading-6 text-foreground">
         W tym obszarze nie znaleźliśmy miejsc spełniających wybrane warunki.

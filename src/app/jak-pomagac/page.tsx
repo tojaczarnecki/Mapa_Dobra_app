@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { HelpGuideCard } from "@/components/help-guides/help-guide-card";
@@ -6,7 +7,7 @@ import { getPublicHelpGuides } from "@/data/help-guides";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Jak pomagać | Mapa Dobra",
+  title: "Jak pomagać | Dobra Mapa",
   description: "Proste wskazówki, jak reagować i pomagać w różnych sytuacjach.",
   alternates: canonicalAlternates("/jak-pomagac"),
 };
@@ -14,19 +15,20 @@ export const metadata: Metadata = {
 export default function HowToHelpPage() {
   const guides = getPublicHelpGuides();
   return (
-    <div className="mx-auto w-full max-w-[1120px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8">
-      <header className="max-w-3xl">
-        <BookOpen aria-hidden="true" className="text-brand-strong" size={32} />
-        <p className="mt-4 text-sm font-bold uppercase tracking-wide text-brand-strong">JAK POMAGAĆ</p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">Pomagaj spokojnie, konkretnie i z szacunkiem.</h1>
-        <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-          Krótkie wskazówki na sytuacje, w których chcesz pomóc, ale nie zawsze wiesz, co będzie najlepszym krokiem.
-        </p>
+    <div className="journey-guide mobile-nav-safe-content mx-auto w-full max-w-[1120px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8">
+      <header className="guide-hub-hero">
+        <div className="guide-hub-hero-copy">
+          <BookOpen aria-hidden="true" className="text-brand-strong" size={28} />
+          <p className="guide-article-eyebrow">JAK POMAGAĆ</p>
+          <h1>Pomagaj spokojnie, konkretnie i z szacunkiem.</h1>
+          <p>Krótko i konkretnie: wybierz sytuację, która jest Ci najbliższa.</p>
+        </div>
+        <div className="guide-hub-hero-art"><Image src="/brand/journeys/journey-guide.png" alt="Dwie osoby szukają wspólnego rozwiązania" width={640} height={480} priority sizes="(max-width: 767px) 80vw, 420px" /></div>
       </header>
 
       <section className="mt-9" aria-labelledby="how-to-help-guides-title">
         <h2 id="how-to-help-guides-title" className="text-2xl font-extrabold">Czego chcesz się dowiedzieć?</h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">{guides.map((guide) => <HelpGuideCard key={guide.slug} guide={guide} />)}</div>
+        <div className="editorial-guide-grid mt-5">{guides.map((guide, index) => <HelpGuideCard key={guide.slug} guide={guide} layout={index === 0 ? "feature" : index === 3 ? "wide" : "standard"} variant={(["guide", "help", "search", "now"] as const)[index % 4]} />)}</div>
       </section>
 
       <section className="mt-10 border-t border-border pt-7" aria-labelledby="how-to-help-next-title">

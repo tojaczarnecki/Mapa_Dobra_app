@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import { isConsentChoice, PRIVACY_CONSENT_COOKIE, PRIVACY_CONSENT_KEY, type ConsentChoice } from "@/lib/privacy/consent";
 import { PrivacyPolicyContent } from "@/components/app/privacy-policy-content";
 
@@ -103,7 +103,7 @@ export function PrivacyConsent({
       <section className="privacy-consent-screen" aria-labelledby="privacy-consent-title">
         <div ref={screenRef} className="privacy-consent-content" tabIndex={-1}>
           <div className="privacy-consent-brand">
-            <Image src="/brand/mapa-dobra-logo-header-new.svg" alt="Mapa Dobra" width={604} height={120} priority />
+            <Image src="/brand/dobra-mapa-logo-header.svg" alt="Dobra Mapa" width={604} height={120} className="privacy-consent-logo-asset" />
           </div>
           <div className="privacy-consent-panel">
             {isPolicyView ? (
@@ -122,7 +122,7 @@ export function PrivacyConsent({
                 <p className="privacy-consent-eyebrow">INFORMACJE O APLIKACJI</p>
                 <h1 id="privacy-consent-title">Prywatność</h1>
                 <p>
-                  Mapa Dobra używa tylko technologii niezbędnych do działania aplikacji i zapamiętania Twoich ustawień. Nie używamy obecnie reklamowych ani marketingowych plików cookie.
+                  Dobra Mapa używa tylko technologii niezbędnych do działania aplikacji i zapamiętania Twoich ustawień. Nie używamy obecnie reklamowych ani marketingowych plików cookie.
                 </p>
                 <ul className="privacy-consent-benefits">
                   <li>Działanie aplikacji</li>

@@ -54,7 +54,7 @@ export function PlaceStatusBadge({ status, compact = false, freshnessWarning = f
         uncertainCurrent ? "border-urgent-border bg-urgent-soft text-foreground" : config.className,
       ].join(" ")}
     >
-      <StatusIndicator status={uncertainCurrent ? "unknown" : config.status}>
+      <StatusIndicator status={uncertainCurrent ? "unknown" : config.status} announceLabel={!compact || !uncertainCurrent && status !== "unknownHours" && status !== "needsConfirmation"}>
         {uncertainCurrent ? `Według ostatnich danych: ${compact ? compactLabel[status] : config.label.toLocaleLowerCase("pl-PL")}` : compact ? compactLabel[status] : config.label}
       </StatusIndicator>
     </span>

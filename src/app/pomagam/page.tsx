@@ -4,7 +4,7 @@ import { getPublicSearchPlaces } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Chcę komuś pomóc | Mapa Dobra",
+  title: "Chcę komuś pomóc | Dobra Mapa",
   description: "Powiedz, co się dzieje. Podpowiemy, co możesz zrobić.",
   alternates: canonicalAlternates("/pomagam"),
 };

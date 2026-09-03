@@ -13,6 +13,7 @@ import { MapEmptyState } from "./map-empty-state";
 import { MapErrorBoundary } from "./map-error-boundary";
 import type { MapCategoryFilter } from "./map-filters";
 import { MapResultsPanel } from "./map-results-panel";
+import { MobileMapSheet, type SheetState } from "./mobile-map-sheet";
 import type { MapViewportSnapshot } from "./map-viewport-types";
 import styles from "./map.module.css";
 
@@ -157,6 +158,7 @@ export function MapExperience({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
+  const [mobileSheetState, setMobileSheetState] = useState<SheetState>("collapsed");
   const [viewport, setViewport] = useState<MapViewportSnapshot>();
   const [appliedAreaPlaceIds, setAppliedAreaPlaceIds] = useState<string[]>();
   const [areaDirty, setAreaDirty] = useState(false);
@@ -254,6 +256,7 @@ export function MapExperience({
       setFiltersOpen(false);
       setSearching(false);
       setSelectedPlaceId(place.id);
+      setMobileSheetState("medium");
       focusMap([place.latitude, place.longitude], 16);
     },
     [appliedAreaPlaceIds, focusMap, resetArea],
@@ -263,6 +266,7 @@ export function MapExperience({
     setFiltersOpen(value);
     if (value) {
       setSelectedPlaceId(undefined);
+      setMobileSheetState("collapsed");
       setSearching(false);
     }
   }, []);
@@ -276,6 +280,7 @@ export function MapExperience({
     if (value) {
       setFiltersOpen(false);
       setSelectedPlaceId(undefined);
+      setMobileSheetState("collapsed");
     }
   }, []);
 
@@ -432,7 +437,10 @@ export function MapExperience({
   const activeResultsEmpty = areaFiltered ? areaPlaces.length === 0 : visiblePlaces.length === 0;
 
   return (
-    <div className={`${styles.mapPage} map-page`}>
+    <div
+      className={`${styles.mapPage} map-page journey-search`}
+      data-mobile-sheet-state={mobileSheetState}
+    >
       <h1 className="sr-only">Mapa miejsc pomocy w Łodzi</h1>
       <MapControls
         query={intentText || query}
@@ -531,9 +539,22 @@ export function MapExperience({
             </div>
           ) : null}
 
+          <MobileMapSheet
+            places={panelPlaces}
+            selectedPlace={selectedPlace}
+            state={mobileSheetState}
+            onStateChange={setMobileSheetState}
+            onSelect={handlePlaceSelect}
+            onClearSelection={() => {
+              setSelectedPlaceId(undefined);
+              setMobileSheetState("collapsed");
+            }}
+            returnTo={listHref}
+          />
+
           <div className={styles.mapPurpose}>
             <MapPinned aria-hidden="true" size={15} />
-            Mapa Dobra · Łódź
+            Dobra Mapa · Łódź
           </div>
         </div>
 

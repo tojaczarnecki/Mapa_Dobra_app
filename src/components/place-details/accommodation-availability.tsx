@@ -1,11 +1,8 @@
-import { Clock3 } from "lucide-react";
+import { Fragment } from "react";
 import type {
   AccommodationAvailabilityDetails,
   CapacityGroupDetails,
 } from "@/data/demo-place-details";
-import { StatusIndicator } from "@/components/ui/status-indicator";
-import { DataFreshness } from "@/components/ui/data-freshness";
-import { getAccommodationAvailabilityPresentation } from "@/lib/accommodations/presentation";
 
 type AccommodationAvailabilityProps = {
   availability: AccommodationAvailabilityDetails;
@@ -17,51 +14,23 @@ type AccommodationAvailabilityProps = {
 const availabilityConfig = {
   available: {
     className: "border-brand bg-brand-soft text-foreground",
-    status: "confirmed" as const,
-    statusLabel: "Są wolne miejsca",
   },
   few: {
     className: "border-urgent-border bg-urgent-soft text-foreground",
-    status: "condition" as const,
-    statusLabel: "Zostało niewiele miejsc",
   },
   full: {
     className: "border-border bg-surface-muted text-foreground",
-    status: "absent" as const,
-    statusLabel: "Brak miejsc",
   },
   unknown: {
     className: "border-border bg-surface-muted text-foreground",
-    status: "unknown" as const,
-    statusLabel: "Brak aktualnych danych",
   },
   stale: {
     className: "border-border bg-surface-muted text-foreground",
-    status: "unknown" as const,
-    statusLabel: "Ostatni raport może być nieaktualny",
   },
   suspended: {
     className: "border-urgent-border bg-urgent-soft text-foreground",
-    status: "condition" as const,
-    statusLabel: "Przyjęcia czasowo wstrzymane",
   },
-} satisfies Record<
-  AccommodationAvailabilityDetails["state"],
-  {
-    className: string;
-    status: "confirmed" | "absent" | "unknown" | "condition";
-    statusLabel: string;
-  }
->;
-
-const detailToAccommodationState = {
-  available: "fresh",
-  few: "few",
-  full: "none",
-  unknown: "unknown",
-  stale: "stale",
-  suspended: "suspended",
-} as const;
+} satisfies Record<AccommodationAvailabilityDetails["state"], { className: string }>;
 
 function capacityLabel(group: CapacityGroupDetails) {
   const hasNumbers = typeof group.free === "number" && typeof group.total === "number";
@@ -73,73 +42,75 @@ function capacityLabel(group: CapacityGroupDetails) {
   return group.note ?? "Brak aktualnych danych";
 }
 
+function capacityGroupLabel(group: CapacityGroupDetails) {
+  return /^\d+$/.test(group.label.trim()) ? "Pojemność placówki" : group.label;
+}
+
+function capacityGroupValue(group: CapacityGroupDetails) {
+  if (/^\d+$/.test(group.label.trim()) && typeof group.total === "number") {
+    return String(group.total);
+  }
+
+  return capacityLabel(group);
+}
+
+function decisionLabel(state: AccommodationAvailabilityDetails["state"]) {
+  if (state === "available" || state === "few") return "Potwierdzone w ostatnim raporcie";
+  if (state === "full") return "Brak miejsc w ostatnim raporcie";
+  if (state === "suspended") return "Przyjęcia są czasowo wstrzymane";
+  return "Wymaga potwierdzenia telefonicznego";
+}
+
 export function AccommodationAvailability({
   availability,
   admissionsToday,
   capacityGroups,
   importantNote,
 }: AccommodationAvailabilityProps) {
-  const config = {
-    ...availabilityConfig[availability.state],
-    status: getAccommodationAvailabilityPresentation(
-      detailToAccommodationState[availability.state],
-    ).status,
-  };
-  const freshnessKind = availability.freshness === "FRESH"
-    ? "current"
-    : availability.freshness === "UNKNOWN" || !availability.freshness
-      ? "unknown"
-      : "stale";
+  const config = availabilityConfig[availability.state];
 
   return (
     <section
       className={[
-        "w-full min-w-0 rounded-xl border p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5",
+        "place-detail-availability w-full min-w-0 p-4 sm:p-5",
         config.className,
       ].join(" ")}
     >
       <div className="min-w-0 space-y-3">
-        <p className="text-sm font-extrabold text-muted-foreground">
-          Czy są wolne miejsca?
-        </p>
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="min-w-0">
-            <StatusIndicator status={config.status} className="text-2xl font-extrabold leading-tight text-foreground">{availability.label}</StatusIndicator>
-            <p className="mt-1 text-sm font-extrabold text-foreground">{config.statusLabel}</p>
-          </div>
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Dostępność noclegu</p>
+          <h2 className="mt-1 text-xl font-extrabold leading-tight text-foreground">{decisionLabel(availability.state)}</h2>
         </div>
-        <p className="text-sm font-extrabold text-foreground">
-          <DataFreshness kind={freshnessKind} className="text-sm font-extrabold text-foreground">{availability.confirmed}</DataFreshness>
-        </p>
         {capacityGroups.length > 0 ? (
-          <dl className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface">
+          <dl className="place-detail-availability-facts min-w-0">
             {capacityGroups.map((group) => (
-              <div
-                key={group.label}
-                className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-sm first:border-t-0"
-              >
-                <dt className="min-w-0 font-extrabold text-foreground">
-                  {group.label}
-                </dt>
-                <dd className="min-w-0 font-extrabold text-foreground">
-                  {capacityLabel(group)}
-                </dd>
-              </div>
+              <Fragment key={group.label}>
+                <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border py-2 text-sm first:border-t-0">
+                  <dt className="min-w-0 font-semibold text-muted-foreground">
+                    {capacityGroupLabel(group)}
+                  </dt>
+                  <dd className="min-w-0 font-extrabold text-foreground">
+                    {capacityGroupValue(group)}
+                  </dd>
+                </div>
+                {group.note && typeof group.total === "number" ? (
+                  <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border py-2 text-sm">
+                    <dt className="min-w-0 font-semibold text-muted-foreground">Ostatnio zgłoszono</dt>
+                    <dd className="min-w-0 font-extrabold text-foreground">{group.note.replace(/^Ostatnio zgłoszono\s*/iu, "")}</dd>
+                  </div>
+                ) : null}
+              </Fragment>
             ))}
           </dl>
         ) : null}
-        {availability.note ? (
-          <p className="rounded-lg border border-urgent-border bg-surface px-3 py-2 text-sm font-semibold leading-6 text-foreground">
-            {availability.note}
-          </p>
-        ) : null}
-        <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-          <Clock3 aria-hidden="true" size={18} className="shrink-0 text-brand-strong" />
-          <span className="min-w-0">{admissionsToday}</span>
+        <p className="text-sm font-semibold leading-6 text-foreground">
+          Liczba wolnych miejsc mogła się zmienić. Zadzwoń przed przyjazdem.
         </p>
-        <p className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold leading-6 text-muted-foreground">
-          {importantNote}
-        </p>
+        <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground">
+          <span>{availability.confirmed}</span>
+          {/brak potwierdzonych|brak przyjęć/iu.test(admissionsToday) ? <span>Godziny przyjęć niepotwierdzone</span> : <span>{admissionsToday}</span>}
+        </div>
+        {importantNote ? <p className="text-sm leading-6 text-muted-foreground">{importantNote}</p> : null}
       </div>
     </section>
   );

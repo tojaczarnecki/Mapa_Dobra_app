@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, Clock3, Heart, MapPin, Phone, Search, Trash2, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { JourneyMotif } from "@/components/home/journey-motif";
 import {
   FAVORITES_CHANGED_EVENT,
   readFavorites,
@@ -111,7 +112,8 @@ export function FavoritesList({
 
   if (displayedFavorites.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6 text-center shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+      <div className="editorial-empty-state editorial-empty-state-help rounded-xl border border-border bg-surface p-6 text-center">
+        <JourneyMotif journey="help" />
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-strong">
           <Heart aria-hidden="true" size={24} />
         </span>

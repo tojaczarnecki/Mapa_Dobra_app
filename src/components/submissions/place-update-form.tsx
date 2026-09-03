@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Flag, LockKeyhole, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, LockKeyhole, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FormDraftResume } from "@/components/forms/form-draft-ui";
+import { GuidedFormShell } from "@/components/forms/guided-form-shell";
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import {
@@ -70,6 +71,7 @@ export function PlaceUpdateForm({
   const [sourceType, setSourceType] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [contact, setContact] = useState<SubmitterContact>(emptyContact);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [protection, setProtection] = useState<SubmissionProtectionFields>({
     contactWebsite: "",
   });
@@ -80,6 +82,7 @@ export function PlaceUpdateForm({
   const isSubmittingRef = useRef(false);
   const requestIdRef = useRef<string | undefined>(undefined);
   const successRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const formDraft = useFormDraft({ formType: "place-change", storage: "local", ttlMs: 7 * 24 * 60 * 60 * 1000, entityId: place?.id ?? requestedPlace, data: { placeReference, reportTypes, assessment, description, correctHours, correctAddress, correctPhone, closedSince, sourceType, sourceUrl }, enabled: !submission });
   useUnsavedChangesGuard(!submission && formDraft.isDirty);
 
@@ -90,11 +93,43 @@ export function PlaceUpdateForm({
     }
   }, [submission]);
 
+  useEffect(() => {
+    if (!submission) requestAnimationFrame(() => stepHeadingRef.current?.focus({ preventScroll: true }));
+  }, [currentStepIndex, submission]);
+
   function updateContact(field: keyof SubmitterContact, value: string) {
     setContact((current) => ({ ...current, [field]: value }));
     if (field === "email" && errors.email) {
       setErrors((current) => ({ ...current, email: undefined }));
     }
+  }
+
+  function goBack() {
+    setErrors({});
+    setCurrentStepIndex((value) => Math.max(0, value - 1));
+  }
+
+  function goNext() {
+    const nextErrors: UpdateErrors = {};
+    if (!place && currentStepIndex === 0) {
+      if (!placeReference.trim()) nextErrors.placeReference = "Wpisz nazwę miejsca, którego dotyczy zgłoszenie.";
+    }
+    if (currentStepIndex === firstContentStep) {
+      if (!place && !placeReference.trim()) nextErrors.placeReference = "Wpisz nazwę miejsca, którego dotyczy zgłoszenie.";
+      if (reportTypes.length === 0) nextErrors.reportTypes = "Wybierz co najmniej jeden typ informacji.";
+    }
+    if (currentStepIndex === firstContentStep + 1 && !assessment) nextErrors.assessment = "Wybierz, czy informacja się zmieniła, jest niepewna czy nadal aktualna.";
+    if (currentStepIndex === firstContentStep + 2 && assessment === "CHANGED" && !description.trim() && !correctHours.trim() && !correctAddress.trim() && !correctPhone.trim() && !closedSince) {
+      nextErrors.description = "Napisz krótko, co się zmieniło, albo uzupełnij konkretne dane poniżej.";
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      const firstErrorId = nextErrors.placeReference ? "update-place-reference" : nextErrors.reportTypes ? "update-type-hours" : nextErrors.assessment ? "update-assessment-changed" : "update-description";
+      requestAnimationFrame(() => document.getElementById(firstErrorId)?.focus());
+      return;
+    }
+    setErrors({});
+    setCurrentStepIndex((value) => Math.min(steps.length - 1, value + 1));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -234,39 +269,32 @@ export function PlaceUpdateForm({
           title: "Co się zmieniło?",
           description: "Podaj tylko to, co wiesz. Jeśli uzupełnisz konkretne dane poniżej, opis nie jest wymagany.",
           label: "Krótki opis zmiany",
-          placeholder: "Np. punkt działa teraz krócej niż podano na stronie.",
-        };
+        placeholder: "Np. punkt działa teraz krócej niż podano na stronie.",
+      };
+
+  const baseSteps = [
+    { title: "Co się zmieniło?", description: "Wybierz informacje, które mogą być nieaktualne." },
+    { title: "Jak pewna jest ta informacja?", description: "Wybierz odpowiedź, która najlepiej opisuje to, co wiesz." },
+    { title: descriptionCopy.title, description: descriptionCopy.description },
+    { title: "Skąd masz tę informację?", description: "Opcjonalnie. Źródło może przyspieszyć weryfikację." },
+    { title: "Zostaw kontakt, jeśli chcesz", description: "Kontakt jest opcjonalny i może pomóc przy dodatkowych pytaniach." },
+  ];
+  const steps = place
+    ? baseSteps
+    : [{ title: "Którego miejsca dotyczy zgłoszenie?", description: "Wskaż miejsce, którego dotyczy zmiana." }, ...baseSteps];
+  const firstContentStep = place ? 0 : 1;
 
   return (
     <div className="space-y-5">
-      <FormDraftResume draft={formDraft.storedDraft} label={place ? `Zgłoś zmianę dla: ${place.name}` : "Zgłoś zmianę lub błąd"} onResume={() => { const restored = formDraft.resume(); if (restored) { const data = restored.data; setPlaceReference(data.placeReference); setReportTypes(data.reportTypes); setAssessment(data.assessment); setDescription(data.description); setCorrectHours(data.correctHours); setCorrectAddress(data.correctAddress); setCorrectPhone(data.correctPhone); setClosedSince(data.closedSince); setSourceType(data.sourceType); setSourceUrl(data.sourceUrl); } }} onDiscard={() => { formDraft.discard(); setPlaceReference(""); setReportTypes([]); setAssessment(undefined); setDescription(""); setCorrectHours(""); setCorrectAddress(""); setCorrectPhone(""); setClosedSince(""); setSourceType(""); setSourceUrl(""); }} />
-      <header className="space-y-2">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
-          <Flag aria-hidden="true" size={23} />
-        </div>
-        <h1 className="text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">Zgłoś zmianę</h1>
-        <p className="max-w-2xl text-base font-semibold leading-7 text-muted-foreground">
-          Wskaż, co jest nieaktualne albo co warto sprawdzić. Nie musisz znać wszystkich szczegółów.
-        </p>
-      </header>
-
+      <FormDraftResume className="form-draft-resume-compact" draft={formDraft.storedDraft} label={place ? `Zgłoś zmianę dla: ${place.name}` : "Zgłoś zmianę lub błąd"} onResume={() => { const restored = formDraft.resume(); if (restored) { const data = restored.data; setPlaceReference(data.placeReference); setReportTypes(data.reportTypes); setAssessment(data.assessment); setDescription(data.description); setCorrectHours(data.correctHours); setCorrectAddress(data.correctAddress); setCorrectPhone(data.correctPhone); setClosedSince(data.closedSince); setSourceType(data.sourceType); setSourceUrl(data.sourceUrl); } }} onDiscard={() => { formDraft.discard(); setPlaceReference(""); setReportTypes([]); setAssessment(undefined); setDescription(""); setCorrectHours(""); setCorrectAddress(""); setCorrectPhone(""); setClosedSince(""); setSourceType(""); setSourceUrl(""); }} />
+      <GuidedFormShell eyebrow="ZGŁOŚ ZMIANĘ" title={steps[currentStepIndex].title} description={steps[currentStepIndex].description} progress={{ current: currentStepIndex + 1, total: steps.length }} headingRef={stepHeadingRef} className="contribution-guided-shell">
       <form
         className="min-w-0 divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-[0_16px_40px_rgb(17_24_39_/_6%)] sm:px-6"
         onSubmit={handleSubmit}
         noValidate
       >
-        <div className="py-4 sm:py-6">
-          {place ? (
-            <section className="rounded-lg border border-brand bg-brand-soft p-3" aria-label="Miejsce, którego dotyczy zgłoszenie">
-              <p className="text-xs font-extrabold uppercase text-brand-strong">Dotyczy</p>
-              <p className="mt-0.5 text-base font-extrabold leading-tight text-foreground sm:text-lg">{place.name}</p>
-              <p className="mt-0.5 flex items-start gap-1.5 text-sm font-semibold leading-5 text-muted-foreground">
-                <MapPin aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
-                {place.address}
-              </p>
-            </section>
-          ) : (
-            <FormField
+        <div className={`${!place && currentStepIndex === 0 ? "py-4 sm:py-6" : "hidden"}`}>
+          <FormField
               id="update-place-reference"
               label="Jakiego miejsca dotyczy zgłoszenie?"
               hint={requestedPlace ? "Nie znaleźliśmy wskazanego miejsca. Wpisz jego nazwę lub adres." : "Nie wskazano miejsca. Wpisz nazwę lub adres, abyśmy mogli je odnaleźć."}
@@ -286,11 +314,20 @@ export function PlaceUpdateForm({
                 aria-describedby={fieldDescriptionIds("update-place-reference", "hint", errors.placeReference)}
                 autoComplete="off"
               />
-            </FormField>
-          )}
+          </FormField>
         </div>
 
-        <FormSection title="Której informacji dotyczy zgłoszenie?" description="Możesz wybrać kilka." compact className="py-4 sm:py-6">
+        <FormSection title="Co się zmieniło?" description="Możesz wybrać kilka odpowiedzi." compact className={`${currentStepIndex === firstContentStep ? "py-4 sm:py-6" : "hidden"}`}>
+          {place ? (
+            <section className="mb-4 rounded-lg border border-brand bg-brand-soft p-3" aria-label="Miejsce, którego dotyczy zgłoszenie">
+              <p className="text-xs font-extrabold uppercase text-brand-strong">Dotyczy</p>
+              <p className="mt-0.5 text-base font-extrabold leading-tight text-foreground sm:text-lg">{place.name}</p>
+              <p className="mt-0.5 flex items-start gap-1.5 text-sm font-semibold leading-5 text-muted-foreground">
+                <MapPin aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
+                {place.address}
+              </p>
+            </section>
+          ) : null}
           <fieldset aria-describedby={errors.reportTypes ? "update-report-types-error" : undefined}>
             <legend className="sr-only">Typ informacji</legend>
             <div className="space-y-3">
@@ -321,7 +358,7 @@ export function PlaceUpdateForm({
           </fieldset>
         </FormSection>
 
-        <FormSection title="Jaki jest stan tej informacji?" description="Wybierz jedną odpowiedź. To wystarczy, żebyśmy wiedzieli, jak potraktować zgłoszenie." compact className="py-4 sm:py-6">
+        <FormSection title="Czy ta informacja się zmieniła?" description="Wybierz jedną odpowiedź." compact className={`${currentStepIndex === firstContentStep + 1 ? "py-4 sm:py-6" : "hidden"}`}>
           <fieldset aria-describedby={errors.assessment ? "update-assessment-error" : undefined}>
             <legend className="sr-only">Stan informacji</legend>
             <div className="grid min-w-0 gap-2">
@@ -348,7 +385,7 @@ export function PlaceUpdateForm({
         </FormSection>
 
         {assessment ? (
-          <FormSection title={descriptionCopy.title} description={descriptionCopy.description} className="py-5 sm:py-6">
+          <FormSection title={descriptionCopy.title} description={descriptionCopy.description} className={`${currentStepIndex === firstContentStep + 2 ? "py-5 sm:py-6" : "hidden"}`}>
             <FormField id="update-description" label={descriptionCopy.label} error={errors.description} required={assessment === "CHANGED"}>
               <textarea
                 id="update-description"
@@ -392,7 +429,7 @@ export function PlaceUpdateForm({
           </FormSection>
         ) : null}
 
-        <FormSection title="Skąd masz tę informację?" description="Opcjonalnie. Źródło może przyspieszyć weryfikację." compact className="py-4 sm:py-6">
+        <FormSection title="Skąd masz tę informację?" description="Opcjonalnie. Źródło może przyspieszyć weryfikację." compact className={`${currentStepIndex === firstContentStep + 3 ? "py-4 sm:py-6" : "hidden"}`}>
           <fieldset>
             <legend className="sr-only">Źródło informacji</legend>
             <div className="grid min-w-0 gap-2 sm:grid-cols-2">
@@ -406,7 +443,7 @@ export function PlaceUpdateForm({
           </FormField>
         </FormSection>
 
-        <FormSection title="Kontakt do Ciebie — opcjonalnie" description="Nie musisz podawać swoich danych. Kontakt pomaga tylko wtedy, gdy administrator musi dopytać o szczegóły." compact className="py-4 sm:py-6">
+        <FormSection title="Zostaw kontakt, jeśli chcesz" description="Nie musisz podawać swoich danych. Kontakt pomaga tylko wtedy, gdy administrator musi dopytać o szczegóły." compact className={`${currentStepIndex === firstContentStep + 4 ? "py-4 sm:py-6" : "hidden"}`}>
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <FormField id="update-contact-name" label="Imię">
               <input id="update-contact-name" value={contact.name} onChange={(event) => updateContact("name", event.target.value)} className={formControlClass} autoComplete="name" />
@@ -447,7 +484,16 @@ export function PlaceUpdateForm({
           </div>
         </FormSection>
 
-        <div className="py-5 sm:py-6">
+        {currentStepIndex < steps.length - 1 ? <div className="flex flex-col-reverse gap-2 border-t border-border py-5 sm:flex-row sm:justify-between sm:py-6">
+          <button type="button" className="touch-target inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-semibold text-muted-foreground hover:bg-surface-muted disabled:opacity-50" onClick={goBack} disabled={!place && currentStepIndex === 0}>
+            <ChevronLeft aria-hidden="true" size={19} />Wstecz
+          </button>
+          <button type="button" className="touch-target inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 text-base font-extrabold text-foreground shadow-sm hover:bg-brand-strong hover:text-white" onClick={goNext}>
+            Dalej<ChevronRight aria-hidden="true" size={19} />
+          </button>
+        </div> : null}
+
+        <div className={`${currentStepIndex === steps.length - 1 ? "py-5 sm:py-6" : "hidden"}`}>
           {submitError ? <p className="mb-3 text-sm font-bold leading-5 text-urgent" role="alert">{submitError}</p> : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href={place?.href ?? "/szukaj"} className="touch-target inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-extrabold text-muted-foreground hover:bg-surface-muted hover:text-foreground">Anuluj</Link>
@@ -457,6 +503,7 @@ export function PlaceUpdateForm({
           </div>
         </div>
       </form>
+      </GuidedFormShell>
     </div>
   );
 }

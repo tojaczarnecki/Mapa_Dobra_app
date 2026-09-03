@@ -71,7 +71,7 @@ type NewPlaceDraft = {
   submitterContact: SubmitterContact;
 };
 
-type StepId = "basic" | "location" | "help" | "accommodation" | "source" | "summary";
+type StepId = "basic" | "location" | "help" | "contact" | "summary";
 type FormErrors = Partial<
   Record<
     | "name"
@@ -120,11 +120,10 @@ const initialDraft: NewPlaceDraft = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const stepLabels: Record<StepId, string> = {
-  basic: "Podstawowe informacje",
-  location: "Lokalizacja i kontakt",
-  help: "Pomoc i warunki",
-  accommodation: "Informacje o noclegu",
-  source: "Źródło i kontakt",
+  basic: "Rodzaj miejsca",
+  location: "Lokalizacja",
+  help: "Godziny i warunki",
+  contact: "Kontakt",
   summary: "Podsumowanie",
 };
 
@@ -176,6 +175,7 @@ function draftDataWithoutContact(value: NewPlaceDraft): Omit<NewPlaceDraft, "sub
 export function NewPlaceForm() {
   const [draft, setDraft] = useState<NewPlaceDraft>(initialDraft);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [basicStage, setBasicStage] = useState<0 | 1>(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [protection, setProtection] = useState<SubmissionProtectionFields>({
     contactWebsite: "",
@@ -193,14 +193,11 @@ export function NewPlaceForm() {
     () => [
       { id: "basic", label: stepLabels.basic },
       { id: "location", label: stepLabels.location },
+      { id: "contact", label: stepLabels.contact },
       { id: "help", label: stepLabels.help },
-      ...(includesAccommodation
-        ? [{ id: "accommodation" as const, label: stepLabels.accommodation }]
-        : []),
-      { id: "source", label: stepLabels.source },
       { id: "summary", label: stepLabels.summary },
     ],
-    [includesAccommodation],
+    [],
   );
 
   const currentStep = steps[currentStepIndex] ?? steps[steps.length - 1];
@@ -248,6 +245,7 @@ export function NewPlaceForm() {
   function goToStep(index: number) {
     setErrors({});
     setCurrentStepIndex(Math.max(0, Math.min(index, steps.length - 1)));
+    setBasicStage(0);
     focusStep();
   }
 
@@ -269,7 +267,7 @@ export function NewPlaceForm() {
       nextErrors.placeEmail = "Podaj prawidłowy adres e-mail albo pozostaw pole puste.";
     }
 
-    if (step === "accommodation" && draft.accommodation.availabilityKnown === "yes") {
+    if (step === "help" && draft.accommodation.availabilityKnown === "yes") {
       if (draft.accommodation.freePlaces === "") {
         nextErrors.freePlaces = "Wpisz liczbę wolnych miejsc.";
       }
@@ -279,7 +277,7 @@ export function NewPlaceForm() {
     }
 
     if (
-      step === "source" &&
+      step === "contact" &&
       draft.submitterContact.email.trim() &&
       !emailPattern.test(draft.submitterContact.email.trim())
     ) {
@@ -309,6 +307,18 @@ export function NewPlaceForm() {
   }
 
   function goNext() {
+    if (currentStep.id === "basic" && basicStage === 0) {
+      if (!draft.name.trim()) {
+        setErrors({ name: "Wpisz nazwę miejsca." });
+        requestAnimationFrame(() => document.getElementById("new-place-name")?.focus());
+        return;
+      }
+      setErrors({});
+      setBasicStage(1);
+      focusStep();
+      return;
+    }
+
     if (!validateStep(currentStep.id)) {
       return;
     }
@@ -319,7 +329,13 @@ export function NewPlaceForm() {
 
   function goBack() {
     setErrors({});
+    if (currentStep.id === "basic" && basicStage === 1) {
+      setBasicStage(0);
+      focusStep();
+      return;
+    }
     setCurrentStepIndex((index) => Math.max(0, index - 1));
+    setBasicStage(0);
     focusStep();
   }
 
@@ -357,8 +373,8 @@ export function NewPlaceForm() {
 
     if (!basicValid) return "basic" as const;
     if (!placeEmailValid) return "location" as const;
-    if (!accommodationValid) return "accommodation" as const;
-    if (!submitterEmailValid) return "source" as const;
+    if (!accommodationValid) return "help" as const;
+    if (!submitterEmailValid) return "contact" as const;
     return undefined;
   }
 
@@ -461,6 +477,7 @@ export function NewPlaceForm() {
     setProtection({ contactWebsite: "" });
     setErrors({});
     setCurrentStepIndex(0);
+    setBasicStage(0);
     setSubmission(undefined);
     setSubmitError(undefined);
     requestIdRef.current = undefined;
@@ -531,7 +548,7 @@ export function NewPlaceForm() {
               ],
               "\n",
             ),
-            editStep: steps.findIndex((step) => step.id === "accommodation"),
+            editStep: steps.findIndex((step) => step.id === "help"),
           },
         ]
       : []),
@@ -540,12 +557,12 @@ export function NewPlaceForm() {
       value:
         newPlaceSourceOptions.find((option) => option.value === draft.sourceType)?.label ??
         "",
-      editStep: steps.findIndex((step) => step.id === "source"),
+      editStep: steps.findIndex((step) => step.id === "contact"),
     },
     {
       label: "Kontakt do Ciebie",
       value: submitterContactSummary,
-      editStep: steps.findIndex((step) => step.id === "source"),
+      editStep: steps.findIndex((step) => step.id === "contact"),
     },
   ];
 
@@ -580,7 +597,7 @@ export function NewPlaceForm() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <FormDraftResume draft={formDraft.storedDraft} label="Zgłoś nowe miejsce" onResume={() => { const restored = formDraft.resume(); if (restored) { setDraft((current) => ({ ...current, ...restored.data, submitterContact: current.submitterContact })); const restoredSteps = ["basic", "location", "help", ...(restored.data.helpCategories.includes("accommodation") ? ["accommodation"] : []), "source", "summary"]; const nextIndex = restoredSteps.indexOf(String(restored.currentStep)); if (nextIndex >= 0) setCurrentStepIndex(nextIndex); } }} onDiscard={() => { formDraft.discard(); resetForm(); }} />
+      <FormDraftResume draft={formDraft.storedDraft} label="Zgłoś nowe miejsce" onResume={() => { const restored = formDraft.resume(); if (restored) { setDraft((current) => ({ ...current, ...restored.data, submitterContact: current.submitterContact })); const restoredSteps = ["basic", "location", "help", "contact", "summary"]; const legacyStep = String(restored.currentStep); const mappedStep = legacyStep === "accommodation" ? "help" : legacyStep === "source" ? "contact" : legacyStep; const nextIndex = restoredSteps.indexOf(mappedStep); if (nextIndex >= 0) setCurrentStepIndex(nextIndex); } }} onDiscard={() => { formDraft.discard(); resetForm(); }} />
       <header className="space-y-1.5 sm:space-y-2">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
           <MapPinned aria-hidden="true" size={23} />
@@ -601,7 +618,7 @@ export function NewPlaceForm() {
         <SubmissionStepper
           current={currentStepIndex + 1}
           total={steps.length}
-          label={currentStep.label}
+          label={currentStep.id === "basic" && basicStage === 1 ? "Rodzaj pomocy" : currentStep.label}
         />
 
         <div
@@ -609,9 +626,9 @@ export function NewPlaceForm() {
           className="programmatic-focus-target mt-4 min-w-0 sm:mt-6"
           tabIndex={-1}
         >
-          {currentStep.id === "basic" ? (
+          {currentStep.id === "basic" && basicStage === 0 ? (
             <FormSection
-              title="Podstawowe informacje"
+              title="Co to za miejsce?"
               description="Zacznij od nazwy i rodzaju pomocy."
               compact
             >
@@ -656,19 +673,22 @@ export function NewPlaceForm() {
                 </FormField>
               </div>
 
+            </FormSection>
+          ) : null}
+
+          {currentStep.id === "basic" && basicStage === 1 ? (
+            <FormSection
+              title="Jaką pomoc można tam dostać?"
+              description="Możesz wybrać kilka kategorii."
+              compact
+            >
               <fieldset
                 aria-describedby={
                   errors.helpCategories ? "new-place-categories-error" : undefined
                 }
               >
-                <legend className="text-sm font-extrabold leading-5 text-foreground">
-                  Jaką pomoc można tam otrzymać?
-                  <span className="ml-1 text-urgent">(wymagane)</span>
-                </legend>
-                <p className="mt-1 text-sm font-semibold text-muted-foreground">
-                  Możesz wybrać kilka kategorii.
-                </p>
-                <div className="mt-2 grid min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
+                <legend className="sr-only">Rodzaje pomocy</legend>
+                <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
                   {helpCategoryOptions.map((option) => (
                     <MultiSelectOption
                       key={option.value}
@@ -707,13 +727,13 @@ export function NewPlaceForm() {
             </FormSection>
           ) : null}
 
-          {currentStep.id === "location" ? (
+          {currentStep.id === "location" || currentStep.id === "contact" ? (
             <FormSection
-              title="Lokalizacja i kontakt"
-              description="Podaj tyle informacji, ile znasz. Nie uruchamiamy jeszcze geokodowania."
+              title={currentStep.id === "location" ? "Gdzie znajduje się to miejsce?" : "Jak można się skontaktować?"}
+              description={currentStep.id === "location" ? "Podaj tyle informacji, ile znasz." : "Podaj tylko te dane, które mogą pomóc osobom korzystającym z miejsca."}
               compact
             >
-              <div className="grid min-w-0 gap-3">
+              {currentStep.id === "location" ? <div className="grid min-w-0 gap-3">
                 <FormField id="new-place-street" label="Ulica i numer">
                   <input
                     id="new-place-street"
@@ -754,9 +774,9 @@ export function NewPlaceForm() {
                     autoComplete="address-level3"
                   />
                 </FormField>
-              </div>
+              </div> : null}
 
-              <div className="border-t border-border pt-4">
+              {currentStep.id === "contact" ? <div className="border-t border-border pt-4">
                 <h3 className="text-lg font-extrabold text-foreground">Kontakt do miejsca</h3>
                 <p className="mt-1 text-sm font-semibold text-muted-foreground">
                   Wszystkie pola są opcjonalne.
@@ -806,7 +826,7 @@ export function NewPlaceForm() {
                     />
                   </FormField>
                 </div>
-              </div>
+              </div> : null}
             </FormSection>
           ) : null}
 
@@ -858,7 +878,7 @@ export function NewPlaceForm() {
             </FormSection>
           ) : null}
 
-          {currentStep.id === "accommodation" ? (
+          {currentStep.id === "help" && includesAccommodation ? (
             <FormSection
               title="Informacje o noclegu – jeśli je znasz"
               description="Wszystkie pola w tej sekcji są opcjonalne."
@@ -1094,9 +1114,9 @@ export function NewPlaceForm() {
             </FormSection>
           ) : null}
 
-          {currentStep.id === "source" ? (
+          {currentStep.id === "contact" ? (
             <FormSection
-              title="Źródło i kontakt"
+              title="Jak można się skontaktować?"
               description="Nie musisz podawać swoich danych osobowych."
             >
               <fieldset>
@@ -1237,7 +1257,7 @@ export function NewPlaceForm() {
                 ? "Wysyłanie…"
                 : currentStep.id === "summary"
                 ? "Wyślij zgłoszenie"
-                : currentStep.id === "source"
+                : currentStep.id === "contact"
                   ? "Przejdź do podsumowania"
                   : "Dalej"
             }

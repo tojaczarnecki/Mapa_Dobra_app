@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { JourneyMotif } from "@/components/home/journey-motif";
 
 export function NoResults({ clearHref = "/szukaj" }: { clearHref?: string }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+    <section className="editorial-empty-state editorial-empty-state-search rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+      <JourneyMotif journey="search" />
       <div className="space-y-4">
         <div className="space-y-2">
           <h2 className="text-xl font-extrabold leading-tight text-foreground">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Download, Share, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
 const RESUME_STALE_AFTER_MS = 90_000;
@@ -12,11 +13,6 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
-
-function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-}
 
 function isIosSafari() {
   const userAgent = window.navigator.userAgent;
@@ -34,7 +30,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [iosInstructions, setIosInstructions] = useState(false);
-  const [standalone, setStandalone] = useState(false);
+  const standalone = useIsStandalonePwa();
   const connectionInitialized = useRef(false);
   const reconnectTimer = useRef<number | undefined>(undefined);
   const lastActiveAt = useRef(0);
@@ -80,22 +76,20 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       connectionInitialized.current = true;
     };
     const onNetworkFailure = () => setOffline(true);
-    const updateStandalone = () => setStandalone(isStandalone());
     const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       const promptEvent = event as BeforeInstallPromptEvent;
       setInstallPrompt(promptEvent);
-      if (!wasDismissed && !isStandalone()) setShowInstall(true);
+      if (!wasDismissed && !isStandalonePwa()) setShowInstall(true);
     };
     const onInstalled = () => {
       setInstallPrompt(null);
       setShowInstall(false);
       setIosInstructions(false);
-      setStandalone(true);
     };
     const onOpenInstall = () => {
-      if (isStandalone()) return;
+      if (isStandalonePwa()) return;
       if (isIosSafari()) setIosInstructions(true);
       else setShowInstall(true);
     };
@@ -110,7 +104,6 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     const onFocus = () => revalidateIfStale();
 
     updateConnection();
-    updateStandalone();
     window.addEventListener("online", updateConnection);
     window.addEventListener("offline", updateConnection);
     window.addEventListener("mapa-dobra:network-failure", onNetworkFailure);

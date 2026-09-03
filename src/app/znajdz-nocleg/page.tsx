@@ -6,7 +6,7 @@ import { getPublicAccommodations } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Znajdź nocleg | Mapa Dobra",
+  title: "Znajdź nocleg | Dobra Mapa",
   description: "Znajdź miejsce noclegowe dopasowane do Twojej sytuacji.",
   alternates: canonicalAlternates("/znajdz-nocleg"),
 };

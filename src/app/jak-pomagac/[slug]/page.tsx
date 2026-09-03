@@ -11,9 +11,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const guide = getHelpGuide(slug);
-  if (!guide) return { title: "Nie znaleziono poradnika | Mapa Dobra", robots: { index: false, follow: false } };
+  if (!guide) return { title: "Nie znaleziono poradnika | Dobra Mapa", robots: { index: false, follow: false } };
   return {
-    title: `${guide.title} | Jak pomagać | Mapa Dobra`,
+    title: `${guide.title} | Jak pomagać | Dobra Mapa`,
     description: guide.intro,
     alternates: canonicalAlternates(`/jak-pomagac/${guide.slug}`),
     robots: guide.reviewStatus === "PUBLISHED" ? undefined : { index: false, follow: false },

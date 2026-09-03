@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import {
   clampProgress,
   canFinishSplash,
@@ -12,18 +11,14 @@ import {
   shouldShowLaunchSplash,
   stagedProgress,
 } from "@/lib/app/launch-splash";
+import { isStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const MIN_EXPOSURE_MS = 1500;
 const FAIL_SAFE_MS = 4500;
 const EXIT_MS = 320;
 
-function isStandalone(): boolean {
-  return window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-}
-
 function isMobileViewport(): boolean {
-  return window.matchMedia("(max-width: 767px)").matches || isStandalone();
+  return window.matchMedia("(max-width: 767px)").matches || isStandalonePwa();
 }
 
 function isDebugForced(): boolean {
@@ -111,7 +106,7 @@ export function LaunchSplash() {
   const fillHeight = fillHeightForProgress(progress);
 
   return (
-    <div className={`launch-splash${exiting ? " launch-splash-exiting" : ""}`} role="status" aria-label="Ładowanie Mapy Dobra">
+    <div className={`launch-splash${exiting ? " launch-splash-exiting" : ""}`} role="status" aria-label="Ładowanie Dobrej Mapy">
       <div className="launch-splash-content">
         <span className="launch-splash-progress" aria-hidden="true">{Math.round(clampProgress(progress))}%</span>
         <div className="launch-splash-symbol" aria-hidden="true">
@@ -121,7 +116,7 @@ export function LaunchSplash() {
           </div>
         </div>
         <div className="launch-splash-wordmark" aria-hidden="true">
-          <Image src="/brand/mapa-dobra-wordmark.svg" alt="" width={322} height={64} priority />
+          <span>Dobra Mapa</span>
         </div>
       </div>
     </div>

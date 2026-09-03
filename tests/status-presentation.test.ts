@@ -38,3 +38,18 @@ test("result CTA prefers confirmation calls for uncertain opening data", () => {
   assert.equal(getResultPrimaryAction({ ...uncertain!, phone: "+48123123123" })?.label, "Zadzwoń i potwierdź");
   assert.equal(getResultPrimaryAction(confirmed!)?.label, "Trasa");
 });
+
+test("result CTA avoids travel when availability is uncertain or closed", () => {
+  const detailsHref = "/lodz/jedzenie/niepewny-punkt";
+  const uncertain = demoPlaces.find((place) => place.status === "unknownHours");
+  const closed = demoPlaces.find((place) => place.status === "closed");
+  const laterToday = demoPlaces.find((place) => place.status === "openToday");
+
+  assert.deepEqual(getResultPrimaryAction({ ...uncertain!, phone: undefined }, detailsHref), {
+    href: detailsHref,
+    label: "Sprawdź szczegóły",
+    kind: "details",
+  });
+  assert.equal(getResultPrimaryAction({ ...closed! }, detailsHref)?.label, "Zobacz godziny");
+  assert.equal(getResultPrimaryAction({ ...laterToday! }, detailsHref)?.label, "Zobacz godziny");
+});

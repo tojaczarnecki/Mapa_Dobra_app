@@ -165,7 +165,7 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
   return (
     <>
       {place.requirements.length ? <DetailSection title="Czy mogę skorzystać z pomocy?">
-        <RequirementList items={place.requirements} />
+        <RequirementList items={place.requirements} maxVisible={3} />
         <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
       </DetailSection> : null}
 
@@ -215,25 +215,32 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
     accommodation.sobriety,
     ...accommodation.animals,
   ]);
+  const hasConfirmedAccessibility = accommodation.accessibility.some((item) => item.status !== "unknown");
+  const hasUsefulHours = place.openingHours.some((day) => day.status !== "unknown" && Boolean(day.periods?.length));
+  const practicalServices = place.services.filter((service) => !place.helpTypes.some((type) => type.toLocaleLowerCase("pl-PL") === service.toLocaleLowerCase("pl-PL")));
 
   return (
     <>
-      <DetailSection title="Dla kogo jest nocleg">
+      <DetailSection title="Czy to miejsce jest dla mnie?">
         <p className="text-sm font-semibold text-muted-foreground">Pomoc jest przeznaczona dla:</p>
         <div className="mt-2"><TagList items={accommodation.audience} /></div>
-      </DetailSection>
-      <DetailSection title="Czy mogę skorzystać z noclegu?">
-        <RequirementList items={admissionItems} />
+        <div className="mt-4">
+          <RequirementList items={admissionItems} maxVisible={3} />
+        </div>
         <PlaceFitCheck requirements={admissionItems} phone={place.contact.phone} />
       </DetailSection>
 
-      <DetailSection title="Godziny przyjęć">
-        <OpeningHours days={place.openingHours} />
-      </DetailSection>
+      {hasUsefulHours ? (
+        <DetailSection title="Godziny przyjęć">
+          <OpeningHours days={place.openingHours} />
+        </DetailSection>
+      ) : null}
 
-      <DetailSection title="Dostępność noclegu">
-        <AccessibilityList items={accommodation.accessibility} />
-      </DetailSection>
+      {hasConfirmedAccessibility ? (
+        <DetailSection title="Dostępność">
+          <AccessibilityList items={accommodation.accessibility} />
+        </DetailSection>
+      ) : null}
 
       {accommodation.overnightInfo.length > 0 ? (
         <DetailSection title="Dodatkowe informacje noclegowe">
@@ -241,13 +248,15 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
         </DetailSection>
       ) : null}
 
-      <DetailSection title="Na miejscu">
-        <TagList items={place.services} />
-      </DetailSection>
+      {practicalServices.length ? (
+        <DetailSection title="Na miejscu">
+          <TagList items={practicalServices} />
+        </DetailSection>
+      ) : null}
 
-      <DetailSection title="O miejscu">
+      {place.description.length ? <DetailSection title="O miejscu">
         <Description paragraphs={place.description} />
-      </DetailSection>
+      </DetailSection> : null}
     </>
   );
 }
@@ -261,25 +270,30 @@ function SideColumn({ place }: { place: PlaceDetail }) {
   );
 
   return (
-    <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
+    <aside className="place-detail-utility-rail min-w-0 lg:sticky lg:top-24">
       {hasContact ? (
-        <DetailSection title="Kontakt">
+        <section className="place-detail-utility-group">
+          <h2>Kontakt</h2>
           <PlaceContact contact={place.contact} />
-        </DetailSection>
+        </section>
       ) : null}
 
-      <MapPreview place={place} />
+      <section className="place-detail-utility-group place-detail-utility-map">
+        <MapPreview place={place} />
+      </section>
 
-      <Link
-        className="touch-target inline-flex w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-extrabold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
-        href={{
-          pathname: "/zglos-zmiane",
-          query: { place: place.id },
-        }}
-      >
-        <Flag aria-hidden="true" size={17} />
-        Zgłoś zmianę lub błąd
-      </Link>
+      <section className="place-detail-utility-group place-detail-utility-report">
+        <Link
+          className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground"
+          href={{
+            pathname: "/zglos-zmiane",
+            query: { place: place.id },
+          }}
+        >
+          <Flag aria-hidden="true" size={17} />
+          Zgłoś zmianę lub błąd
+        </Link>
+      </section>
     </aside>
   );
 }
@@ -296,7 +310,7 @@ export function PlaceDetailView({
   const reportHref = `/zglos-zmiane?place=${encodeURIComponent(place.id)}`;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
+    <div className="place-detail-page journey-search mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
       <Link
         className="touch-target mb-3 inline-flex items-center gap-2 rounded-lg px-2 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
         href={backHref}
@@ -306,7 +320,7 @@ export function PlaceDetailView({
       </Link>
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)] lg:items-start lg:gap-8">
-        <div className="min-w-0 space-y-4">
+        <div className="place-detail-main min-w-0">
           <PlaceHero
             place={place}
             primaryCallLabel={isAccommodation ? "Zadzwoń i potwierdź" : "Zadzwoń"}

@@ -4,7 +4,7 @@ import { getPublicPlaceContext } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
-  title: "Zgłoś zmianę | Mapa Dobra",
+  title: "Zgłoś zmianę | Dobra Mapa",
   description: "Zgłoś zmianę lub błąd w informacjach o miejscu pomocy.",
   alternates: canonicalAlternates("/zglos-zmiane"),
 };
@@ -21,7 +21,7 @@ export default async function ReportUpdatePage({ searchParams }: UpdatePageProps
   const placeContext = requestedPlace ? await getPublicPlaceContext(requestedPlace) : undefined;
 
   return (
-    <div className="md-place-update-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
+    <div className="secondary-flow-page md-place-update-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
       <PlaceUpdateForm place={placeContext} requestedPlace={requestedPlace} />
     </div>
   );

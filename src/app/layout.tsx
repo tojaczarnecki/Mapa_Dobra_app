@@ -11,19 +11,20 @@ import { getSiteBaseUrl } from "@/lib/site-url";
 import { isConsentChoice, PRIVACY_CONSENT_COOKIE, type ConsentChoice } from "@/lib/privacy/consent";
 import "./globals.css";
 import "./compact-institutional.css";
+import "./editorial-guides.css";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
-  title: "Mapa Dobra",
+  title: "Dobra Mapa",
   description: "Znajdź pomoc, której potrzebujesz.",
-  applicationName: "Mapa Dobra",
+  applicationName: "Dobra Mapa",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Mapa Dobra",
+    title: "Dobra Mapa",
   },
   formatDetection: { telephone: false },
   icons: {
@@ -46,8 +47,9 @@ export default async function RootLayout({
   const initialConsent: ConsentChoice | null = isConsentChoice(initialConsentValue) ? initialConsentValue : null;
 
   return (
-    <html lang="pl">
+    <html lang="pl" suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `(() => { try { const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; document.documentElement.dataset.displayMode = standalone ? "standalone" : "browser"; } catch (_) {} })();` }} />
         <LaunchSplash />
         <div className="min-h-screen bg-background text-foreground">
           <PrivacyConsent initialConsent={initialConsent}>

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { ArrowLeft, WifiOff } from "lucide-react";
 import { FavoritesList } from "@/components/favorites/favorites-list";
+import { JourneyMotif } from "@/components/home/journey-motif";
 
 export default function OfflinePage() {
   return (
     <div className="mx-auto w-full max-w-[760px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
-      <section className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+      <section className="editorial-empty-state editorial-empty-state-guide rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+        <JourneyMotif journey="guide" />
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
             <WifiOff aria-hidden="true" size={22} />

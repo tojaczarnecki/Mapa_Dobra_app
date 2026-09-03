@@ -4,7 +4,7 @@ import { LoginForm } from "@/components/admin/login-form";
 import { getCurrentAdmin } from "@/lib/admin/session";
 
 export const metadata = {
-  title: "Logowanie administratora | Mapa Dobra",
+  title: "Logowanie administratora | Dobra Mapa",
 };
 
 export default async function AdminLoginPage() {
@@ -16,7 +16,7 @@ export default async function AdminLoginPage() {
       <section className="w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-[0_18px_45px_rgb(29_29_27_/_8%)] sm:p-8">
         <Image
           src="/brand/mapa-dobra-logo-header-new.svg"
-          alt="Mapa Dobra"
+          alt="Dobra Mapa"
           width={604}
           height={120}
           priority

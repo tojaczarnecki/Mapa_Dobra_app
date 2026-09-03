@@ -14,7 +14,7 @@ export function DetailSection({
   return (
     <section
       className={[
-        "w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5",
+        "place-detail-section w-full min-w-0 p-4 sm:p-5",
         className,
       ].join(" ")}
     >

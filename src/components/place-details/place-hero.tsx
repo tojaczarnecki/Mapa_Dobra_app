@@ -42,7 +42,7 @@ export function PlaceHero({
   const hideUnconfirmedFridgeHours = place.profileKind === "FOOD_SHARING" && place.status.tone === "unknown" && /całą dobę|całodobowo/iu.test(place.status.todayHours);
   const keyAccommodationCondition = place.accommodation?.admissionRequirements.find((item) => item.status === "warning");
   return (
-    <section className="w-full min-w-0 rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
+    <section className="place-detail-hero w-full min-w-0 p-4 sm:p-5">
       <div className="min-w-0 space-y-4">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
@@ -101,7 +101,7 @@ export function PlaceHero({
           </p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="place-detail-actions grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
           {primaryHref ? (
             <a
               className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg bg-brand px-3 py-2 text-sm font-extrabold text-foreground shadow-sm transition hover:bg-brand-strong hover:text-white"
@@ -115,7 +115,10 @@ export function PlaceHero({
           ) : null}
           {routeHref && (primaryIsCall || primaryIsOpenSearch) ? (
             <a
-              className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-brand bg-surface px-3 py-2 text-sm font-extrabold text-foreground transition hover:bg-brand-soft"
+              className={[
+                "touch-target inline-flex min-w-0 items-center justify-center gap-2 px-3 py-2 text-sm font-extrabold text-foreground transition hover:text-brand-strong",
+                primaryIsOpenSearch ? "place-detail-tertiary-action" : "rounded-lg border border-brand bg-surface hover:bg-brand-soft",
+              ].join(" ")}
               href={routeHref}
               target="_blank"
               rel="noreferrer"

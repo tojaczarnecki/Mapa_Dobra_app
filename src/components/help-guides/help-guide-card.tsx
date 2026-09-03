@@ -1,15 +1,23 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import type { HelpGuide } from "@/data/help-guides";
+import { EditorialCard, type EditorialVariant } from "@/components/ui/editorial-card";
 
-export function HelpGuideCard({ guide }: { guide: HelpGuide }) {
-  return (
-    <Link href={`/jak-pomagac/${guide.slug}`} className="group flex min-h-36 flex-col justify-between rounded-xl border border-border bg-surface p-5 transition hover:border-brand hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-      <span>
-        <span className="block text-lg font-extrabold leading-6">{guide.shortTitle ?? guide.title}</span>
-        <span className="mt-2 block text-sm leading-6 text-muted-foreground">{guide.intro}</span>
-      </span>
-      <span className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-strong">Przeczytaj wskazówki <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-0.5" /></span>
-    </Link>
-  );
+const guideIllustrations: Record<string, { src: string; alt: string }> = {
+  "jak-zaczac-rozmowe": { src: "/brand/help-guides/guide-conversation.png", alt: "Dwie osoby rozmawiają spokojnie" },
+  "pieniadze-czy-konkretna-pomoc": { src: "/brand/help-scenarios/help-money.png", alt: "Dwie osoby rozmawiają o możliwej pomocy" },
+  "jak-wskazac-miejsce-pomocy": { src: "/brand/help-scenarios/help-general.png", alt: "Dwie osoby korzystają z mapy, szukając miejsca pomocy" },
+  "czego-unikac-pomagajac": { src: "/brand/help-guides/guide-boundaries.png", alt: "Dwie osoby zachowują swoje granice" },
+};
+const guideEyebrows: Record<string, string> = {
+  "jak-zaczac-rozmowe": "ROZMOWA",
+  "pieniadze-czy-konkretna-pomoc": "KONKRETNA POMOC",
+  "jak-wskazac-miejsce-pomocy": "DROGA DO POMOCY",
+  "czego-unikac-pomagajac": "GRANICE",
+};
+const guidePreviewDescriptions: Record<string, string> = {
+  "pieniadze-czy-konkretna-pomoc": "Możesz zapytać, czego osoba potrzebuje, i zaproponować konkretną pomoc.",
+  "jak-wskazac-miejsce-pomocy": "Sprawdź dostępność, godziny, warunki i prosty sposób dotarcia.",
+};
+
+export function HelpGuideCard({ guide, variant = "guide", layout = "standard" }: { guide: HelpGuide; variant?: EditorialVariant; layout?: "feature" | "standard" | "wide" }) {
+  return <EditorialCard variant={variant} layout={layout} eyebrow={guideEyebrows[guide.slug]} illustration={guideIllustrations[guide.slug]} title={guide.shortTitle ?? guide.title} description={guidePreviewDescriptions[guide.slug] ?? guide.intro} href={`/jak-pomagac/${guide.slug}`} />;
 }

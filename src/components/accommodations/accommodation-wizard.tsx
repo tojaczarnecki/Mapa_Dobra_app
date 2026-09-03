@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   Accessibility,
@@ -14,11 +15,11 @@ import {
   HeartHandshake,
   Home,
   Mars,
-  Users,
   Venus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AccommodationCard } from "@/components/accommodations/accommodation-card";
+import guidedShelter from "../../../Branding_app/Ilustarions/guided/guided-shelter.png";
 import {
   type Accommodation,
   type AccommodationNeed,
@@ -239,7 +240,7 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
+    <div className="secondary-flow-page accommodation-flow-page mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-start lg:gap-8">
         <section className={["min-w-0 space-y-4", showResults ? "hidden lg:block" : ""].join(" ")}>
           <div className="rounded-xl border border-border bg-surface p-4 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] sm:p-5">
@@ -255,6 +256,10 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
                   Odpowiedz na kilka prostych pytań. Nie zapisujemy tych odpowiedzi
                   jako profilu.
                 </p>
+              </div>
+
+              <div className="accommodation-mobile-visual" aria-hidden="true">
+                <Image src={guidedShelter} alt="" width={150} height={110} />
               </div>
 
               <div className="rounded-lg border border-border bg-surface-muted p-3">
@@ -569,18 +574,9 @@ export function AccommodationWizard({ accommodations }: { accommodations: Accomm
               ) : null}
             </>
           ) : (
-            <div className="hidden rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] lg:block">
-              <div className="flex min-h-[28rem] flex-col justify-center">
-                <Users aria-hidden="true" size={34} className="mb-4 text-brand-strong" />
-                <h2 className="text-2xl font-extrabold leading-tight text-foreground">
-                  Wyniki pojawią się po ostatnim kroku.
-                </h2>
-                <p className="mt-3 max-w-md text-base font-semibold leading-7 text-muted-foreground">
-                  Najpierw ograniczamy liczbę decyzji. Potem pokazujemy miejsca,
-                  które realnie mogą pasować do sytuacji i są oznaczone jasnymi
-                  warunkami.
-                </p>
-              </div>
+            <div className="accommodation-flow-visual hidden lg:flex">
+              <Image src={guidedShelter} alt="" width={360} height={360} aria-hidden="true" />
+              <p>Sprawdzimy miejsca, które realnie mogą przyjąć dziś.</p>
             </div>
           )}
         </section>

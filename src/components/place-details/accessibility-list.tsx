@@ -24,5 +24,5 @@ export function AccessibilityList({ items }: AccessibilityListProps) {
     );
   }
 
-  return <RequirementList items={items.map((item) => ({ ...item, label: publicLabel(item) }))} />;
+  return <RequirementList items={items.map((item) => ({ ...item, label: publicLabel(item) }))} maxVisible={3} />;
 }

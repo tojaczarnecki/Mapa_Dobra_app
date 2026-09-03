@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowUp, Check, Download, Smartphone } from "lucide-react";
+import Image from "next/image";
+import { ArrowUp, Download } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
+import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const findLinks = [
   { href: "/szukaj", label: "Szukaj pomocy" },
@@ -27,6 +28,8 @@ const informationLinks = [
   { href: "/o-projekcie", label: "O projekcie" },
   { href: "/kontakt", label: "Kontakt" },
 ];
+
+const footerLinks = [...findLinks, ...contributeLinks, ...informationLinks];
 
 const socialProfiles = [
   { platform: "Facebook", href: null },
@@ -51,13 +54,8 @@ function SocialIcon({ platform }: { platform: (typeof socialProfiles)[number]["p
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.1a2.8 2.8 0 0 0-1.97-1.98C17.9 4.65 12 4.65 12 4.65s-5.9 0-7.63.47A2.8 2.8 0 0 0 2.4 7.1C1.93 8.84 1.93 12 1.93 12s0 3.16.47 4.9a2.8 2.8 0 0 0 1.97 1.98c1.73.47 7.63.47 7.63.47s5.9 0 7.63-.47a2.8 2.8 0 0 0 1.97-1.98c.47-1.74.47-4.9.47-4.9s0-3.16-.47-4.9ZM10.2 15.15v-6.3l5.2 3.15-5.2 3.15Z" /></svg>;
 }
 
-function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-}
-
 function getInstallAvailability() {
-  return typeof window !== "undefined" && !isStandalone();
+  return typeof window !== "undefined" && !isStandalonePwa();
 }
 
 function subscribeToInstallState(onChange: () => void) {
@@ -72,7 +70,8 @@ function subscribeToInstallState(onChange: () => void) {
 
 export function SiteFooter() {
   const pathname = usePathname();
-  const installAvailable = useSyncExternalStore(subscribeToInstallState, getInstallAvailability, () => false);
+  const standalone = useIsStandalonePwa();
+  const installAvailable = useSyncExternalStore(subscribeToInstallState, getInstallAvailability, () => false) && !standalone;
 
   if (pathname.startsWith("/admin")) return null;
 
@@ -80,59 +79,52 @@ export function SiteFooter() {
     window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
 
+  const journeyClass = pathname === "/jak-pomagac"
+    ? "site-footer-journey-guide-hub"
+    : pathname.startsWith("/jak-pomagac/")
+      ? "site-footer-journey-guide-article"
+      : pathname.startsWith("/pomagam") || pathname.startsWith("/uruchom-pomoc")
+        ? "site-footer-journey-help"
+        : pathname.startsWith("/szukam") || pathname.startsWith("/szukaj") || pathname.startsWith("/mapa") || pathname.startsWith("/lodz/")
+          ? "site-footer-journey-search"
+          : "site-footer-journey-neutral";
+
   return (
-    <footer className="site-footer">
+    <footer className={`site-footer ${journeyClass}`}>
       <div className="site-footer-inner">
         <div className="site-footer-brand">
-          <Link href="/" className="site-footer-logo-link" aria-label="Mapa Dobra - strona główna">
-            <Image src="/brand/mapa-dobra-logo-footer.svg" alt="Mapa Dobra" width={516} height={335} className="site-footer-logo" />
+          <Link href="/" className="site-footer-logo-link" aria-label="Dobra Mapa - strona główna">
+            <Image src="/brand/dobra-mapa-logo-footer.svg" alt="Dobra Mapa" width={516} height={335} className="site-footer-logo-asset" />
           </Link>
+          <p className="site-footer-brand-statement">Pomoc istnieje. Pomagamy ją znaleźć.</p>
         </div>
       </div>
-      <div className="site-footer-divider" />
       <div className="site-footer-links">
-        <nav aria-label="Znajdź pomoc" className="site-footer-group">
-          <h2>Znajdź pomoc</h2>
-          {findLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
-        </nav>
-
-        <nav aria-label="Zaangażuj się" className="site-footer-group">
-          <h2>Zaangażuj się</h2>
-          {contributeLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
-        </nav>
-
-        <nav aria-label="Informacje i dokumenty" className="site-footer-group">
-          <h2>Informacje i dokumenty</h2>
-          {informationLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+        <nav aria-label="Nawigacja stopki" className="site-footer-nav">
+          {footerLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
           <button type="button" className="site-footer-group-link" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-cookie-settings"))}>Ustawienia cookies</button>
         </nav>
-
+      </div>
+      <div className="site-footer-install-row">
         <section className="site-footer-install-module" aria-labelledby="site-footer-install-title">
           <div className="site-footer-install-heading">
-            <span className="site-footer-install-icon" aria-hidden="true"><Smartphone size={22} /></span>
             <div>
-              <h2 id="site-footer-install-title">Zainstaluj Mapę Dobra — bezpłatnie</h2>
-              <p>Miej pomoc zawsze pod ręką. Bez opłat, bez App Store i Google Play.</p>
+              <h2 id="site-footer-install-title">Zainstaluj Dobrą Mapę</h2>
+              <p>Miej pomoc zawsze pod ręką. Bez opłat.</p>
             </div>
           </div>
-          <ul className="site-footer-install-benefits" aria-label="Korzyści instalacji">
-            {["Bezpłatna", "Szybki dostęp z ekranu głównego", "Działa jak aplikacja", "Nie musisz jej szukać w przeglądarce"].map((benefit) => (
-              <li key={benefit}><Check aria-hidden="true" size={16} />{benefit}</li>
-            ))}
-          </ul>
           {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
             <Download aria-hidden="true" size={17} />
-            Zainstaluj bezpłatnie
+            Zainstaluj
           </button> : null}
         </section>
       </div>
-      <div className="site-footer-divider" />
       <div className="site-footer-bottom">
         <div className="site-footer-bottom-inner">
-          <span>© 2026 Mapa Dobra</span>
+          <span>© 2026 Dobra Mapa</span>
           <div className="site-footer-social" aria-label="Media społecznościowe">
             {socialProfiles.map(({ platform, href }) => {
-              const label = `Mapa Dobra na ${platform}`;
+              const label = `Dobra Mapa na ${platform}`;
               const content = <SocialIcon platform={platform} />;
               return href ? <a key={platform} href={href} className="site-footer-social-item" aria-label={label} title={label} target="_blank" rel="noopener noreferrer">{content}</a> : <span key={platform} className="site-footer-social-item site-footer-social-item-disabled" role="img" aria-label={label} title={label}>{content}</span>;
             })}

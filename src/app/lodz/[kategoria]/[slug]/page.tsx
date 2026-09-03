@@ -23,12 +23,12 @@ export async function generateMetadata({
 
   if (!place) {
     return {
-      title: "Miejsce pomocy | Mapa Dobra",
+      title: "Miejsce pomocy | Dobra Mapa",
     };
   }
 
   return {
-    title: `${place.name} | Mapa Dobra`,
+    title: `${place.name} | Dobra Mapa`,
     description: `${place.helpTypes.join(", ")} - ${place.address}`,
     alternates: canonicalAlternates(`/lodz/${kategoria}/${slug}`),
   };
