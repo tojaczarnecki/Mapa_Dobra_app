@@ -159,7 +159,9 @@ export function AccommodationCard({
             </span>
           ) : null}
           <h2 className="text-lg font-extrabold leading-tight text-foreground sm:text-xl">
-            {accommodation.name}
+            <Link className="transition-colors hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={`/lodz/${accommodation.categorySlug}/${accommodation.slug}`}>
+              {accommodation.name}
+            </Link>
           </h2>
           <p className="mt-1 text-sm font-bold leading-5 text-muted-foreground">
             {accommodation.typeLabel} • {accommodation.audienceLabel}

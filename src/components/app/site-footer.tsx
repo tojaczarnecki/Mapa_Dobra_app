@@ -75,28 +75,46 @@ export function SiteFooter() {
 
   if (pathname.startsWith("/admin")) return null;
 
+  if (pathname === "/") {
+    return (
+      <footer className="site-footer site-footer-home-micro" aria-label="Informacje prawne">
+        <p>
+          <span>© 2026 Dobra Mapa</span>
+          <span aria-hidden="true"> · </span>
+          <Link href="/polityka-prywatnosci">Prywatność</Link>
+          <span aria-hidden="true"> · </span>
+          <Link href="/cookies">Cookies</Link>
+        </p>
+      </footer>
+    );
+  }
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
 
-  const journeyClass = pathname === "/jak-pomagac"
-    ? "site-footer-journey-guide-hub"
-    : pathname.startsWith("/jak-pomagac/")
-      ? "site-footer-journey-guide-article"
-      : pathname.startsWith("/pomagam") || pathname.startsWith("/uruchom-pomoc")
-        ? "site-footer-journey-help"
-        : pathname.startsWith("/szukam") || pathname.startsWith("/szukaj") || pathname.startsWith("/mapa") || pathname.startsWith("/lodz/")
-          ? "site-footer-journey-search"
-          : "site-footer-journey-neutral";
-
   return (
-    <footer className={`site-footer ${journeyClass}`}>
-      <div className="site-footer-inner">
+    <footer className="site-footer">
+      <div className="site-footer-inner site-footer-brand-install-row">
         <div className="site-footer-brand">
           <Link href="/" className="site-footer-logo-link" aria-label="Dobra Mapa - strona główna">
-            <Image src="/brand/dobra-mapa-logo-footer.svg" alt="Dobra Mapa" width={516} height={335} className="site-footer-logo-asset" />
+            <Image src="/brand/dobra-mapa-logo-footer.svg" alt="Dobra Mapa" width={1003} height={654} className="site-footer-logo-asset" />
           </Link>
           <p className="site-footer-brand-statement">Pomoc istnieje. Pomagamy ją znaleźć.</p>
+        </div>
+        <div className="site-footer-install-row">
+          <section className="site-footer-install-module" aria-labelledby="site-footer-install-title">
+            <div className="site-footer-install-heading">
+              <div>
+                <h2 id="site-footer-install-title">Zainstaluj Dobrą Mapę</h2>
+                <p>Miej pomoc zawsze pod ręką. Bez opłat.</p>
+              </div>
+            </div>
+            {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
+              <Download aria-hidden="true" size={17} />
+              Zainstaluj
+            </button> : null}
+          </section>
         </div>
       </div>
       <div className="site-footer-links">
@@ -104,20 +122,6 @@ export function SiteFooter() {
           {footerLinks.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
           <button type="button" className="site-footer-group-link" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-cookie-settings"))}>Ustawienia cookies</button>
         </nav>
-      </div>
-      <div className="site-footer-install-row">
-        <section className="site-footer-install-module" aria-labelledby="site-footer-install-title">
-          <div className="site-footer-install-heading">
-            <div>
-              <h2 id="site-footer-install-title">Zainstaluj Dobrą Mapę</h2>
-              <p>Miej pomoc zawsze pod ręką. Bez opłat.</p>
-            </div>
-          </div>
-          {installAvailable ? <button type="button" className="site-footer-install" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
-            <Download aria-hidden="true" size={17} />
-            Zainstaluj
-          </button> : null}
-        </section>
       </div>
       <div className="site-footer-bottom">
         <div className="site-footer-bottom-inner">

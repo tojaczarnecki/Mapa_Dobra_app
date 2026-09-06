@@ -7,11 +7,14 @@ import { LaunchSplash } from "@/components/app/launch-splash";
 import { SiteHeader } from "@/components/app/site-header";
 import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
+import { PublicPageShell } from "@/components/app/public-page-shell";
 import { getSiteBaseUrl } from "@/lib/site-url";
 import { isConsentChoice, PRIVACY_CONSENT_COOKIE, type ConsentChoice } from "@/lib/privacy/consent";
 import "./globals.css";
 import "./compact-institutional.css";
 import "./editorial-guides.css";
+import "./public-page-shell.css";
+import "./search-list-polish.css";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 
@@ -51,8 +54,8 @@ export default async function RootLayout({
       <body>
         <script dangerouslySetInnerHTML={{ __html: `(() => { try { const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; document.documentElement.dataset.displayMode = standalone ? "standalone" : "browser"; } catch (_) {} })();` }} />
         <LaunchSplash />
-        <div className="min-h-screen bg-background text-foreground">
-          <PrivacyConsent initialConsent={initialConsent}>
+        <PrivacyConsent initialConsent={initialConsent}>
+          <PublicPageShell>
             <a className="skip-link" href="#main-content">
               Przejdź do treści
             </a>
@@ -61,8 +64,8 @@ export default async function RootLayout({
             <main id="main-content">{children}</main>
             <SiteFooter />
             <MobileBottomNav />
-          </PrivacyConsent>
-        </div>
+          </PublicPageShell>
+        </PrivacyConsent>
       </body>
     </html>
   );

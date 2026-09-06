@@ -7,6 +7,7 @@ import {
   ShowerHead,
   Utensils,
 } from "lucide-react";
+import type { PlaceProfileKindValue } from "@/types/place-admin";
 
 export type PlaceStatus =
   | "open"
@@ -32,6 +33,10 @@ export type DemoPlace = {
   freshnessWarning?: boolean;
   phone?: string;
   primaryIcon: LucideIcon;
+  profileKind?: PlaceProfileKindValue;
+  mobileSeasonLabel?: string;
+  mobileSeasonActive?: boolean;
+  mobileTodayStops?: string[];
   latitude?: number;
   longitude?: number;
 };

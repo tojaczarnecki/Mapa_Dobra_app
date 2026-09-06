@@ -19,8 +19,10 @@ import { Marker, Popup } from "react-leaflet";
 import type { MapCategory, MapPlace } from "@/data/demo-map-places";
 import { MapPlacePopup } from "./map-place-popup";
 import styles from "./map.module.css";
+import { categoryIllustrationColor, categoryIllustrationPath, placeIllustrationSlug } from "@/lib/categories/category-illustrations";
 
 function markerStatusLabel(place: MapPlace) {
+  if (place.profileKind === "FOOD_SHARING") return "dostęp 24/7, zawartość zależna od darów";
   if (place.status.kind === "standard") {
     switch (place.status.status) {
       case "open":
@@ -30,13 +32,13 @@ function markerStatusLabel(place: MapPlace) {
       case "closed":
         return "zamknięte";
       default:
-        return "dane do potwierdzenia";
+        return "brak potwierdzonych informacji o dostępności";
     }
   }
 
   return place.status.availabilityState === "available"
     ? "dostępność potwierdzona"
-    : "dane do potwierdzenia";
+    : "brak potwierdzonych informacji o dostępności";
 }
 
 function escapeAttribute(value: string) {
@@ -59,6 +61,17 @@ const categoryIcon: Record<MapCategory, LucideIcon> = {
   other: CircleEllipsis,
 };
 
+const categoryIllustrationSlug: Partial<Record<MapCategory, string>> = {
+  food: "jedzenie",
+  accommodation: "nocleg",
+  hygiene: "higiena",
+  medical: "pomoc-medyczna",
+  legal: "pomoc-prawna",
+  social: "pomoc-socjalna",
+  clothing: "odziez",
+  other: "wiecej",
+};
+
 export function MapMarker({
   place,
   selected,
@@ -73,19 +86,15 @@ export function MapMarker({
   returnTo?: string;
 }) {
   const CategoryIcon = categoryIcon[place.categories[0]] ?? CircleEllipsis;
+  const illustrationSlug = placeIllustrationSlug(place.profileKind, categoryIllustrationSlug[place.categories[0]]);
+  const categoryIllustration = categoryIllustrationPath(illustrationSlug);
+  const categoryIllustrationColorValue = categoryIllustrationColor(illustrationSlug);
   const markerRef = useRef<LeafletMarker>(null);
-  const categoryIconMarkup = useMemo(
-    () =>
-      renderToStaticMarkup(
-        createElement(CategoryIcon, {
-          "aria-hidden": true,
-          focusable: false,
-          size: 20,
-          strokeWidth: 2.2,
-        }),
-      ),
-    [CategoryIcon],
-  );
+  const categoryIconMarkup = useMemo(() => categoryIllustration
+    ? categoryIllustration.endsWith(".svg")
+      ? `<svg class="${styles.mapMarkerIllustration}" viewBox="0 0 1254 1254" aria-hidden="true" focusable="false" style="color:${escapeAttribute(categoryIllustrationColorValue ?? "currentColor")};fill:currentColor"><use href="${categoryIllustration}#Warstwa_1"></use></svg>`
+      : `<img class="${styles.mapMarkerIllustration}" src="${categoryIllustration}" alt="" aria-hidden="true" />`
+    : renderToStaticMarkup(createElement(CategoryIcon, { "aria-hidden": true, focusable: false, size: 20, strokeWidth: 2.2 })), [CategoryIcon, categoryIllustration, categoryIllustrationColorValue]);
   const icon = useMemo(
     () =>
       divIcon({

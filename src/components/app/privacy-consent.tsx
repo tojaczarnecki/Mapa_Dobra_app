@@ -103,7 +103,7 @@ export function PrivacyConsent({
       <section className="privacy-consent-screen" aria-labelledby="privacy-consent-title">
         <div ref={screenRef} className="privacy-consent-content" tabIndex={-1}>
           <div className="privacy-consent-brand">
-            <Image src="/brand/dobra-mapa-logo-header.svg" alt="Dobra Mapa" width={604} height={120} className="privacy-consent-logo-asset" />
+            <Image src="/brand/dobra-mapa-logo-header.svg" alt="Dobra Mapa" width={1926} height={378} className="privacy-consent-logo-asset" />
           </div>
           <div className="privacy-consent-panel">
             {isPolicyView ? (

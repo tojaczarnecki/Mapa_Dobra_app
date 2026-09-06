@@ -94,6 +94,19 @@ export async function requirePlacePermission(permission: AdminPermission, placeI
   return session;
 }
 
+export async function requireNeedPermission(placeId: string | null) {
+  const session = await requireAdmin();
+  if (session.user.role !== "PLACE_MANAGER" && session.user.permissions.includes("MANAGE_VOLUNTEER_NEEDS")) return session;
+  if (!placeId) redirect("/admin/brak-dostepu");
+
+  const access = await prisma.userPlaceAccess.findUnique({
+    where: { adminUserId_placeId: { adminUserId: session.user.id, placeId } },
+    select: { active: true, permissions: true },
+  });
+  if (!hasPlaceScopedPermission(session.user.permissions, access, "MANAGE_VOLUNTEER_NEEDS")) redirect("/admin/brak-dostepu");
+  return session;
+}
+
 export async function requireAdmin() {
   const session = await getCurrentAdmin();
   if (!session) redirect("/admin/login");

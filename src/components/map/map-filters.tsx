@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, SlidersHorizontal, X } from "lucide-react";
+import { Brain, Check, CircleEllipsis, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MapCategory } from "@/data/demo-map-places";
 import styles from "./map.module.css";
+import { CategoryIllustration } from "@/components/categories/category-illustration";
 
 export type MapCategoryFilter = "all" | MapCategory;
 
@@ -22,6 +23,21 @@ const categoryFilters: Array<{
   { value: "clothing", label: "Odzież" },
   { value: "other", label: "Inne" },
 ];
+
+const categoryIllustrationSlug: Partial<Record<MapCategoryFilter, string>> = {
+  food: "jedzenie",
+  accommodation: "nocleg",
+  hygiene: "higiena",
+  medical: "pomoc-medyczna",
+  legal: "pomoc-prawna",
+  psychological: "pomoc-psychologiczna",
+  social: "pomoc-socjalna",
+  clothing: "odziez",
+};
+
+function CategoryFilterIcon({ value }: { value: MapCategoryFilter }) {
+  return <CategoryIllustration slug={categoryIllustrationSlug[value]} fallback={value === "psychological" ? Brain : CircleEllipsis} className={styles.mapCategoryIllustration} iconSize={18} />;
+}
 
 type MapFiltersProps = {
   category: MapCategoryFilter;
@@ -107,6 +123,7 @@ export function MapFilters({
               onClick={() => onCategoryChange(filter.value)}
             >
               {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
+              <CategoryFilterIcon value={filter.value} />
               {filter.label}
             </button>
           ))}
@@ -154,6 +171,7 @@ export function MapFilters({
                   onClick={() => onCategoryChange(filter.value)}
                 >
                   {category === filter.value ? <Check aria-hidden="true" size={16} /> : null}
+                  <CategoryFilterIcon value={filter.value} />
                   {filter.label}
                 </button>
               ))}

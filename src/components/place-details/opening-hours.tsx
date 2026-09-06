@@ -1,99 +1,71 @@
 import { Clock3 } from "lucide-react";
-import type { OpeningDay } from "@/data/demo-place-details";
+import type { OpeningDay, PlaceStatusDetails } from "@/data/demo-place-details";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { InlineDisclosure } from "./inline-disclosure";
 
-type OpeningHoursProps = {
-  days: OpeningDay[];
-};
+type OpeningHoursProps = { days: OpeningDay[]; status?: PlaceStatusDetails };
 
 function hoursFallbackLabel(day: OpeningDay) {
-  if (day.status === "closed") return "Zamknięte";
+  if (day.status === "closed") return "Nieczynne";
+  return day.note ?? "Brak potwierdzonych godzin";
+}
 
-  if (day.status === "unknown") {
-    return day.note ?? "Brak potwierdzonych godzin";
+function dayLabel(day: OpeningDay) {
+  if (day.status === "open" && day.periods?.length) return day.allDay ? "Całodobowo" : day.periods.join(", ");
+  return hoursFallbackLabel(day);
+}
+
+function nextKnownOpening(days: OpeningDay[]) {
+  const todayIndex = days.findIndex((day) => day.isToday);
+  if (todayIndex < 0) return undefined;
+  return Array.from({ length: days.length - 1 }, (_, offset) => ({
+    day: days[(todayIndex + offset + 1) % days.length],
+    offset: offset + 1,
+  })).find(({ day }) => day.status === "open" && (day.allDay || Boolean(day.periods?.length)));
+}
+
+function closingTime(day?: OpeningDay) {
+  const lastPeriod = day?.periods?.at(-1);
+  if (!lastPeriod) return undefined;
+  return lastPeriod.match(/[–-](\d{2}:\d{2})/u)?.[1];
+}
+
+function todaySummary(days: OpeningDay[], status?: PlaceStatusDetails) {
+  const today = days.find((day) => day.isToday);
+  if (!today) return { label: "Godziny otwarcia", detail: "Brak potwierdzonych godzin", state: "unknown" as const };
+  if (today.status === "unknown") return { label: `Dziś · ${today.day}`, detail: hoursFallbackLabel(today), state: "unknown" as const };
+  if (today.status === "closed") {
+    const next = nextKnownOpening(days);
+    const nextLabel = next?.offset === 1 ? "jutro" : next?.day.day.toLocaleLowerCase("pl-PL");
+    return { label: `Dziś · ${today.day}`, detail: next ? `Nieczynne · następne otwarcie: ${nextLabel} ${dayLabel(next.day)}` : "Nieczynne", state: "absent" as const };
   }
-
-  return "Brak potwierdzonych godzin";
+  const close = closingTime(today);
+  const isOpenNow = status?.tone === "open" || /otwarte teraz/iu.test(status?.todayHours ?? "");
+  return { label: `Dziś · ${today.day}`, detail: today.allDay ? "Całodobowo" : today.periods?.join(", ") ?? "Brak potwierdzonych godzin", state: "confirmed" as const, suffix: isOpenNow && close ? `Otwarte teraz · do ${close}` : undefined };
 }
 
 function HoursValue({ day }: { day: OpeningDay }) {
-  if (day.status === "open" && day.periods?.length) {
-    return (
-      <div className="grid min-w-0 gap-0.5">
-        {day.periods.map((period) => (
-          <span key={period} className="min-w-0">
-            {period}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <StatusIndicator status={day.status === "closed" ? "absent" : "unknown"}>
-      {hoursFallbackLabel(day)}
-    </StatusIndicator>
-  );
+  return day.status === "open" && day.periods?.length ? <>{dayLabel(day)}</> : <StatusIndicator status={day.status === "closed" ? "absent" : "unknown"}>{hoursFallbackLabel(day)}</StatusIndicator>;
 }
 
-export function OpeningHours({ days }: OpeningHoursProps) {
-  const allUnknown = days.length > 0 && days.every((day) => day.status === "unknown");
-  if (allUnknown) {
-    return (
-      <div className="grid gap-2">
-        <StatusIndicator status="unknown" className="text-sm font-semibold text-muted-foreground">
-          Nie mamy potwierdzonych godzin.
-        </StatusIndicator>
-      </div>
-    );
-  }
-
-  const table = (
-    <dl className="min-w-0 overflow-hidden rounded-lg border border-border bg-surface">
-      {days.map((day) => (
-        <div
-          key={day.day}
-          className={[
-            "grid min-w-0 grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-3 border-t border-border px-3 py-2 text-sm first:border-t-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]",
-            day.isToday ? "bg-brand-soft" : "bg-surface",
-          ].join(" ")}
-        >
-          <dt className="flex min-w-0 flex-wrap items-center gap-2 font-extrabold text-foreground">
-            {day.isToday ? (
-              <Clock3 aria-hidden="true" size={16} className="shrink-0 text-brand-strong" />
-            ) : null}
-            <span className="min-w-0">{day.day}</span>
-            {day.isToday ? (
-              <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-extrabold text-brand-strong">
-                Dziś
-              </span>
-            ) : null}
-          </dt>
-          <dd
-            className={[
-              "min-w-0 text-right font-semibold leading-6",
-              day.status === "unknown" ? "text-muted-foreground" : "text-foreground",
-            ].join(" ")}
-          >
-            <HoursValue day={day} />
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-
+export function OpeningHours({ days, status }: OpeningHoursProps) {
+  const today = todaySummary(days, status);
   return (
-    <>
-      <div className="md:hidden">
-        <details className="group rounded-lg border border-border bg-surface-muted">
-          <summary className="touch-target flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-extrabold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>{days.find((day) => day.isToday)?.day ?? "Godziny"}: {days.find((day) => day.isToday)?.status === "open" ? days.find((day) => day.isToday)?.periods?.join(", ") : "sprawdź szczegóły"}</span>
-            <span className="text-brand-strong group-open:rotate-180" aria-hidden="true">⌄</span>
-          </summary>
-          <div className="border-t border-border p-2">{table}</div>
-        </details>
+    <div className="opening-hours-disclosure">
+      <div className="opening-hours-summary">
+        <span className="opening-hours-summary-copy">
+          <span className="opening-hours-summary-title"><Clock3 aria-hidden="true" size={17} />{today.label}</span>
+          <span className="opening-hours-summary-detail"><StatusIndicator status={today.state}>{today.detail}</StatusIndicator>{today.suffix ? <span className="opening-hours-now">{today.suffix}</span> : null}</span>
+        </span>
       </div>
-      <div className="hidden md:block">{table}</div>
-    </>
+      <InlineDisclosure label="Pokaż cały tydzień" expandedLabel="Ukryj tydzień">
+        <dl className="opening-hours-table">
+          {days.map((day) => <div key={day.day} className={day.isToday ? "opening-hours-day opening-hours-day-today" : "opening-hours-day"}>
+            <dt>{day.isToday ? <span className="opening-hours-today-dot" aria-hidden="true" /> : null}<span>{day.day}</span>{day.isToday ? <small>Dziś</small> : null}</dt>
+            <dd><HoursValue day={day} /></dd>
+          </div>)}
+        </dl>
+      </InlineDisclosure>
+    </div>
   );
 }

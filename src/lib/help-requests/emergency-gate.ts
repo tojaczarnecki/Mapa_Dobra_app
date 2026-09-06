@@ -6,7 +6,7 @@ export function canContinueFromEmergency(answer: EmergencyAnswer) {
   return answer !== null;
 }
 
-export function isTerminalEmergency(answer: EmergencyAnswer) {
+export function isTerminalEmergency(answer: EmergencyAnswer): boolean {
   return answer === "YES";
 }
 

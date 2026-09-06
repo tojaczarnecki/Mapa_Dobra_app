@@ -33,44 +33,60 @@ type HelpMapProps = {
   returnTo?: string;
   onViewportChange: (snapshot: MapViewportSnapshot) => void;
   onTileError: () => void;
+  resizeKey?: string | number;
 };
 
-function MapViewportSync() {
+function MapResizeSync({ resizeKey }: { resizeKey?: string | number }) {
   const map = useMap();
-  const frameRef = useRef<number | null>(null);
+  const frameRefs = useRef<number[]>([]);
 
   useEffect(() => {
-    const scheduleInvalidate = () => {
-      if (frameRef.current !== null) return;
-      frameRef.current = window.requestAnimationFrame(() => {
-        frameRef.current = null;
-        map.invalidateSize({ animate: false, pan: false });
+    const refresh = () => {
+      frameRefs.current.forEach((frame) => window.cancelAnimationFrame(frame));
+      frameRefs.current = [];
+
+      const firstFrame = window.requestAnimationFrame(() => {
+        const secondFrame = window.requestAnimationFrame(() => {
+          map.invalidateSize({ animate: false, pan: false });
+        });
+        frameRefs.current.push(secondFrame);
       });
+      frameRefs.current.push(firstFrame);
     };
+    const mapContainer = map.getContainer();
+    // The grid changes the size of the outer frame, while Leaflet owns the inner container.
+    const layoutContainers = [
+      mapContainer,
+      mapContainer.parentElement,
+      mapContainer.parentElement?.parentElement,
+    ].filter((element, index, elements): element is HTMLElement => Boolean(element) && elements.indexOf(element) === index);
     const resizeObserver = typeof ResizeObserver === "undefined"
       ? null
-      : new ResizeObserver(scheduleInvalidate);
+      : new ResizeObserver(refresh);
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") scheduleInvalidate();
+      if (document.visibilityState === "visible") refresh();
     };
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) scheduleInvalidate();
+      if (event.persisted) refresh();
     };
 
-    resizeObserver?.observe(map.getContainer());
-    window.addEventListener("resize", scheduleInvalidate);
+    layoutContainers.forEach((element) => resizeObserver?.observe(element));
+    window.addEventListener("resize", refresh);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pageshow", onPageShow);
-    scheduleInvalidate();
+    layoutContainers.forEach((element) => element.addEventListener("transitionend", refresh));
+    refresh();
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", scheduleInvalidate);
+      window.removeEventListener("resize", refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onPageShow);
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      layoutContainers.forEach((element) => element.removeEventListener("transitionend", refresh));
+      frameRefs.current.forEach((frame) => window.cancelAnimationFrame(frame));
+      frameRefs.current = [];
     };
-  }, [map]);
+  }, [map, resizeKey]);
 
   return null;
 }
@@ -168,6 +184,7 @@ export function HelpMap({
   returnTo,
   onViewportChange,
   onTileError,
+  resizeKey,
 }: HelpMapProps) {
   return (
     <MapContainer
@@ -184,7 +201,7 @@ export function HelpMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         eventHandlers={{ tileerror: onTileError }}
       />
-      <MapViewportSync />
+      <MapResizeSync resizeKey={resizeKey} />
       <ZoomControl position="bottomright" />
       <MarkerClusterGroup
         chunkedLoading

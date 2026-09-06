@@ -2,13 +2,14 @@
 
 import { Search } from "lucide-react";
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
-import { getHomeSuggestions, type HomeSearchCategory } from "@/lib/home/autosuggest";
-import type { PublicSearchPlace } from "@/lib/places/search";
+import { getSmartSearchSuggestions } from "@/lib/places/search-intent";
+import type { HomeSearchCategory } from "@/lib/home/autosuggest";
+import type { SmartSearchPlace } from "@/lib/places/search-intent";
 import { ClearableSearchInput } from "@/components/ui/clearable-search-input";
 
 type HomeSearchAutocompleteProps = {
   categories: HomeSearchCategory[];
-  places: PublicSearchPlace[];
+  places: SmartSearchPlace[];
 };
 
 export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocompleteProps) {
@@ -16,7 +17,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const suggestions = useMemo(() => getHomeSuggestions(query, categories, places), [categories, places, query]);
+  const suggestions = useMemo(() => getSmartSearchSuggestions(query, { categories, places }), [categories, places, query]);
   const activeSuggestion = activeIndex >= 0 ? suggestions[activeIndex] : undefined;
 
   function goToSuggestion(href: string) {
@@ -90,7 +91,7 @@ export function HomeSearchAutocomplete({ categories, places }: HomeSearchAutocom
                   onClick={() => goToSuggestion(suggestion.href)}
                 >
                   <span className="home-search-suggestion-label">{suggestion.label}</span>
-                  <span className="home-search-suggestion-kind">{suggestion.secondary}</span>
+                  <span className="home-search-suggestion-kind">{suggestion.group}</span>
                 </button>
               </li>
             ))}

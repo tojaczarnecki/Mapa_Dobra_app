@@ -103,6 +103,7 @@ export type PlaceDetail = {
   mobile?: {
     season?: { active: boolean; label: string; start: string; end: string; isActiveNow: boolean };
     stops: Array<{ name: string; address: string; latitude?: number; longitude?: number; note?: string; schedules: string[] }>;
+    todayStops: Array<{ time: string; name: string }>;
   };
 };
 
@@ -531,7 +532,7 @@ const accommodationPlaces: PlaceDetail[] = [
       sobriety: { label: "Brak potwierdzonych danych", status: "unknown" },
       animals: [{ label: "Po uzgodnieniu", status: "warning" }],
       accessibility: [{ label: "Dostępność nie została potwierdzona", status: "unknown" }],
-      overnightInfo: [{ label: "Odpłatność", value: "brak potwierdzonych danych" }],
+      overnightInfo: [],
       importantNote: "Brak aktualnych danych nie oznacza braku miejsc.",
     },
   },

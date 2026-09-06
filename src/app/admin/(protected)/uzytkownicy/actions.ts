@@ -129,9 +129,12 @@ export async function createAdminUser(
   }
   if (payload.role === "SUPER_ADMIN" && session.user.role !== "SUPER_ADMIN") return { error: "Tylko superadministrator może utworzyć inne konto SUPER_ADMIN." };
 
+  let operation = "transaction";
   try {
     const result = await prisma.$transaction(async (transaction) => {
+      operation = "ensurePlacesExist";
       await ensurePlacesExist(transaction, payload.placeAccess);
+      operation = "AdminUser.create";
       const user = await transaction.adminUser.create({
         data: {
           displayName: payload.displayName,
@@ -154,7 +157,9 @@ export async function createAdminUser(
           } } : {}),
         },
       });
+      operation = "AdminAccessToken.create";
       const token = await issueToken(transaction, user.id, "INVITATION", session.user.id);
+      operation = "AuditLog.create USER_INVITED";
       await transaction.auditLog.create({
         data: {
           adminUserId: session.user.id,
@@ -175,7 +180,9 @@ export async function createAdminUser(
         },
       });
       if (payload.placeAccess.length) {
+        operation = "UserPlaceAccess.findMany";
         const createdAccesses = await transaction.userPlaceAccess.findMany({ where: { adminUserId: user.id, active: true } });
+        operation = "AuditLog.createMany USER_PLACE_ACCESS_GRANTED";
         await transaction.auditLog.createMany({ data: createdAccesses.map((access) => ({ adminUserId: session.user.id, action: "USER_PLACE_ACCESS_GRANTED" as const, entityType: "USER_PLACE_ACCESS" as const, entityId: access.id, changedFields: ["active", "permissions"], newValues: { userId: user.id, placeId: access.placeId, permissions: access.permissions }, changeOrigin: "ADMIN_MANUAL" as const })) });
       }
       return { user, token };
@@ -188,6 +195,14 @@ export async function createAdminUser(
     };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { error: "Konto z tym adresem e-mail już istnieje." };
+    const meta = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta : undefined;
+    console.error("[admin:createAdminUser] transaction failed", {
+      operation,
+      name: error instanceof Error ? error.name : typeof error,
+      code: error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined,
+      message: error instanceof Error ? error.message : "Unknown error",
+      meta: meta && typeof meta === "object" ? meta : undefined,
+    });
     return { error: "Nie udało się utworzyć użytkownika." };
   }
 }

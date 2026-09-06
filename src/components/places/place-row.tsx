@@ -3,18 +3,24 @@ import { ChevronRight, Navigation } from "lucide-react";
 import type { DemoPlace, PlaceStatus } from "@/data/demo-places";
 import { DataFreshness } from "@/components/ui/data-freshness";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { CategoryIllustration } from "@/components/categories/category-illustration";
+import { PlaceStatusBadge } from "./place-status-badge";
+import { placeIllustrationSlug } from "@/lib/categories/category-illustrations";
 
 const statusConfig: Record<PlaceStatus, { label: string; tone: string; status: "confirmed" | "absent" | "unknown" | "condition" }> = {
   open: { label: "Otwarte teraz", tone: "is-open", status: "confirmed" },
   closed: { label: "Zamknięte teraz", tone: "is-closed", status: "absent" },
   openToday: { label: "Otwarte dzisiaj", tone: "is-open-today", status: "confirmed" },
   unknownHours: { label: "Brak potwierdzonych godzin", tone: "is-warning", status: "unknown" },
-  needsConfirmation: { label: "Dane wymagają potwierdzenia", tone: "is-warning", status: "unknown" },
+  needsConfirmation: { label: "Brak potwierdzonych informacji o dostępności", tone: "is-warning", status: "unknown" },
 };
 
 export function PlaceRow({ place }: { place: DemoPlace }) {
   const Icon = place.primaryIcon;
   const status = statusConfig[place.status];
+  const isFoodSharing = place.profileKind === "FOOD_SHARING";
+  const isMobileService = place.profileKind === "MOBILE_SERVICE";
+  const illustrationSlug = placeIllustrationSlug(place.profileKind, place.categorySlug);
   const tags = Array.from(new Set([...place.helpTypes, ...place.conditions])).slice(0, 2);
 
   return (
@@ -24,17 +30,15 @@ export function PlaceRow({ place }: { place: DemoPlace }) {
       aria-label={`${place.name}. ${status.label}. ${place.distance}. Pokaż szczegóły.`}
     >
       <span className="md-place-icon" aria-hidden="true">
-        <Icon size={21} strokeWidth={1.9} />
+        <CategoryIllustration slug={illustrationSlug} fallback={Icon} iconSize={21} />
       </span>
 
       <span className="md-place-content">
         <span className="md-place-title">{place.name}</span>
         <span className="md-place-status-line">
-          <StatusIndicator status={status.status} className={`md-place-status-label ${status.tone}`}>
-            {status.label}
-          </StatusIndicator>
+          {isFoodSharing ? <PlaceStatusBadge status={place.status} compact profileKind={place.profileKind} /> : <StatusIndicator status={status.status} className={`md-place-status-label ${status.tone}`}>{isMobileService ? place.mobileSeasonActive ? `Sezonowo · ${place.mobileSeasonLabel ?? "kursuje"}` : "Poza sezonem" : status.label}</StatusIndicator>}
           <span aria-hidden="true">·</span>
-          <span>{place.todayHours}</span>
+          <span>{isFoodSharing ? "Zawartość zmienna" : place.todayHours}</span>
         </span>
         <span className="md-place-distance">
           <Navigation aria-hidden="true" size={12} />

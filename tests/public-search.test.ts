@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getHomeSuggestions } from "../src/lib/home/autosuggest.ts";
 import { getCategoryAccentMap } from "../src/lib/home/category-accent.ts";
-import { interpretSearchQuery, searchIntentHref, searchIntentSuggestions } from "../src/lib/places/search-intent.ts";
+import { getSmartSearchSuggestions, interpretSearchQuery, searchIntentHref, searchIntentSuggestions } from "../src/lib/places/search-intent.ts";
 import { filterPublicSearchPlaces, type PublicSearchPlace } from "../src/lib/places/search.ts";
 
 const places: PublicSearchPlace[] = [
@@ -10,6 +10,23 @@ const places: PublicSearchPlace[] = [
   { id: "shower", name: "Centrum Prysznic", categorySlug: "higiena", slug: "centrum-prysznic", categorySlugs: ["higiena"], searchText: "Centrum Prysznic higiena prysznic", status: "closed", openNow: false, todayHours: "Dzisiaj 08:00-10:00", free: "UNKNOWN", referralRequired: "UNKNOWN", documentRequired: "NO", distanceKm: 1 },
   { id: "unknown", name: "Niepewny Punkt", categorySlug: "jedzenie", slug: "niepewny-punkt", categorySlugs: ["jedzenie"], searchText: "Niepewny Punkt jedzenie", status: "unknownHours", openNow: null, todayHours: "Brak potwierdzonych godzin", free: "UNKNOWN", referralRequired: "UNKNOWN", documentRequired: "UNKNOWN", distanceKm: 0.5 },
 ];
+
+const socialFridge: PublicSearchPlace = {
+  id: "fridge",
+  name: "Lodówka społeczna",
+  categorySlug: "jedzenie",
+  slug: "lodowka-spoleczna",
+  categorySlugs: ["jedzenie", "lodowka-spoleczna"],
+  searchText: "Lodówka społeczna jedzenie",
+  status: "open",
+  openNow: null,
+  todayHours: "Całodobowo",
+  free: "UNKNOWN",
+  referralRequired: "UNKNOWN",
+  documentRequired: "UNKNOWN",
+  distanceKm: 0.1,
+  profileKind: "FOOD_SHARING",
+};
 
 test("search is case and diacritic insensitive across name and category", () => {
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "LODZKI" }).map((place) => place.id), ["food"]);
@@ -23,6 +40,12 @@ test("filters preserve UNKNOWN and only accept explicitly confirmed conditions",
   assert.deepEqual(filterPublicSearchPlaces(places, { free: true }).map((place) => place.id), ["food"]);
   assert.deepEqual(filterPublicSearchPlaces(places, { openNow: true }).map((place) => place.id), ["food"]);
   assert.deepEqual(filterPublicSearchPlaces(places, { today: true }).map((place) => place.id), ["shower", "food"]);
+});
+
+test("food journey keeps social fridges out of the confirmed-help ranking and open-now filter", () => {
+  const foodPlaces = [...places, socialFridge];
+  assert.deepEqual(filterPublicSearchPlaces(foodPlaces, { category: "jedzenie" }).map((place) => place.id), ["unknown", "food", "fridge"]);
+  assert.deepEqual(filterPublicSearchPlaces(foodPlaces, { category: "jedzenie", openNow: true }).map((place) => place.id), ["food"]);
 });
 
 test("search supports no results, combined filters and distance sorting", () => {
@@ -125,4 +148,37 @@ test("category accents are stable across order and additions", () => {
     getCategoryAccentMap(["nocleg"]).get("nocleg"),
     getCategoryAccentMap(["higiena"]).get("higiena"),
   ]).size, 3);
+});
+
+test("smart search returns categories, combined intent and a safe plain-text fallback", () => {
+  const category = getSmartSearchSuggestions("łóż", { places });
+  assert.equal(category[0]?.label, "Nocleg");
+  assert.match(category[0]?.href ?? "", /kategoria=nocleg/);
+
+  const combined = getSmartSearchSuggestions("ciepły posiłek dzisiaj", { places });
+  assert.equal(combined[0]?.group, "Interpretacja");
+  assert.match(combined[0]?.href ?? "", /kategoria=jedzenie/);
+  assert.match(combined[0]?.href ?? "", /dzisiaj=1/);
+
+  const place = getSmartSearchSuggestions("centrum", { places }).find((suggestion) => suggestion.group === "Miejsce");
+  assert.equal(place?.label, "Centrum Prysznic");
+  assert.equal(getSmartSearchSuggestions("zzzz", { places })[0]?.label, "Szukaj „zzzz”");
+  assert.match(getSmartSearchSuggestions("zzzz", { places })[0]?.href ?? "", /[?&]q=zzzz/);
+});
+
+test("smart search recognizes practical natural-language criteria without inventing filters", () => {
+  const examples = [
+    ["nocleg na dziś", "nocleg", "today"],
+    ["jedzenie otwarte teraz", "jedzenie", "openNow"],
+    ["psycholog najbliżej mnie", "pomoc-psychologiczna", "sort"],
+    ["nocleg z psem", "nocleg", undefined],
+    ["pomoc bez skierowania", undefined, "noReferral"],
+  ] as const;
+
+  for (const [query, category, filter] of examples) {
+    const intent = interpretSearchQuery(query);
+    assert.equal(intent.filters.category, category);
+    if (filter) assert.ok(intent.filters[filter]);
+  }
+  assert.equal(interpretSearchQuery("nocleg z psem").filters.free, undefined);
 });

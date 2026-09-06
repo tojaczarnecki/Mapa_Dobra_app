@@ -57,6 +57,8 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
           label="Wyszukiwarka pomocy"
           placeholder="Znajdź pomoc…"
           variant="landing"
+          categories={categories.map(([slug, label]) => ({ slug, label }))}
+          places={places.map(({ id, name, categorySlug, slug, searchText }) => ({ id, name, categorySlug, slug, searchText }))}
           trailing={<Link href="/szukaj#filtry-kategorie" className="search-control-filter" aria-label="Otwórz filtry"><SlidersHorizontal aria-hidden="true" size={21} /></Link>}
         />
       </section>
@@ -70,9 +72,9 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
         </div>
         <div className="support-category-grid mt-4">
           {featuredCategories.map(([label, slug, Icon]) => (
-            <CategoryTile key={slug} href={slug === "nocleg" ? "/znajdz-nocleg" : `/szukaj?kategoria=${encodeURIComponent(slug)}`} label={label} icon={Icon} accent={accents.get(slug) ?? "#0B4F48"} />
+            <CategoryTile key={slug} href={slug === "nocleg" ? "/znajdz-nocleg" : `/szukaj?kategoria=${encodeURIComponent(slug)}`} label={label} slug={slug} icon={Icon} accent={accents.get(slug) ?? "#0B4F48"} />
           ))}
-          <CategoryTile href="/szukaj" label="Więcej" icon={CircleHelp} accent="#0B4F48" />
+          <CategoryTile href="/szukaj" label="Więcej" slug="wiecej" icon={CircleHelp} accent="#0B4F48" />
         </div>
         <Link href="/szukam?tryb=guided" className="support-uncertain-entry">
           <span className="support-uncertain-icon" aria-hidden="true"><CircleHelp size={20} /></span>

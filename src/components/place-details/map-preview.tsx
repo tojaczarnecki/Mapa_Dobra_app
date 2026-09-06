@@ -8,6 +8,7 @@ type MapPreviewProps = {
 
 export function MapPreview({ place }: MapPreviewProps) {
   const locationLabel = mapPreviewLocationLabel(place.address, place.coordinatesLabel);
+  const isMobileService = place.profileKind === "MOBILE_SERVICE";
   return (
     <div
       id="mapa-dojazd"
@@ -22,7 +23,7 @@ export function MapPreview({ place }: MapPreviewProps) {
         </span>
         <div className="min-w-0">
           <h2 className="text-xl font-extrabold leading-tight text-foreground">
-            Mapa i dojazd
+            {isMobileService ? "Baza / organizator" : "Adres"}
           </h2>
           <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
             {place.address}
@@ -35,7 +36,7 @@ export function MapPreview({ place }: MapPreviewProps) {
         </div>
       </div>
 
-      <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">Dojazd do miejsca sprawdzisz po otwarciu trasy.</p>
+      <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">{isMobileService ? "To adres organizacyjny, nie miejsce postoju autobusu." : "Dojazd do miejsca sprawdzisz po otwarciu trasy."}</p>
     </div>
   );
 }

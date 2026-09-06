@@ -46,6 +46,17 @@ test("place-scoped permissions exclude global administration rights", () => {
   assert.equal(placeScopedPermissions.includes("PUBLISH_PLACES"), false);
 });
 
+test("super admin can manage needs globally while a place manager stays place-scoped", () => {
+  const superAdminPermissions = resolveEffectivePermissions("SUPER_ADMIN", []);
+  const managerPermissions = resolveEffectivePermissions("PLACE_MANAGER", []);
+  const needPermission = "MANAGE_VOLUNTEER_NEEDS" as const;
+
+  assert.equal(superAdminPermissions.includes(needPermission), true);
+  assert.equal(managerPermissions.includes(needPermission), false);
+  assert.equal(hasPlaceScopedPermission(managerPermissions, { active: true, permissions: [needPermission] }, needPermission), true);
+  assert.equal(hasPlaceScopedPermission(managerPermissions, null, needPermission), false);
+});
+
 test("the last active super administrator cannot be removed", () => {
   assert.equal(canChangeAdminIdentity({ activeSuperAdminCount: 1, targetIsActiveSuperAdmin: true, nextRole: "ADMIN", nextActive: true }), false);
   assert.equal(canChangeAdminIdentity({ activeSuperAdminCount: 1, targetIsActiveSuperAdmin: true, nextRole: "SUPER_ADMIN", nextActive: false }), false);

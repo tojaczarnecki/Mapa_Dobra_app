@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Share, WifiOff, X } from "lucide-react";
+import { Download, Share, WifiOff } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
+const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const RESUME_STALE_AFTER_MS = 90_000;
 
 type BeforeInstallPromptEvent = Event & {
@@ -29,13 +30,18 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   const [revalidating, setRevalidating] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [meaningfulInteraction, setMeaningfulInteraction] = useState(false);
   const [iosInstructions, setIosInstructions] = useState(false);
   const standalone = useIsStandalonePwa();
   const connectionInitialized = useRef(false);
   const reconnectTimer = useRef<number | undefined>(undefined);
   const lastActiveAt = useRef(0);
   const revalidatingRef = useRef(false);
-  const [dismissed, setDismissed] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(DISMISSED_KEY) === "1");
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const dismissedUntil = Number(window.localStorage.getItem(DISMISSED_KEY) ?? 0);
+    return dismissedUntil > Date.now();
+  });
 
   useEffect(() => {
     let workerRegistration: ServiceWorkerRegistration | undefined;
@@ -76,12 +82,10 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       connectionInitialized.current = true;
     };
     const onNetworkFailure = () => setOffline(true);
-    const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       const promptEvent = event as BeforeInstallPromptEvent;
       setInstallPrompt(promptEvent);
-      if (!wasDismissed && !isStandalonePwa()) setShowInstall(true);
     };
     const onInstalled = () => {
       setInstallPrompt(null);
@@ -139,8 +143,15 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     };
   }, [enabled, router]);
 
+  useEffect(() => {
+    const isMeaningfulRoute = pathname.startsWith("/szukaj") || pathname.startsWith("/mapa") || pathname.startsWith("/lodz/");
+    if (!isMeaningfulRoute || standalone || dismissed) return;
+    const timer = window.setTimeout(() => setMeaningfulInteraction(true), 1400);
+    return () => window.clearTimeout(timer);
+  }, [dismissed, pathname, standalone]);
+
   const dismissInstall = () => {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
+    window.localStorage.setItem(DISMISSED_KEY, String(Date.now() + DISMISS_COOLDOWN_MS));
     setDismissed(true);
     setShowInstall(false);
     setIosInstructions(false);
@@ -155,6 +166,8 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   };
 
   const showPublicInstallUi = !pathname.startsWith("/admin") && !standalone && !dismissed;
+  const iosDevice = typeof window !== "undefined" && isIosSafari();
+  const contextualInstallReady = meaningfulInteraction && (Boolean(installPrompt) || iosDevice);
 
   return (
     <>
@@ -165,14 +178,14 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
           <Link href="/offline">Pokaż zapisane</Link>
         </div>
       ) : reconnected ? <div className="offline-notice offline-notice-reconnected" role="status" aria-live="polite">Połączenie przywrócone.</div> : revalidating ? <div className="offline-notice" role="status" aria-live="polite">Aktualizuję dane…</div> : null}
-      {showPublicInstallUi && showInstall ? (
+      {showPublicInstallUi && (showInstall || contextualInstallReady) ? (
         <aside className="pwa-install-notice md-pwa-install" aria-label="Instalacja Mapy Dobra">
           <div className="pwa-install-icon" aria-hidden="true"><Download size={20} /></div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-[#08255B]">Zapisz Mapę Dobra na telefonie</p>
-            <p className="mt-1 text-sm text-muted-foreground">Szybszy dostęp do pomocy bez szukania strony w przeglądarce.</p>
-            {iosInstructions ? (
-              <p className="mt-2 text-sm text-muted-foreground">Wybierz <strong>Udostępnij</strong>, a następnie <strong>Dodaj do ekranu początkowego</strong>.</p>
+            <p className="font-bold text-[#08255B]">Miej Dobrą Mapę zawsze pod ręką</p>
+            <p className="mt-1 text-sm text-muted-foreground">Dodaj ją do swojego urządzenia i otwieraj jak zwykłą aplikację.</p>
+            {iosInstructions || (contextualInstallReady && iosDevice) ? (
+              <p className="mt-2 text-sm text-muted-foreground"><strong>Udostępnij → Dodaj do ekranu początkowego</strong></p>
             ) : !installPrompt ? (
               <p className="mt-2 text-sm text-muted-foreground">W menu przeglądarki wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.</p>
             ) : null}
@@ -180,11 +193,11 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
               <Share aria-hidden="true" className="mt-2 text-[#08255B]" size={19} />
             ) : installPrompt ? (
               <button type="button" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#08255B] px-4 text-sm font-bold text-white hover:bg-[#061A42]" onClick={() => void install()}>
-                Zapisz aplikację
+                Dodaj do urządzenia
               </button>
             ) : null}
           </div>
-          <button type="button" className="touch-target inline-flex shrink-0 items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground" onClick={dismissInstall} aria-label="Zamknij komunikat instalacji" title="Zamknij"><X aria-hidden="true" size={19} /></button>
+          <button type="button" className="touch-target inline-flex shrink-0 items-center justify-center rounded-md px-2 text-sm font-bold text-muted-foreground hover:bg-surface-muted hover:text-foreground" onClick={dismissInstall}>Nie teraz</button>
         </aside>
       ) : null}
     </>

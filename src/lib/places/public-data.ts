@@ -24,7 +24,7 @@ import {
 } from "@/lib/accommodations/types";
 import { resolveAvailabilityFreshness, resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
 import { getAccommodationPetPresentation, getAccommodationSobrietyLabel } from "@/lib/accommodations/presentation";
-import { evaluateCurrentOpening } from "@/lib/places/current-opening";
+import { evaluateCurrentOpening, getWarsawWeekday } from "@/lib/places/current-opening";
 import type { PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
 import { publicRequirementLabel } from "@/lib/places/requirement-label";
@@ -64,6 +64,7 @@ const categoryMap: Partial<Record<string, MapCategory>> = {
   "pomoc-prawna": "legal",
   "pomoc-psychologiczna": "psychological",
   odziez: "clothing",
+  "lodowka-spoleczna": "food",
 };
 
 const iconMap: Record<string, LucideIcon> = {
@@ -169,6 +170,13 @@ function requirementTone(item: PublicPlaceRecord["requirements"][number]): Detai
   return item.state === "YES" ? "warning" : "positive";
 }
 
+function confirmedFreeRequirement(place: PublicPlaceRecord) {
+  const fee = place.requirements.find((item) => item.kind === "FEE");
+  return fee?.state === "NO"
+    ? { label: conditionLabel(fee), status: "positive" as const, note: fee.note ?? undefined }
+    : undefined;
+}
+
 function accessibilityTone(state: "YES" | "NO" | "UNKNOWN"): DetailListItem["status"] {
   return state === "YES" ? "positive" : state === "NO" ? "neutral" : "unknown";
 }
@@ -198,7 +206,15 @@ function openingDays(place: PublicPlaceRecord): OpeningDay[] {
 
 function statusDetails(place: PublicPlaceRecord): PlaceDetail["status"] {
   const status = placeStatus(place);
-  const labels = { open: "OTWARTE TERAZ", closed: "ZAMKNIĘTE TERAZ", openToday: "OTWARTE DZISIAJ", unknownHours: "BRAK POTWIERDZONYCH GODZIN", needsConfirmation: "DANE WYMAGAJĄ POTWIERDZENIA" } as const;
+  if (place.placeKind === "FOOD_SHARING") {
+    return {
+      label: "DOSTĘP 24/7",
+      tone: "open",
+      todayHours: "Dostęp 24/7",
+      note: "Zawartość lodówki jest zmienna i zależy od bieżących darów.",
+    };
+  }
+  const labels = { open: "OTWARTE TERAZ", closed: "ZAMKNIĘTE TERAZ", openToday: "OTWARTE DZISIAJ", unknownHours: "BRAK POTWIERDZONYCH GODZIN", needsConfirmation: "BRAK POTWIERDZONYCH INFORMACJI O DOSTĘPNOŚCI" } as const;
   const tones = { open: "open", closed: "closed", openToday: "openToday", unknownHours: "unknown", needsConfirmation: "unknown" } as const;
   return { label: labels[status], tone: tones[status], todayHours: currentOpening(place).label };
 }
@@ -241,6 +257,7 @@ function accommodationAvailability(place: PublicPlaceRecord): NonNullable<PlaceD
 
 function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
   const accommodation = place.accommodation;
+  const freeRequirement = confirmedFreeRequirement(place);
   const publicAvailability = accommodation ? accommodationAvailability(place) : undefined;
   const detailAccommodation: PlaceDetail["accommodation"] = accommodation ? {
     availability: publicAvailability!,
@@ -253,7 +270,8 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
       triRequirement("ostatni meldunek w Łodzi", accommodation.lodzRegistrationRequired),
       triRequirement("skierowanie", accommodation.referralRequired),
       triRequirement("dokument", accommodation.documentRequired),
-    ],
+      freeRequirement,
+    ].filter((item): item is DetailListItem => Boolean(item)),
     sobriety: {
       label: getAccommodationSobrietyLabel(accommodation.sobrietyPolicy),
       status: accommodation.sobrietyPolicy === "UNKNOWN" ? "unknown" : "warning",
@@ -267,7 +285,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
     overnightInfo: [
       ["Wyżywienie", accommodation.mealsInfo], ["Higiena", accommodation.hygieneInfo], ["Bagaż", accommodation.luggageInfo],
-      ["Godzina powrotu", accommodation.returnTimeInfo], ["Maksymalny pobyt", accommodation.maxStayInfo], ["Odpłatność", accommodation.feeInfo],
+      ["Godzina powrotu", accommodation.returnTimeInfo], ["Maksymalny pobyt", accommodation.maxStayInfo],
     ].filter((row): row is [string, string] => Boolean(row[1])).map(([label, value]) => ({ label, value })),
     importantNote: accommodation.importantNote ?? "Informacja o wolnych miejscach nie jest gwarancją przyjęcia.",
   } : undefined;
@@ -275,8 +293,8 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     season: place.mobileSeason ? {
       active: place.mobileSeason.active,
       label: place.mobileSeason.label ?? "",
-      start: `${place.mobileSeason.startDay}.${place.mobileSeason.startMonth}.`,
-      end: `${place.mobileSeason.endDay}.${place.mobileSeason.endMonth}.`,
+      start: formatSeasonDate(place.mobileSeason.startDay, place.mobileSeason.startMonth),
+      end: formatSeasonDate(place.mobileSeason.endDay, place.mobileSeason.endMonth),
       isActiveNow: isAnnualDateInRange(new Date(), place.mobileSeason.startMonth, place.mobileSeason.startDay, place.mobileSeason.endMonth, place.mobileSeason.endDay),
     } : undefined,
     stops: place.mobileStops.map((stop) => ({
@@ -285,8 +303,14 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
       latitude: stop.latitude === null ? undefined : Number(stop.latitude),
       longitude: stop.longitude === null ? undefined : Number(stop.longitude),
       note: stop.note ?? undefined,
-      schedules: stop.schedules.map((schedule) => schedule.allDay ? `${schedule.weekday}: Całodobowo` : `${schedule.weekday}: ${schedule.opensAt ?? ""}-${schedule.closesAt ?? ""}`),
+      schedules: stop.schedules.map((schedule) => schedule.allDay ? "Całodobowo" : `${schedule.opensAt ?? ""}${schedule.closesAt ? `–${schedule.closesAt}` : ""}`),
     })),
+    todayStops: place.mobileStops.flatMap((stop) => stop.schedules
+      .filter((schedule) => schedule.weekday === getWarsawWeekday())
+      .map((schedule) => ({
+        time: schedule.allDay ? "Całodobowo" : schedule.opensAt ?? "",
+        name: stop.name,
+      }))),
   } : undefined;
 
   return {
@@ -306,7 +330,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     latitude: place.latitude === null ? undefined : Number(place.latitude),
     longitude: place.longitude === null ? undefined : Number(place.longitude),
     coordinatesLabel: place.district ? `Łódź, ${place.district}` : "Łódź",
-    requirements: place.requirements.map((item) => ({ label: conditionLabel(item), status: requirementTone(item), note: item.note ?? undefined })),
+    requirements: place.requirements.filter((item) => item.kind !== "FEE" || item.state === "NO").map((item) => ({ label: conditionLabel(item), status: requirementTone(item), note: item.note ?? undefined })),
     audience: place.audience,
     services: place.services,
     accessibility: place.accessibility.map((item) => ({ label: item.label, status: accessibilityTone(item.state), note: item.note ?? undefined })),
@@ -326,13 +350,25 @@ function isAnnualDateInRange(date: Date, startMonth: number, startDay: number, e
   return start <= end ? value >= start && value <= end : value >= start || value <= end;
 }
 
+const monthNames = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
+
+function formatSeasonDate(day: number, month: number) {
+  return `${day} ${monthNames[month - 1] ?? ""}`.trim();
+}
+
 function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
   const opening = currentOpening(place);
   const verification = verificationPresentation(place);
   const referral = place.requirements.find((item) => item.kind === "REFERRAL")?.state ?? "UNKNOWN";
   const document = place.requirements.find((item) => item.kind === "DOCUMENT")?.state ?? "UNKNOWN";
   const fee = place.requirements.find((item) => item.kind === "FEE");
-  const free = !fee || fee.state === "UNKNOWN" ? "UNKNOWN" : fee.state === "NO" || /bezpłat/iu.test(fee.label) ? "YES" : "NO";
+  const free = fee?.state === "NO" ? "YES" : "UNKNOWN";
+  const mobileSeason = place.placeKind === "MOBILE_SERVICE" ? place.mobileSeason : null;
+  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE"
+    ? place.mobileStops.flatMap((stop) => stop.schedules
+      .filter((schedule) => schedule.weekday === getWarsawWeekday())
+      .map((schedule) => schedule.allDay ? stop.name : `${schedule.opensAt ?? ""} ${stop.name}`.trim()))
+    : undefined;
   return {
     id: place.legacyId ?? place.id,
     categorySlug: place.primaryCategory.slug,
@@ -343,7 +379,7 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
     todayHours: opening.label,
     distance: place.distanceLabel ?? "Odległość nieznana",
     address: place.addressLine,
-    conditions: place.requirements.map(conditionLabel),
+    conditions: place.requirements.filter((item) => item.kind !== "FEE" || item.state === "NO").map(conditionLabel),
     freshness: verification.label,
     freshnessWarning: verification.tone !== "verified",
     phone: place.phone ?? undefined,
@@ -352,11 +388,15 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
     longitude: place.longitude === null ? undefined : Number(place.longitude),
     categorySlugs: place.categories.map((item) => item.category.slug),
     searchText: [place.name, place.organization?.name ?? "", place.addressLine, place.description ?? "", ...place.services, ...place.categories.map((item) => item.category.name)].join(" "),
-    openNow: opening.isOpenNow,
+    openNow: place.placeKind === "FOOD_SHARING" ? null : opening.isOpenNow,
     free,
     referralRequired: referral,
     documentRequired: document,
     distanceKm: distanceNumber(place.distanceLabel),
+    profileKind: place.placeKind,
+    mobileSeasonLabel: mobileSeason ? `${formatSeasonDate(mobileSeason.startDay, mobileSeason.startMonth)} – ${formatSeasonDate(mobileSeason.endDay, mobileSeason.endMonth)}` : undefined,
+    mobileSeasonActive: mobileSeason ? isAnnualDateInRange(new Date(), mobileSeason.startMonth, mobileSeason.startDay, mobileSeason.endMonth, mobileSeason.endDay) : undefined,
+    mobileTodayStops,
   };
 }
 
@@ -414,16 +454,22 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   const effectiveAvailability = place.accommodation
     ? resolveAvailabilityState(place.accommodation.availabilityState, place.accommodation.availabilityConfirmedAt)
     : undefined;
-  const openNow = place.accommodation
+  const openNow = place.placeKind === "FOOD_SHARING"
+    ? null
+    : place.accommodation
     ? place.accommodation.acceptsToday === "UNKNOWN" || opening.isOpenNow === null
       ? null
       : place.accommodation.acceptsToday === "YES" && opening.isOpenNow &&
         !["FULL", "SUSPENDED"].includes(effectiveAvailability!)
     : opening.isOpenNow;
   const feeRequirement = place.requirements.find((item) => item.kind === "FEE");
-  const free = !feeRequirement || feeRequirement.state === "UNKNOWN"
-    ? null
-    : feeRequirement.state === "NO" || /bezpłat/iu.test(feeRequirement.label);
+  const free = feeRequirement?.state === "NO" ? true : null;
+  const mobileSeason = place.placeKind === "MOBILE_SERVICE" ? place.mobileSeason : null;
+  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE"
+    ? place.mobileStops.flatMap((stop) => stop.schedules
+      .filter((schedule) => schedule.weekday === getWarsawWeekday())
+      .map((schedule) => schedule.allDay ? stop.name : `${schedule.opensAt ?? ""} ${stop.name}`.trim()))
+    : undefined;
   const base = {
     id: place.legacyId ?? place.id,
     name: place.name,
@@ -438,6 +484,10 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
     openNow,
     free,
     searchTerms: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)],
+    profileKind: place.placeKind,
+    mobileSeasonLabel: mobileSeason ? `${formatSeasonDate(mobileSeason.startDay, mobileSeason.startMonth)} – ${formatSeasonDate(mobileSeason.endDay, mobileSeason.endMonth)}` : undefined,
+    mobileSeasonActive: mobileSeason ? isAnnualDateInRange(new Date(), mobileSeason.startMonth, mobileSeason.startDay, mobileSeason.endMonth, mobileSeason.endDay) : undefined,
+    mobileTodayStops,
   };
   if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: opening.label } };
   const availability = accommodationAvailability(place);

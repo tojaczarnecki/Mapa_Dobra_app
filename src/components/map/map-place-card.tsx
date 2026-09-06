@@ -83,6 +83,8 @@ export function MapPlaceCard({
 }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
   const isAccommodation = place.status.kind === "accommodation";
+  const isFoodSharing = place.profileKind === "FOOD_SHARING";
+  const isMobileService = place.profileKind === "MOBILE_SERVICE";
   const callHref = telephoneHref(place.phone);
   const routeHref = directionsHref(place);
   const useCompactAccommodation = isAccommodation && compactAccommodation;
@@ -93,10 +95,12 @@ export function MapPlaceCard({
   const placeHeading = (
     <div className={["min-w-0 space-y-1", useCompactAccommodation ? "pr-10" : ""].join(" ")}>
       <h2 className="text-lg font-extrabold leading-tight text-foreground">
-        {place.name}
+        <Link className="transition-colors hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={detailsHref}>
+          {place.name}
+        </Link>
       </h2>
       <p className="text-sm font-bold text-muted-foreground">
-        {place.helpTypes.join(" • ")}
+        {isFoodSharing ? "Lodówka społeczna" : place.helpTypes.join(" • ")}
       </p>
     </div>
   );
@@ -104,8 +108,8 @@ export function MapPlaceCard({
   const placeStatus =
     place.status.kind === "standard" ? (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <PlaceStatusBadge status={place.status.status} />
-        <span className="text-sm font-bold text-foreground">{place.status.todayHours}</span>
+        <PlaceStatusBadge status={place.status.status} profileKind={place.profileKind} mobileSeasonLabel={place.mobileSeasonLabel} mobileSeasonActive={place.mobileSeasonActive} />
+        {!isFoodSharing ? <span className="text-sm font-bold text-foreground">{isMobileService ? place.mobileTodayStops?.[0] ?? "Postoje według rozkładu" : place.status.todayHours}</span> : null}
       </div>
     ) : useCompactAccommodation ? (
       <div
@@ -219,7 +223,6 @@ export function MapPlaceCard({
         href={detailsHref}
         className={[
           "place-card-action",
-          isAccommodation ? "" : "place-card-action-primary",
         ].join(" ")}
       >
         <ChevronRight aria-hidden="true" size={17} />
@@ -236,7 +239,7 @@ export function MapPlaceCard({
           Trasa
         </a>
       ) : null}
-      <Link href={detailsHref} className="place-card-action place-card-action-primary">
+      <Link href={detailsHref} className="place-card-action">
         <ChevronRight aria-hidden="true" size={16} />
         Szczegóły
       </Link>
@@ -246,8 +249,8 @@ export function MapPlaceCard({
   if (compact) {
     const compactPlaceStatus = place.status.kind === "standard" ? (
       <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
-        <PlaceStatusBadge compact status={place.status.status} />
-        <span className="truncate">{place.status.todayHours}</span>
+        <PlaceStatusBadge compact status={place.status.status} profileKind={place.profileKind} mobileSeasonLabel={place.mobileSeasonLabel} mobileSeasonActive={place.mobileSeasonActive} />
+        {!isFoodSharing ? <span className="truncate">{isMobileService ? place.mobileTodayStops?.[0] ?? "Postoje według rozkładu" : place.status.todayHours}</span> : null}
       </div>
     ) : (
       <span className="truncate text-xs font-semibold text-foreground">
@@ -256,10 +259,12 @@ export function MapPlaceCard({
     );
 
     return (
-      <article className={styles.mobileCompactCard}>
+      <article className={[styles.mobileCompactCard, isMobileService ? styles.mobileServiceCard : ""].join(" ")}>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-extrabold leading-5 text-foreground">{place.name}</h2>
-          <p className="truncate text-xs font-bold text-muted-foreground">{place.helpTypes.join(" • ")}</p>
+          <h2 className="truncate text-base font-extrabold leading-5 text-foreground">
+            <Link className="transition-colors hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={detailsHref}>{place.name}</Link>
+          </h2>
+          <p className="truncate text-xs font-bold text-muted-foreground">{isFoodSharing ? "Lodówka społeczna" : place.helpTypes.join(" • ")}</p>
         </div>
         <div className="flex min-w-0 items-center gap-x-2 text-xs font-semibold text-foreground">
           <MapPin aria-hidden="true" className="shrink-0 text-brand-strong" size={15} />
@@ -274,8 +279,10 @@ export function MapPlaceCard({
 
   return (
     <article
+      data-profile-kind={place.profileKind}
       className={[
         "min-w-0 rounded-lg border border-border bg-surface shadow-[0_12px_30px_rgb(17_24_39_/_12%)]",
+        isMobileService ? "border-[#b9e1d9] bg-[#eef9f7]" : "",
         useCompactAccommodation
           ? styles.compactAccommodationCard
           : "space-y-3 p-3.5 sm:p-4",

@@ -32,6 +32,7 @@ export const allAdminPermissions: AdminPermission[] = [
   "MANAGE_USER_PERMISSIONS",
   "VIEW_HELP_REQUESTS",
   "MANAGE_HELP_REQUESTS",
+  "MANAGE_VOLUNTEER_NEEDS",
 ];
 
 export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[]> = {
@@ -79,6 +80,7 @@ export const placeScopedPermissions: AdminPermission[] = [
   "UPDATE_PLACE_BASIC",
   "UPDATE_ACCOMMODATION_DETAILS",
   "UPDATE_TOTAL_CAPACITY",
+  "MANAGE_VOLUNTEER_NEEDS",
 ];
 
 export const permissionLabels: Record<AdminPermission, string> = {
@@ -109,6 +111,7 @@ export const permissionLabels: Record<AdminPermission, string> = {
   MANAGE_USER_PERMISSIONS: "Zarządzanie uprawnieniami",
   VIEW_HELP_REQUESTS: "Podgląd zgłoszeń pomocy",
   MANAGE_HELP_REQUESTS: "Obsługa zgłoszeń pomocy",
+  MANAGE_VOLUNTEER_NEEDS: "Zarządzanie aktualnymi potrzebami",
 };
 
 export type PermissionOverride = {

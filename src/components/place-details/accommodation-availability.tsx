@@ -3,6 +3,7 @@ import type {
   AccommodationAvailabilityDetails,
   CapacityGroupDetails,
 } from "@/data/demo-place-details";
+import { InlineDisclosure } from "./inline-disclosure";
 
 type AccommodationAvailabilityProps = {
   availability: AccommodationAvailabilityDetails;
@@ -76,13 +77,15 @@ export function AccommodationAvailability({
         config.className,
       ].join(" ")}
     >
-      <div className="min-w-0 space-y-3">
+      <div className="min-w-0">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Dostępność noclegu</p>
           <h2 className="mt-1 text-xl font-extrabold leading-tight text-foreground">{decisionLabel(availability.state)}</h2>
         </div>
-        {capacityGroups.length > 0 ? (
-          <dl className="place-detail-availability-facts min-w-0">
+        <InlineDisclosure label="Pokaż dostępność" expandedLabel="Ukryj dostępność">
+          <div className="space-y-3 pt-3">
+            {capacityGroups.length > 0 ? (
+              <dl className="place-detail-availability-facts min-w-0">
             {capacityGroups.map((group) => (
               <Fragment key={group.label}>
                 <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border py-2 text-sm first:border-t-0">
@@ -101,16 +104,16 @@ export function AccommodationAvailability({
                 ) : null}
               </Fragment>
             ))}
-          </dl>
-        ) : null}
-        <p className="text-sm font-semibold leading-6 text-foreground">
-          Liczba wolnych miejsc mogła się zmienić. Zadzwoń przed przyjazdem.
-        </p>
-        <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground">
-          <span>{availability.confirmed}</span>
-          {/brak potwierdzonych|brak przyjęć/iu.test(admissionsToday) ? <span>Godziny przyjęć niepotwierdzone</span> : <span>{admissionsToday}</span>}
-        </div>
-        {importantNote ? <p className="text-sm leading-6 text-muted-foreground">{importantNote}</p> : null}
+              </dl>
+            ) : null}
+            <p className="text-sm font-semibold leading-6 text-foreground">Liczba wolnych miejsc mogła się zmienić. Zadzwoń przed przyjazdem.</p>
+            <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground">
+              <span>{availability.confirmed}</span>
+              {/brak potwierdzonych|brak przyjęć/iu.test(admissionsToday) ? <span>Godziny przyjęć niepotwierdzone</span> : <span>{admissionsToday}</span>}
+            </div>
+            {importantNote ? <p className="text-sm leading-6 text-muted-foreground">{importantNote}</p> : null}
+          </div>
+        </InlineDisclosure>
       </div>
     </section>
   );

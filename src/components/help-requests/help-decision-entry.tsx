@@ -67,6 +67,10 @@ export function HelpDecisionEntry({ categories }: { categories: HelpDecisionCate
         <a href="tel:112" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#b42318] px-3 py-2 text-sm font-bold text-white hover:bg-[#8f1d14] sm:min-h-11 sm:px-4">Zadzwoń 112</a>
       </aside>
 
+      <Link href="/potrzeby" className="mt-5 flex items-center justify-between gap-4 rounded-lg border border-brand/30 bg-brand-soft px-4 py-4 hover:border-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+        <span><span className="block text-base font-extrabold">Chcę pomóc jako wolontariusz</span><span className="mt-1 block text-sm text-muted-foreground">Zobacz, gdzie organizacje potrzebują ludzi teraz lub w najbliższych dniach.</span></span><ArrowRight aria-hidden="true" className="shrink-0 text-brand-strong" size={19} />
+      </Link>
+
       <section className="mt-8 grid items-start gap-4 lg:grid-cols-2" aria-labelledby="help-decision-title">
         <h2 id="help-decision-title" className="sr-only">Wybierz, co możesz zrobić</h2>
         <article className="help-situation-card flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">

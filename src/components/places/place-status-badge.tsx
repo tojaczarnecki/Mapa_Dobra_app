@@ -1,5 +1,6 @@
 import type { PlaceStatus } from "@/data/demo-places";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import type { PlaceProfileKindValue } from "@/types/place-admin";
 
 const statusConfig = {
   open: {
@@ -25,7 +26,7 @@ const statusConfig = {
   needsConfirmation: {
     className: "border-urgent-border bg-urgent-soft text-foreground",
     status: "unknown" as const,
-    label: "DANE WYMAGAJĄ POTWIERDZENIA",
+    label: "BRAK POTWIERDZONYCH INFORMACJI O DOSTĘPNOŚCI",
   },
 } satisfies Record<
   PlaceStatus,
@@ -36,17 +37,33 @@ const statusConfig = {
   }
 >;
 
-export function PlaceStatusBadge({ status, compact = false, freshnessWarning = false }: { status: PlaceStatus; compact?: boolean; freshnessWarning?: boolean }) {
+export function PlaceStatusBadge({ status, compact = false, freshnessWarning = false, profileKind, mobileSeasonLabel, mobileSeasonActive }: { status: PlaceStatus; compact?: boolean; freshnessWarning?: boolean; profileKind?: PlaceProfileKindValue; mobileSeasonLabel?: string; mobileSeasonActive?: boolean }) {
   const config = statusConfig[status];
   const compactLabel = {
     open: "Otwarte",
     closed: "Zamknięte",
     openToday: "Dzisiaj otwarte",
     unknownHours: "Nie mamy potwierdzonych godzin",
-    needsConfirmation: "Dane do potwierdzenia",
+    needsConfirmation: "Brak potwierdzonych informacji o dostępności",
   } satisfies Record<PlaceStatus, string>;
 
   const uncertainCurrent = freshnessWarning && (status === "open" || status === "openToday");
+  const foodSharing = profileKind === "FOOD_SHARING";
+  const mobileService = profileKind === "MOBILE_SERVICE";
+  const mobileLabel = mobileSeasonLabel
+    ? mobileSeasonActive
+      ? `Sezonowo · ${mobileSeasonLabel}`
+      : "Poza sezonem"
+    : "Mobilna usługa";
+  if (foodSharing) {
+    return (
+      <span className="public-status-badge public-status-badge-informational">
+        <span aria-hidden="true" className="shrink-0 font-extrabold">•</span>
+        <span>Dostęp 24/7</span>
+      </span>
+    );
+  }
+
   return (
     <span
       className={[
@@ -54,8 +71,8 @@ export function PlaceStatusBadge({ status, compact = false, freshnessWarning = f
         uncertainCurrent ? "border-urgent-border bg-urgent-soft text-foreground" : config.className,
       ].join(" ")}
     >
-      <StatusIndicator status={uncertainCurrent ? "unknown" : config.status} announceLabel={!compact || !uncertainCurrent && status !== "unknownHours" && status !== "needsConfirmation"}>
-        {uncertainCurrent ? `Według ostatnich danych: ${compact ? compactLabel[status] : config.label.toLocaleLowerCase("pl-PL")}` : compact ? compactLabel[status] : config.label}
+        <StatusIndicator status={mobileService && mobileSeasonActive ? "confirmed" : mobileService ? "absent" : uncertainCurrent ? "unknown" : config.status} announceLabel={!compact || mobileService || !uncertainCurrent && status !== "unknownHours" && status !== "needsConfirmation"}>
+        {mobileService ? mobileLabel : uncertainCurrent ? `Według ostatnich danych: ${compact ? compactLabel[status] : config.label.toLocaleLowerCase("pl-PL")}` : compact ? compactLabel[status] : config.label}
       </StatusIndicator>
     </span>
   );

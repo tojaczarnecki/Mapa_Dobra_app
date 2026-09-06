@@ -1,12 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { SearchResultsMap } from "./search-results-map";
+
+const SearchResultsMapContext = createContext<{ expanded: boolean; toggle: () => void } | null>(null);
+
+export function SearchResultsMapToggle() {
+  const map = useContext(SearchResultsMapContext);
+  if (!map) return null;
+  return (
+    <button type="button" className="search-results-map-expand" aria-label={map.expanded ? "Wróć do widoku lista i mapa" : "Powiększ mapę"} title={map.expanded ? "Wróć do widoku lista i mapa" : "Powiększ mapę"} onClick={map.toggle}>
+      {map.expanded ? <Minimize2 aria-hidden="true" size={18} /> : <Maximize2 aria-hidden="true" size={18} />}
+    </button>
+  );
+}
 
 export function SearchResultsInteractive({ places, children }: { places: MapPlace[]; children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>();
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [pendingScrollPlaceId, setPendingScrollPlaceId] = useState<string>();
 
   const scrollCardIntoView = useCallback((placeId: string) => {
     const root = rootRef.current;
@@ -16,14 +31,42 @@ export function SearchResultsInteractive({ places, children }: { places: MapPlac
 
     const listRect = list.getBoundingClientRect();
     const cardRect = card.getBoundingClientRect();
-    if (cardRect.top < listRect.top) list.scrollBy({ top: cardRect.top - listRect.top - 12, behavior: "smooth" });
-    if (cardRect.bottom > listRect.bottom) list.scrollBy({ top: cardRect.bottom - listRect.bottom + 12, behavior: "smooth" });
+    const listScrolls = list.scrollHeight > list.clientHeight + 1;
+
+    if (listScrolls) {
+      if (cardRect.top < listRect.top) list.scrollBy({ top: cardRect.top - listRect.top - 12, behavior: "smooth" });
+      if (cardRect.bottom > listRect.bottom) list.scrollBy({ top: cardRect.bottom - listRect.bottom + 12, behavior: "smooth" });
+      return;
+    }
+
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   const selectPlace = useCallback((placeId: string, shouldScroll: boolean) => {
     setSelectedPlaceId(placeId);
-    if (shouldScroll) window.requestAnimationFrame(() => scrollCardIntoView(placeId));
-  }, [scrollCardIntoView]);
+    if (shouldScroll) {
+      setPendingScrollPlaceId(placeId);
+      setMapExpanded(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingScrollPlaceId || mapExpanded) return;
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        scrollCardIntoView(pendingScrollPlaceId);
+        setPendingScrollPlaceId(undefined);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [mapExpanded, pendingScrollPlaceId, scrollCardIntoView]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -35,9 +78,10 @@ export function SearchResultsInteractive({ places, children }: { places: MapPlac
   }, [selectedPlaceId]);
 
   return (
+    <SearchResultsMapContext.Provider value={{ expanded: mapExpanded, toggle: () => setMapExpanded((expanded) => !expanded) }}>
     <div
       ref={rootRef}
-      className="search-results-workspace grid min-w-0 gap-4 lg:grid-cols-[minmax(0,680px)_minmax(320px,1fr)] lg:items-start lg:gap-8"
+      className={["search-results-workspace grid min-w-0 gap-4 lg:grid-cols-[minmax(0,680px)_minmax(320px,1fr)] lg:items-start lg:gap-8", mapExpanded ? "search-results-workspace-map-expanded" : ""].join(" ")}
       onClick={(event) => {
         const card = (event.target as HTMLElement).closest<HTMLElement>("[data-search-result-id]");
         if (card && !(event.target as HTMLElement).closest("a,button,input,select,summary")) selectPlace(card.dataset.searchResultId ?? "", false);
@@ -49,9 +93,11 @@ export function SearchResultsInteractive({ places, children }: { places: MapPlac
     >
       {children}
       <aside className="search-results-map-workspace hidden lg:sticky lg:top-24 lg:block" aria-label="Mapa wyników wyszukiwania">
-        <div className="search-results-map-frame h-[min(68dvh,720px)] min-h-[34rem] overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+        <div className="search-results-map-frame relative h-[min(68dvh,720px)] min-h-[34rem] overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+          <SearchResultsMapToggle />
           <SearchResultsMap
             places={places}
+            resizeKey={mapExpanded ? "expanded" : "split"}
             selectedPlaceId={selectedPlaceId}
             onPlaceSelect={(place) => selectPlace(place.id, true)}
             onPlaceDeselect={(placeId) => setSelectedPlaceId((current) => current === placeId ? undefined : current)}
@@ -60,5 +106,6 @@ export function SearchResultsInteractive({ places, children }: { places: MapPlac
         <span className="sr-only">Mapa z wynikami wyszukiwania. Liczba miejsc: {places.length}.</span>
       </aside>
     </div>
+    </SearchResultsMapContext.Provider>
   );
 }

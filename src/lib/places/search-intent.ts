@@ -1,4 +1,4 @@
-import { normalizePublicSearch, type PublicSearchFilters } from "./search.ts";
+import { normalizePublicSearch, type PublicSearchFilters, type PublicSearchPlace } from "./search.ts";
 
 export type SearchIntentToken = {
   id: string;
@@ -109,7 +109,7 @@ export function interpretSearchQuery(query: string): SearchIntent {
     addToken(tokens, "open-now", "Otwarte teraz", "openNow", true);
   }
 
-  const today = containsAny(normalized, ["dzisiaj", "dzis", "na dzisiaj", "na dzis", "tego dnia"]);
+  const today = containsAny(normalized, ["dzisiaj", "dzis", "na dzisiaj", "na dzis", "tego dnia", "dostepne dzisiaj", "dostepne dzis"]);
   if (today && !openNow) {
     filters.today = true;
     addToken(tokens, "today", "Dzisiaj", "today", true);
@@ -162,6 +162,104 @@ export type SearchSuggestion = {
   query: string;
 };
 
+export type SmartSearchSuggestion = SearchSuggestion & {
+  group: "Kategoria" | "Szybka akcja" | "Miejsce" | "Interpretacja" | "Wyszukiwanie";
+  href: string;
+};
+
+export type SmartSearchPlace = Pick<PublicSearchPlace, "id" | "name" | "categorySlug" | "slug" | "searchText">;
+
+type SmartSearchOptions = {
+  categories?: Array<{ label: string; slug: string }>;
+  places?: SmartSearchPlace[];
+  limit?: number;
+};
+
+const quickActionSuggestions: SmartSearchSuggestion[] = [
+  { id: "action-open-now", label: "Otwarte teraz", description: "Szybka akcja", group: "Szybka akcja", query: "otwarte teraz", href: "/szukaj?otwarte=1" },
+  { id: "action-today", label: "Dostępne dzisiaj", description: "Szybka akcja", group: "Szybka akcja", query: "dostępne dzisiaj", href: "/szukaj?dzisiaj=1" },
+  { id: "action-nearest", label: "Najbliżej mnie", description: "Szybka akcja", group: "Szybka akcja", query: "najbliżej mnie", href: "/szukaj?sort=distance" },
+];
+
+function suggestionHref(query: string) {
+  const intent = interpretSearchQuery(query);
+  if (intent.recognized) return searchIntentHref(query);
+  return `/szukaj?q=${encodeURIComponent(query.trim())}`;
+}
+
+function phraseMatches(value: string, query: string) {
+  const normalizedValue = normalizePublicSearch(value);
+  const normalizedQuery = normalizePublicSearch(query);
+  return normalizedValue.includes(normalizedQuery) || normalizedQuery.includes(normalizedValue);
+}
+
+export function getSmartSearchSuggestions(query: string, options: SmartSearchOptions = {}): SmartSearchSuggestion[] {
+  const normalized = normalizePublicSearch(query);
+  if (normalized.length < 2) return [];
+
+  const categories = options.categories ?? categoryMatchers.map(({ label, slug }) => ({ label, slug }));
+  const categoriesFound = categories
+    .filter((category) => phraseMatches(`${category.label} ${category.slug}`, query) || categoryMatchers.some((matcher) => matcher.slug === category.slug && matcher.phrases.some((phrase) => phraseMatches(phrase, query))))
+    .sort((left, right) => {
+      const leftDirect = phraseMatches(`${left.label} ${left.slug}`, query) ? 0 : 1;
+      const rightDirect = phraseMatches(`${right.label} ${right.slug}`, query) ? 0 : 1;
+      return leftDirect - rightDirect;
+    })
+    .slice(0, 5)
+    .map((category) => ({
+      id: `category-${category.slug}`,
+      label: category.label,
+      description: "Kategoria pomocy",
+      group: "Kategoria" as const,
+      query: category.slug,
+    }));
+
+  const intent = interpretSearchQuery(query);
+  const interpreted = intent.recognized
+    ? [{
+        id: "intent-best-match",
+        label: `Rozumiem: ${intent.tokens.map((token) => token.label).join(" · ")}`,
+        description: "Zastosuj rozpoznane kryteria",
+        group: "Interpretacja" as const,
+        query,
+      }]
+    : [];
+
+  const actions = quickActionSuggestions
+    .filter((suggestion) => phraseMatches(suggestion.label, query))
+    .map((suggestion) => ({ ...suggestion }));
+
+  const places = (options.places ?? [])
+    .filter((place) => phraseMatches(`${place.name} ${place.searchText}`, query))
+    .slice(0, 5)
+    .map((place) => ({
+      id: `place-${place.id}`,
+      label: place.name,
+      description: "Miejsce",
+      group: "Miejsce" as const,
+      query,
+    }));
+
+  const suggestions = [...interpreted, ...categoriesFound, ...actions, ...places].map((suggestion) => ({
+    ...suggestion,
+    href: suggestion.group === "Kategoria"
+      ? `/szukaj?kategoria=${encodeURIComponent(suggestion.query)}`
+      : suggestion.group === "Miejsce"
+      ? `/lodz/${(options.places ?? []).find((place) => `place-${place.id}` === suggestion.id)?.categorySlug || "inne"}/${(options.places ?? []).find((place) => `place-${place.id}` === suggestion.id)?.slug || ""}`
+      : suggestionHref(suggestion.query),
+  }));
+
+  if (suggestions.length > 0) return suggestions.slice(0, options.limit ?? 8);
+  return [{
+    id: "free-text-search",
+    label: `Szukaj „${query.trim()}”`,
+    description: "Wyszukiwanie tekstowe",
+    group: "Wyszukiwanie",
+    query: query.trim(),
+    href: suggestionHref(query),
+  }];
+}
+
 const defaultSuggestions: SearchSuggestion[] = [
   { id: "food", label: "Jedzenie", description: "Kategoria pomocy", query: "jedzenie" },
   { id: "accommodation", label: "Nocleg na dzisiaj", description: "Kategoria pomocy", query: "nocleg na dzisiaj" },
@@ -171,19 +269,14 @@ const defaultSuggestions: SearchSuggestion[] = [
 ];
 
 export function searchIntentSuggestions(query: string): SearchSuggestion[] {
-  const normalized = normalizePublicSearch(query);
-  if (!normalized) return defaultSuggestions;
-
-  return categoryMatchers
-    .filter((category) => category.phrases.some((phrase) => {
-      const normalizedPhrase = normalizePublicSearch(phrase);
-      return normalizedPhrase.includes(normalized) || normalized.includes(normalizedPhrase);
-    }))
-    .map((category) => ({
-      id: `category-${category.slug}`,
-      label: category.label,
-      description: "Kategoria pomocy",
-      query: category.phrases[0],
+  if (!normalizePublicSearch(query)) return defaultSuggestions;
+  return getSmartSearchSuggestions(query, { limit: 5 })
+    .sort((left, right) => left.group === right.group ? 0 : left.group === "Kategoria" ? -1 : right.group === "Kategoria" ? 1 : 0)
+    .map((suggestion) => ({
+      id: suggestion.id,
+      label: suggestion.label,
+      description: suggestion.description,
+      query: suggestion.query,
     }));
 }
 

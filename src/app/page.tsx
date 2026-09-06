@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HomeGuideModule } from "@/components/home/home-guide-module";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
 import { canonicalAlternates } from "@/lib/site-url";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="home-page home-journey-foyer mobile-nav-safe-content mx-auto w-full max-w-[1000px] px-5 pb-28 pt-10 sm:px-6 sm:pt-16 lg:px-8 lg:pb-20 lg:pt-20">
+    <div className="home-page home-journey-foyer mobile-nav-safe-content mx-auto w-full max-w-[1000px] px-5 pb-28 pt-16 sm:px-6 sm:pt-20 lg:px-8 lg:pb-20 lg:pt-24">
       <header className="home-intro">
         <p className="home-eyebrow">DOBRA MAPA</p>
         <h1 className="home-motto">Jak możemy Ci dziś pomóc?</h1>
@@ -43,6 +44,8 @@ export default function Home() {
           variant="unknown"
         />
       </section>
+
+      <HomeGuideModule />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, ClipboardCheck } from "lucide-react";
 import { SubmissionList } from "@/components/admin/submission-list";
+import { AdminPushSettings } from "@/components/admin/push/admin-push-settings";
 import { facilityVerificationGate } from "@/lib/admin/facility-verification";
 import { moderationStatusLabels } from "@/lib/admin/labels";
 import { getDashboardData } from "@/lib/admin/submissions";
@@ -69,6 +70,8 @@ export default async function AdminDashboardPage() {
           Otwórz kolejkę
         </Link>
       </header>
+
+      <AdminPushSettings />
 
       <section aria-labelledby="queue-status-heading">
         <h2 id="queue-status-heading" className="mb-4 text-lg font-bold">

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { List, Map as MapIcon, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { List, Map as MapIcon, Sparkles, X } from "lucide-react";
 import { NoResults } from "@/components/places/no-results";
 import { PlaceCard } from "@/components/places/place-card";
-import { SearchSortSelect } from "@/components/places/search-sort-select";
-import { SearchResultsInteractive } from "@/components/places/search-results-interactive";
+import { SearchResultsFilterPanel } from "@/components/places/search-results-filter-panel";
+import { FoodSharingModule } from "@/components/places/food-sharing-module";
+import { SearchResultsInteractive, SearchResultsMapToggle } from "@/components/places/search-results-interactive";
 import { SearchControl } from "@/components/search/search-control";
 import { LocationControl } from "@/components/search/location-control";
 import { getPublicMapPlaces, getPublicSearchPlaces } from "@/lib/places/public-data";
@@ -79,7 +80,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   };
   const [allPlaces, allMapPlaces] = await Promise.all([getPublicSearchPlaces(), getPublicMapPlaces()]);
   const places = filterPublicSearchPlaces(allPlaces, filters);
-  const resultIds = new Set(places.map((place) => place.id));
+  const foodJourney = category === "jedzenie";
+  const foodSharingPlaces = allPlaces.filter(
+    (place) => place.profileKind === "FOOD_SHARING" &&
+      (place.categorySlugs.includes("jedzenie") || place.categorySlugs.includes("lodowka-spoleczna")),
+  );
+  const visiblePlaces = foodJourney ? places.filter((place) => place.profileKind !== "FOOD_SHARING") : places;
+  const filterablePlaces = foodJourney ? allPlaces.filter((place) => place.profileKind !== "FOOD_SHARING") : allPlaces;
+  const resultIds = new Set(visiblePlaces.map((place) => place.id));
   const mapPlaces = allMapPlaces.filter((place) => resultIds.has(place.id));
   const current = new URLSearchParams();
   if (interpretedText) current.set("zapytanie", interpretedText);
@@ -108,17 +116,29 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     { label: "Bez skierowania", key: "bez_skierowania", value: "1", active: filters.noReferral },
     { label: "Bez dokumentów", key: "bez_dokumentow", value: "1", active: filters.noDocuments },
   ];
+  const activeFilterCount = Number(Boolean(category)) + quickFilters.filter((filter) => filter.active && filter.key !== "sort").length;
+  const practicalFilterOptions = quickFilters
+    .filter((filter) => filter.key !== "sort")
+    .map((filter) => ({ ...filter, active: Boolean(filter.active), href: searchHref(current, filter.key, filter.value) }));
+  const categoryOptions = categories.map(([slug, label]) => ({
+    label,
+    key: "kategoria",
+    value: slug,
+    href: searchHref(current, "kategoria", slug),
+    active: category === slug,
+  }));
+  const sortOptions = [
+    { label: "Najlepiej dopasowane", key: "sort", value: "best", href: searchHref(current, "sort"), active: sort === "best" },
+    { label: "Najbliżej", key: "sort", value: "distance", href: searchHref(current, "sort", "distance"), active: sort === "distance" },
+  ];
   const originalIntent = interpretedText ? interpretSearchQuery(interpretedText) : undefined;
   const activeIntentTokens = originalIntent?.tokens.filter((token) => tokenIsActive(token, filters)) ?? [];
   const searchValue = interpretedText || query;
   const preserveFiltersOnSubmit = !interpretedText;
-  const resultsMode = places.length > 0;
-  const visibleQuickFilters = resultsMode
-    ? quickFilters.filter((filter) => filter.key === "otwarte" || filter.key === "sort")
-    : quickFilters;
-  const resultCountLabel = places.length === 1
+  const resultsMode = visiblePlaces.length > 0;
+  const resultCountLabel = visiblePlaces.length === 1
     ? "miejsce"
-    : places.length >= 2 && places.length <= 4
+    : visiblePlaces.length >= 2 && visiblePlaces.length <= 4
       ? "miejsca"
       : "miejsc";
 
@@ -128,19 +148,40 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="min-w-0 space-y-3 sm:space-y-4">
           <div className="search-results-query-area w-full min-w-0 max-w-full">
             <div className="min-w-0 space-y-3 sm:space-y-4">
-              <div className="space-y-1 sm:space-y-2">
-                <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">Znajdź pomoc</h1>
-                <p className="hidden text-base leading-7 text-muted-foreground sm:block">Napisz po prostu, czego potrzebujesz.</p>
+              <div className="search-results-heading-row flex min-w-0 flex-wrap items-center justify-between gap-x-5 gap-y-2">
+                <div className="space-y-1 sm:space-y-2">
+                  <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">Znajdź pomoc</h1>
+                  <p className="hidden text-base leading-7 text-muted-foreground sm:block">Napisz po prostu, czego potrzebujesz.</p>
+                </div>
+                <div className="search-results-meta-toolbar hidden lg:flex">
+                  <span className="search-results-meta-count">{visiblePlaces.length} {resultCountLabel}</span>
+                  <SearchResultsMapToggle />
+                  <LocationControl />
+                </div>
               </div>
 
-              <SearchControl
-                action="/szukaj"
-                id="search-query"
-                label="Czego szukasz?"
-                defaultValue={searchValue}
-                placeholder="np. ciepły posiłek dzisiaj bez skierowania"
-                hiddenFields={<>{preserveFiltersOnSubmit && category ? <input type="hidden" name="kategoria" value={category} /> : null}{preserveFiltersOnSubmit && filters.openNow ? <input type="hidden" name="otwarte" value="1" /> : null}{preserveFiltersOnSubmit && filters.today ? <input type="hidden" name="dzisiaj" value="1" /> : null}{preserveFiltersOnSubmit && filters.free ? <input type="hidden" name="bezplatne" value="1" /> : null}{preserveFiltersOnSubmit && filters.noReferral ? <input type="hidden" name="bez_skierowania" value="1" /> : null}{preserveFiltersOnSubmit && filters.noDocuments ? <input type="hidden" name="bez_dokumentow" value="1" /> : null}{preserveFiltersOnSubmit && sort !== "best" ? <input type="hidden" name="sort" value={sort} /> : null}</>}
-              />
+              <div className="search-results-mobile-toolbar lg:hidden">
+                <LocationControl />
+                <div aria-label="Widok wyników" className="search-results-mobile-view-toggle">
+                  <span aria-current="page"><List aria-hidden="true" size={15} />Lista</span>
+                  <Link href={current.toString() ? `/mapa?${current.toString()}` : "/mapa"}><MapIcon aria-hidden="true" size={15} />Mapa</Link>
+                </div>
+              </div>
+
+              <div className="search-results-mobile-search-row">
+                <SearchControl
+                  action="/szukaj"
+                  id="search-query"
+                  label="Czego szukasz?"
+                  defaultValue={searchValue}
+                  placeholder="np. ciepły posiłek dzisiaj bez skierowania"
+                  categories={categories.map(([slug, label]) => ({ slug, label }))}
+                  places={allPlaces.map(({ id, name, categorySlug, slug, searchText }) => ({ id, name, categorySlug, slug, searchText }))}
+                  hiddenFields={<>{preserveFiltersOnSubmit && category ? <input type="hidden" name="kategoria" value={category} /> : null}{preserveFiltersOnSubmit && filters.openNow ? <input type="hidden" name="otwarte" value="1" /> : null}{preserveFiltersOnSubmit && filters.today ? <input type="hidden" name="dzisiaj" value="1" /> : null}{preserveFiltersOnSubmit && filters.free ? <input type="hidden" name="bezplatne" value="1" /> : null}{preserveFiltersOnSubmit && filters.noReferral ? <input type="hidden" name="bez_skierowania" value="1" /> : null}{preserveFiltersOnSubmit && filters.noDocuments ? <input type="hidden" name="bez_dokumentow" value="1" /> : null}{preserveFiltersOnSubmit && sort !== "best" ? <input type="hidden" name="sort" value={sort} /> : null}</>}
+                  trailing={<SearchResultsFilterPanel activeFilterCount={activeFilterCount} practicalFilters={practicalFilterOptions} categories={categoryOptions} sortOptions={sortOptions} baseParams={Object.fromEntries(current.entries())} baseFilters={filters} places={filterablePlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }) => ({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }))} />}
+                />
+                <span className="search-results-mobile-count">{visiblePlaces.length} {resultCountLabel}</span>
+              </div>
 
               {interpretedText ? (
                 <div className="smart-intent-summary" aria-label="Interpretacja wyszukiwania">
@@ -166,49 +207,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 </div>
               ) : null}
 
-              <LocationControl nearestHref={searchHref(current, "sort", "distance")} />
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div aria-label="Szybkie filtry" className="filter-scroll -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-              {visibleQuickFilters.map((filter) => (
-                <Link key={filter.label} className={["filter-chip", filter.active ? "filter-chip-strong bg-brand-soft" : ""].join(" ")} href={searchHref(current, filter.key, filter.value)} aria-current={filter.active ? "true" : undefined}>{filter.label}</Link>
-              ))}
-              <a className="filter-chip filter-chip-strong" href="#filtry-kategorie"><SlidersHorizontal aria-hidden="true" size={17} />Filtry</a>
-            </div>
-
-            <details id="filtry-kategorie" className={resultsMode ? "search-category-filter search-category-filter-results" : "search-category-filter"}>
-              <summary className="touch-target flex cursor-pointer items-center text-sm font-extrabold text-foreground">{resultsMode ? "Filtry i kategorie" : "Kategorie pomocy"}</summary>
-              <div className="flex flex-wrap gap-2 pb-2 pt-1">
-                {resultsMode ? quickFilters.filter((filter) => filter.key !== "otwarte" && filter.key !== "sort").map((filter) => (
-                  <Link key={filter.label} href={searchHref(current, filter.key, filter.value)} className={["filter-chip", filter.active ? "filter-chip-strong bg-brand-soft" : ""].join(" ")} aria-current={filter.active ? "true" : undefined}>{filter.label}</Link>
-                )) : null}
-                {categories.map(([slug, label]) => (
-                  <Link key={slug} href={searchHref(current, "kategoria", slug)} className={["filter-chip", category === slug ? "filter-chip-strong bg-brand-soft" : ""].join(" ")} aria-current={category === slug ? "true" : undefined}>{label}</Link>
-                ))}
-              </div>
-            </details>
-
-            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="text-lg font-extrabold text-foreground">{places.length} {resultCountLabel}</p>
-                <span className="text-sm font-bold text-muted-foreground" aria-hidden="true">|</span>
-                <label className="flex min-w-0 items-center gap-1 text-sm font-bold text-muted-foreground"><span className="sr-only">Sortuj</span><SearchSortSelect value={sort} queryString={current.toString()} /></label>
-                {interpretedText || query ? <p className="min-w-0 basis-full text-xs font-semibold text-muted-foreground sm:basis-auto sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : `Wyniki dla: ${query}`}</p> : null}
-              </div>
-
-              <div aria-label="Widok wyników" className="grid w-full min-w-0 max-w-full grid-cols-2 rounded-lg border border-border bg-surface p-0.5 sm:w-auto">
-                <span aria-current="page" className="compact-toggle-item inline-flex items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-sm font-extrabold text-foreground"><List aria-hidden="true" size={17} />Lista</span>
-                <Link className="compact-toggle-item inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-extrabold text-muted-foreground transition hover:bg-surface-muted hover:text-foreground" href={current.toString() ? `/mapa?${current.toString()}` : "/mapa"}><MapIcon aria-hidden="true" size={17} />Mapa</Link>
-              </div>
-            </div>
-          </div>
+          {interpretedText || query ? <p className="min-w-0 text-xs font-semibold text-muted-foreground sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : `Wyniki dla: ${query}`}</p> : null}
 
           <div data-search-result-list className="grid min-w-0 gap-3 overscroll-contain sm:gap-4 lg:max-h-[calc(100dvh-18rem)] lg:overflow-y-auto lg:scroll-pb-6 lg:pr-2">
-            {places.map((place) => <PlaceCard key={place.id} place={place} returnTo={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"} />)}
-            {places.length === 0 ? <NoResults /> : null}
+            {visiblePlaces.map((place) => <PlaceCard key={place.id} place={place} returnTo={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"} />)}
+            {visiblePlaces.length === 0 ? <NoResults /> : null}
           </div>
+          {foodJourney && foodSharingPlaces.length ? <FoodSharingModule fallback={visiblePlaces.length === 0} /> : null}
         </section>
 
       </SearchResultsInteractive>

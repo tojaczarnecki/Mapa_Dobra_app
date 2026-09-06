@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AlertTriangle, ArrowLeft, BadgeCheck, Building2, Phone } from "lucide-react";
 import { notFound } from "next/navigation";
 import { QuickAvailabilityForm } from "@/components/admin/places/quick-availability-form";
+import { AdminPushSettings } from "@/components/admin/push/admin-push-settings";
+import { AdminNeedsSection } from "@/components/admin/needs/admin-needs-section";
 import {
   AdmissionHoursForm,
   AdmissionStatusForm,
@@ -36,6 +38,10 @@ export default async function FacilityPage({ params }: { params: Promise<{ id: s
   return <div className="space-y-5">
     <Link href="/admin" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} />Moje placówki</Link>
     <header className="rounded-lg border border-border bg-white p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-bold text-brand-strong">Przypisana placówka</p><h1 className="mt-1 text-2xl font-bold sm:text-3xl">{place.name}</h1><p className="mt-2 text-sm text-muted-foreground">{place.addressLine}</p>{place.organization ? <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><Building2 aria-hidden="true" size={15} />{place.organization.name}</p> : null}</div>{place.phone ? <a href={`tel:${place.phone.replace(/\s+/gu, "")}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-bold"><Phone aria-hidden="true" size={17} />Zadzwoń</a> : null}</div></header>
+
+    <AdminPushSettings />
+
+    {can("MANAGE_VOLUNTEER_NEEDS") ? <AdminNeedsSection placeId={place.id} /> : null}
 
     {canConfirmFreshness ? <section className="rounded-lg border border-brand/30 bg-white p-4 sm:p-5">
       <div className="mb-3 flex items-start gap-3">

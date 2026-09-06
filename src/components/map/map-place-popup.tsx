@@ -14,12 +14,14 @@ function hasDistanceLabel(label: string) {
 export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?: string }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
   const routeHref = directionsHref(place);
-  const status = place.status.kind === "standard" ? place.status.todayHours : place.status.availabilityLabel;
+  const status = place.profileKind === "FOOD_SHARING"
+    ? "Dostęp 24/7 · zawartość zmienna"
+    : place.status.kind === "standard" ? place.status.todayHours : place.status.availabilityLabel;
 
   return (
     <article className={styles.mapPopupContent}>
-      <h2>{place.name}</h2>
-      <p className={styles.mapPopupTypes}>{place.helpTypes.join(" • ")}</p>
+      <h2><Link className="transition-colors hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={detailsHref}>{place.name}</Link></h2>
+      <p className={styles.mapPopupTypes}>{place.profileKind === "FOOD_SHARING" ? "Lodówka społeczna" : place.helpTypes.join(" • ")}</p>
       <p className={styles.mapPopupAddress}>
         <MapPin aria-hidden="true" size={15} />
         <span>{place.address}</span>

@@ -47,9 +47,9 @@ test("result CTA avoids travel when availability is uncertain or closed", () => 
 
   assert.deepEqual(getResultPrimaryAction({ ...uncertain!, phone: undefined }, detailsHref), {
     href: detailsHref,
-    label: "Sprawdź szczegóły",
+    label: "Szczegóły",
     kind: "details",
   });
-  assert.equal(getResultPrimaryAction({ ...closed! }, detailsHref)?.label, "Zobacz godziny");
+  assert.equal(getResultPrimaryAction({ ...closed! }, detailsHref)?.label, "Zobacz miejsca otwarte teraz");
   assert.equal(getResultPrimaryAction({ ...laterToday! }, detailsHref)?.label, "Zobacz godziny");
 });

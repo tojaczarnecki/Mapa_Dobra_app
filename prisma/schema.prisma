@@ -100,6 +100,32 @@ enum AdminPermission {
   MANAGE_USER_PERMISSIONS
   VIEW_HELP_REQUESTS
   MANAGE_HELP_REQUESTS
+  MANAGE_VOLUNTEER_NEEDS
+}
+
+enum OrganizationNeedType {
+  VOLUNTEERS
+  ITEMS
+  TRANSPORT
+  SKILLS
+  SPACE
+  FUNDING
+  OTHER
+}
+
+enum OrganizationNeedStatus {
+  DRAFT
+  PUBLISHED
+  FILLED
+  CANCELLED
+}
+
+enum VolunteerNeedResponseStatus {
+  NEW
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  COMPLETED
 }
 
 enum AdminPermissionEffect {
@@ -436,9 +462,30 @@ model AdminUser {
   grantedPlaceAccesses          UserPlaceAccess[]                     @relation("UserPlaceAccessCreator")
   accessTokens                  AdminAccessToken[]                    @relation("AdminAccessTokenUser")
   createdAccessTokens           AdminAccessToken[]                    @relation("AdminAccessTokenCreator")
+  pushSubscriptions             AdminPushSubscription[]
+  createdNeeds                  OrganizationNeed[]                    @relation("NeedCreator")
+  updatedNeeds                  OrganizationNeed[]                    @relation("NeedUpdater")
 
   @@index([active])
   @@map("admin_users")
+}
+
+model AdminPushSubscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  adminUserId    String    @db.Uuid
+  endpoint       String    @unique @db.VarChar(2048)
+  p256dh         String    @db.VarChar(256)
+  auth           String    @db.VarChar(128)
+  expirationTime DateTime? @db.Timestamptz(3)
+  active         Boolean   @default(true)
+  userAgent      String?   @db.VarChar(512)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  lastUsedAt     DateTime? @db.Timestamptz(3)
+  adminUser      AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, active])
+  @@map("admin_push_subscriptions")
 }
 
 model AdminUserPermission {
@@ -568,6 +615,7 @@ model Organization {
   createdAt                            DateTime                              @default(now()) @db.Timestamptz(3)
   updatedAt                            DateTime                              @updatedAt @db.Timestamptz(3)
   places                               Place[]
+  organizationNeeds                    OrganizationNeed[]
   importCandidateOrganizationDecisions ImportCandidateOrganizationDecision[]
 
   @@index([active, name])
@@ -655,12 +703,62 @@ model Place {
   userAccesses            UserPlaceAccess[]
   mobileStops             MobileServiceStop[]
   mobileSeason            MobileServiceSeason?
+  organizationNeeds       OrganizationNeed[]
 
   @@index([recordKind, publicationStatus, city])
   @@index([verificationQueueStatus, recordKind, publicationStatus])
   @@index([primaryCategoryId])
   @@index([name])
   @@map("places")
+}
+
+model OrganizationNeed {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  organizationId       String                  @db.Uuid
+  placeId              String?                 @db.Uuid
+  type                 OrganizationNeedType    @default(VOLUNTEERS)
+  status               OrganizationNeedStatus  @default(DRAFT)
+  title                String                  @db.VarChar(180)
+  description          String                  @db.VarChar(1000)
+  peopleNeeded         Int                     @default(1)
+  startsAt             DateTime                @db.Timestamptz(3)
+  endsAt               DateTime                @db.Timestamptz(3)
+  signupDeadline       DateTime?               @db.Timestamptz(3)
+  experienceRequired   Boolean                 @default(false)
+  requirements         String?                 @db.VarChar(500)
+  locationNote         String?                 @db.VarChar(300)
+  publishedAt          DateTime?               @db.Timestamptz(3)
+  closedAt             DateTime?               @db.Timestamptz(3)
+  createdByAdminUserId String                  @db.Uuid
+  updatedByAdminUserId String                  @db.Uuid
+  createdAt            DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @db.Timestamptz(3)
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  place                Place?                  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  createdByAdminUser   AdminUser               @relation("NeedCreator", fields: [createdByAdminUserId], references: [id], onDelete: Restrict)
+  updatedByAdminUser   AdminUser               @relation("NeedUpdater", fields: [updatedByAdminUserId], references: [id], onDelete: Restrict)
+  responses            VolunteerNeedResponse[]
+
+  @@index([organizationId, status, startsAt])
+  @@index([placeId, status, startsAt])
+  @@index([status, type, endsAt])
+  @@map("organization_needs")
+}
+
+model VolunteerNeedResponse {
+  id        String                      @id @default(uuid()) @db.Uuid
+  needId    String                      @db.Uuid
+  firstName String                      @db.VarChar(120)
+  phone     String?                     @db.VarChar(50)
+  email     String?                     @db.VarChar(320)
+  note      String?                     @db.VarChar(500)
+  status    VolunteerNeedResponseStatus @default(NEW)
+  createdAt DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime                    @updatedAt @db.Timestamptz(3)
+  need      OrganizationNeed            @relation(fields: [needId], references: [id], onDelete: Cascade)
+
+  @@index([needId, status, createdAt])
+  @@map("volunteer_need_responses")
 }
 
 model PlaceVerificationContact {

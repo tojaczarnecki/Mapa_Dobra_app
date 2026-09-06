@@ -3,6 +3,7 @@ import { demoAccommodations } from "@/data/demo-accommodations";
 import { demoPlaceDetails } from "@/data/demo-place-details";
 import { demoPlaces } from "@/data/demo-places";
 import type { AvailabilityFreshness } from "@/lib/accommodations/freshness";
+import type { PlaceProfileKindValue } from "@/types/place-admin";
 
 export type MapCategory =
   | "food"
@@ -46,6 +47,10 @@ export type MapPlace = {
   free: boolean | null;
   searchTerms: string[];
   status: StandardMapStatus | AccommodationMapStatus;
+  profileKind?: PlaceProfileKindValue;
+  mobileSeasonLabel?: string;
+  mobileSeasonActive?: boolean;
+  mobileTodayStops?: string[];
 };
 
 const categoryBySlug: Partial<Record<string, MapCategory>> = {
@@ -110,6 +115,10 @@ const standardPlaces: MapPlace[] = demoPlaces
       status: place.status,
       todayHours: place.todayHours,
     },
+    profileKind: place.profileKind,
+    mobileSeasonLabel: place.mobileSeasonLabel,
+    mobileSeasonActive: place.mobileSeasonActive,
+    mobileTodayStops: place.mobileTodayStops,
   }));
 
 const detailedAccommodationIds = new Set(
@@ -158,6 +167,7 @@ const accommodationPlaces: MapPlace[] = demoAccommodations
       admissionsToday: place.admissionsToday,
       availabilityNote: place.availability.note,
     },
+    profileKind: "ACCOMMODATION",
   }));
 
 // Fikcyjne dane demonstracyjne mapy. Współrzędne służą wyłącznie do testowania UI

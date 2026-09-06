@@ -1,0 +1,28 @@
+/* One route-aware surface owns the public page canvas. */
+.page-shell {
+  min-height: 100vh;
+  background: var(--page-background);
+}
+
+.page-shell > .site-header,
+.page-shell > #main-content,
+.page-shell > .site-footer {
+  background: transparent !important;
+}
+
+.page-shell > .site-header {
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.page-shell > #main-content {
+  min-height: 0;
+}
+
+.page-shell > #main-content > :is(.home-page, .journey-search, .guided-flow-page, .guide-article-page) {
+  background: transparent !important;
+}
+
+.page-shell > .site-footer {
+  border-top: 0 !important;
+}

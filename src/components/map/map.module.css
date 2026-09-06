@@ -14,6 +14,11 @@
   padding: 0.6rem 0.75rem 0.55rem;
 }
 
+.mobileServiceCard {
+  border-color: #b9e1d9;
+  background: #eef9f7;
+}
+
 .mobileCompactCard :global(.place-card-action) {
   min-height: 2.45rem;
   padding-inline: 0.45rem;
@@ -32,6 +37,21 @@
 
 .mapFilterCategories {
   display: none;
+}
+
+.mapCategoryIllustration {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+}
+
+.mapMarker > span .mapMarkerIllustration {
+  display: block;
+  width: 1.4375rem;
+  height: 1.4375rem;
+  object-fit: contain;
+  transform: scale(1.2);
+  transform-origin: center;
 }
 
 .mapActiveFilters {

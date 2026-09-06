@@ -45,33 +45,12 @@ function Description({ paragraphs }: { paragraphs: string[] }) {
 }
 
 function HowToUse({ place }: { place: PlaceDetail }) {
-  if (place.profileKind === "ACCOMMODATION") return null;
+  if (place.profileKind === "ACCOMMODATION" || place.profileKind === "MOBILE_SERVICE") return null;
   if (place.profileKind === "FOOD_SHARING" && /całodobowo/iu.test(place.status.todayHours)) return null;
 
   const unknownHours = place.status.tone === "unknown" || place.verification.tone !== "verified" || /brak potwierdzonych/iu.test(place.status.todayHours);
-  const closedNow = place.status.tone === "closed";
-  const today = place.openingHours.find((day) => day.isToday);
-  const todayIndex = today ? place.openingHours.indexOf(today) : -1;
-  const nextOpening = closedNow && todayIndex >= 0
-    ? Array.from({ length: place.openingHours.length - 1 }, (_, offset) => place.openingHours[(todayIndex + offset + 1) % place.openingHours.length])
-      .find((day) => day.status === "open" && day.periods?.length)
-    : undefined;
-  const steps = [] as Array<{ text: string; status: "positive" | "absent" | "unknown" }>;
-
-  if (place.status.todayHours) {
-    steps.push({
-      text: unknownHours
-        ? place.contact.phone ? "Zadzwoń przed wyjściem, aby potwierdzić godziny i warunki." : "Godziny wymagają potwierdzenia przed wyjściem."
-        : closedNow ? "Dzisiaj miejsce jest zamknięte." : `Przyjdź: ${place.status.todayHours}.`,
-      status: unknownHours ? "unknown" : closedNow ? "absent" : "positive",
-    });
-  }
-  if (nextOpening) {
-    steps.push({
-      text: `Najbliższa możliwość: ${nextOpening.day.toLocaleLowerCase("pl-PL")} ${nextOpening.periods!.join(", ")}.`,
-      status: "positive",
-    });
-  }
+  if (!unknownHours || !place.contact.phone) return null;
+  const steps = [{ text: "Zadzwoń przed wyjściem, aby potwierdzić godziny i warunki.", status: "unknown" as const }];
 
   if (!steps.length) return null;
 
@@ -79,7 +58,7 @@ function HowToUse({ place }: { place: PlaceDetail }) {
     <DetailSection title="Jak skorzystać">
       <ul className="grid gap-2 text-sm font-semibold leading-6 text-foreground">
         {steps.map((step) => {
-          return <li key={step.text}><StatusIndicator status={step.status === "positive" ? "confirmed" : step.status === "absent" ? "absent" : "unknown"}>{step.text}</StatusIndicator></li>;
+          return <li key={step.text}><StatusIndicator status="unknown">{step.text}</StatusIndicator></li>;
         })}
       </ul>
     </DetailSection>
@@ -158,7 +137,6 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
   const isFoodSharing = place.profileKind === "FOOD_SHARING";
   if (isFoodSharing) {
     return <>
-      <DetailSection title="Godziny dostępu"><OpeningHours days={place.openingHours} /></DetailSection>
       {place.description.length ? <DetailSection title="Informacje o dostępie"><Description paragraphs={place.description} /></DetailSection> : null}
     </>;
   }
@@ -169,8 +147,8 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
         <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
       </DetailSection> : null}
 
-      <DetailSection title="Godziny działania">
-        <OpeningHours days={place.openingHours} />
+      <DetailSection id="godziny-otwarcia" title="Godziny otwarcia">
+        <OpeningHours days={place.openingHours} status={place.status} />
       </DetailSection>
 
       {place.audience.length || place.services.length || place.accessibility.length ? <DetailSection title="Informacje praktyczne">
@@ -191,8 +169,7 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
 function MobilePlaceSections({ place }: { place: PlaceDetail }) {
   if (!place.mobile) return null;
   return <>
-    {place.mobile.season ? <DetailSection title="Sezon działania"><p className="text-sm font-semibold leading-6">{place.mobile.season.active ? `Kursuje: ${place.mobile.season.start} – ${place.mobile.season.end}${place.mobile.season.isActiveNow ? " · trwa teraz" : " · poza sezonem"}` : "Brak potwierdzonego sezonu"}</p></DetailSection> : null}
-    <DetailSection title="Przystanki"><div className="space-y-3">{place.mobile.stops.map((stop) => <article key={`${stop.name}-${stop.address}`} className="rounded-lg border border-border bg-surface-muted p-3"><h3 className="font-extrabold">{stop.name}</h3><p className="mt-1 text-sm font-semibold">{stop.address}</p>{stop.schedules.length ? <p className="mt-2 whitespace-pre-wrap text-sm font-semibold text-muted-foreground">{stop.schedules.join("\n")}</p> : null}{stop.note ? <p className="mt-2 text-sm text-muted-foreground">{stop.note}</p> : null}</article>)}</div></DetailSection>
+    <DetailSection title="Gdzie i o której spotkasz autobus?"><ul id="mobilna-trasa" className="divide-y divide-border">{place.mobile.stops.flatMap((stop) => stop.schedules.map((schedule, index) => <li key={`${stop.name}-${stop.address}-${schedule}-${index}`} className="py-3 first:pt-0 last:pb-0"><div className="flex items-baseline gap-4"><strong className="min-w-16 text-sm font-extrabold text-brand-strong">{schedule}</strong><span className="min-w-0 text-sm font-semibold text-foreground">{stop.name}</span></div>{stop.address && stop.address !== stop.name ? <p className="mt-1 pl-20 text-xs font-semibold text-muted-foreground">{stop.address}</p> : null}{stop.note ? <p className="mt-1 pl-20 text-xs text-muted-foreground">{stop.note}</p> : null}</li>))}</ul></DetailSection>
   </>;
 }
 
@@ -231,8 +208,8 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
       </DetailSection>
 
       {hasUsefulHours ? (
-        <DetailSection title="Godziny przyjęć">
-          <OpeningHours days={place.openingHours} />
+        <DetailSection title="Godziny otwarcia">
+          <OpeningHours days={place.openingHours} status={place.status} />
         </DetailSection>
       ) : null}
 
@@ -280,19 +257,18 @@ function SideColumn({ place }: { place: PlaceDetail }) {
 
       <section className="place-detail-utility-group place-detail-utility-map">
         <MapPreview place={place} />
-      </section>
-
-      <section className="place-detail-utility-group place-detail-utility-report">
-        <Link
-          className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground"
-          href={{
-            pathname: "/zglos-zmiane",
-            query: { place: place.id },
-          }}
-        >
-          <Flag aria-hidden="true" size={17} />
-          Zgłoś zmianę lub błąd
-        </Link>
+        <div className="place-detail-utility-action">
+          <Link
+            className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground"
+            href={{
+              pathname: "/zglos-zmiane",
+              query: { place: place.id },
+            }}
+          >
+            <Flag aria-hidden="true" size={17} />
+            Zgłoś zmianę lub błąd
+          </Link>
+        </div>
       </section>
     </aside>
   );

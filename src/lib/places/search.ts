@@ -1,4 +1,5 @@
 import type { InformationState } from "@/lib/accommodations/types";
+import type { PlaceProfileKindValue } from "@/types/place-admin";
 
 export type PublicSearchPlace = {
   id: string;
@@ -14,6 +15,7 @@ export type PublicSearchPlace = {
   referralRequired: InformationState;
   documentRequired: InformationState;
   distanceKm: number;
+  profileKind?: PlaceProfileKindValue;
 };
 
 export type PublicSearchFilters = {
@@ -92,6 +94,10 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
   });
 
   return filtered.sort((left, right) => {
+    const foodJourney = filters.category === "jedzenie" || filters.category === "food";
+    if (foodJourney && left.profileKind !== right.profileKind) {
+      return left.profileKind === "FOOD_SHARING" ? 1 : -1;
+    }
     if (filters.sort === "distance") return left.distanceKm - right.distanceKm;
     if (filters.sort === "open") return Number(right.openNow === true) - Number(left.openNow === true) || left.distanceKm - right.distanceKm;
     return relevance(right, query) - relevance(left, query) || left.distanceKm - right.distanceKm;

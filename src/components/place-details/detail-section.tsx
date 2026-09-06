@@ -4,12 +4,14 @@ type DetailSectionProps = {
   title: string;
   children: ReactNode;
   className?: string;
+  id?: string;
 };
 
 export function DetailSection({
   title,
   children,
   className = "",
+  id,
 }: DetailSectionProps) {
   return (
     <section
@@ -17,6 +19,7 @@ export function DetailSection({
         "place-detail-section w-full min-w-0 p-4 sm:p-5",
         className,
       ].join(" ")}
+      id={id}
     >
       <h2 className="text-xl font-extrabold leading-tight text-foreground">
         {title}

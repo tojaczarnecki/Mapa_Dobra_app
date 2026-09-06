@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Download, Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { resolveJourney } from "@/lib/journeys";
 import { useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const links = [
@@ -19,19 +20,21 @@ function isRoute(pathname: string, route: string) {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const standalone = useIsStandalonePwa();
-  const journeyClass = pathname.startsWith("/pomagam") || pathname.startsWith("/uruchom-pomoc")
+  const journey = resolveJourney(pathname, searchParams);
+  const journeyClass = journey === "help"
     ? "site-header-journey-help"
-    : pathname.startsWith("/jak-pomagac")
+    : journey === "guide" || journey === "guided"
       ? "site-header-journey-guide"
-      : pathname.startsWith("/szukam") || pathname.startsWith("/szukaj") || pathname.startsWith("/mapa")
+      : journey === "search" || journey === "now"
         ? "site-header-journey-search"
         : "site-header-journey-neutral";
 
-  if (pathname.startsWith("/admin")) return null;
+  if (pathname.startsWith("/admin") || pathname === "/") return null;
 
   return (
-    <header className={`site-header ${journeyClass} sticky top-0 z-30 ${standalone ? "site-header-standalone" : ""} ${pathname === "/" ? "site-header-home" : ""}`}>
+      <header className={`site-header ${journeyClass} z-30 ${standalone ? "site-header-standalone" : ""} ${pathname === "/" ? "site-header-home" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"
@@ -41,8 +44,8 @@ export function SiteHeader() {
           <Image
             src="/brand/dobra-mapa-logo-header.svg"
             alt="Dobra Mapa"
-            width={606}
-            height={120}
+            width={1926}
+            height={378}
             priority
             className="site-header-logo-asset"
           />
@@ -65,14 +68,6 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
-          {!standalone ? <button
-              type="button"
-              className="site-header-install"
-              onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}
-            >
-              <Download aria-hidden="true" size={17} />
-              Zainstaluj
-            </button> : null}
         </nav>
         <details className="site-header-mobile-menu">
           <summary className="site-header-mobile-menu-toggle">
@@ -95,10 +90,6 @@ export function SiteHeader() {
                 {link.label}
               </Link>
             ))}
-            {!standalone ? <button type="button" className="site-header-mobile-menu-link" onClick={() => window.dispatchEvent(new Event("mapa-dobra:open-install"))}>
-              <Download aria-hidden="true" size={17} />
-              Zainstaluj
-            </button> : null}
           </div>
         </details>
       </div>
