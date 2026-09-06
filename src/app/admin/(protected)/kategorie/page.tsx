@@ -1,6 +1,7 @@
 import { CategoryEditor, NewCategoryForm } from "@/components/admin/categories/category-manager";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 export default async function AdminCategoriesPage() {
   await requirePermission("VIEW_CATEGORIES");
@@ -16,7 +17,7 @@ export default async function AdminCategoriesPage() {
   });
   return (
     <div className="space-y-5">
-      <header><p className="mb-1 text-sm font-bold text-brand-strong">Słownik pomocy</p><h1 className="text-3xl font-bold">Kategorie</h1><p className="mt-1 text-sm text-muted-foreground">{categories.length} kategorii · istniejące slugi są chronione</p></header>
+      <AdminPageHeader eyebrow="Słownik pomocy" title="Kategorie" description={`${categories.length} kategorii · istniejące slugi są chronione`} />
       <NewCategoryForm />
       <section className="overflow-hidden rounded-lg border border-border bg-white">
         <div className="hidden grid-cols-[minmax(160px,1.2fr)_minmax(130px,.9fr)_90px_100px_100px_90px] gap-2 border-b border-border bg-[#f5f3ed] px-3 py-2 text-[11px] font-bold uppercase text-muted-foreground md:grid">

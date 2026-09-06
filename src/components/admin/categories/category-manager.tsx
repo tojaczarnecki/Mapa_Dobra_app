@@ -81,7 +81,7 @@ export function CategoryEditor({ category }: { category: CategoryRow }) {
         <span className="text-sm"><strong>{placeCountLabel(category.placeCount)}</strong> · {category.publishedCount} opublikowanych</span>
         <span className="text-sm"><span className="md:sr-only">Kolejność: </span>{category.sortOrder}</span>
         <span className={`inline-flex min-h-7 w-fit items-center rounded-full border px-2.5 py-1 text-xs font-bold ${category.active ? "border-brand/35 bg-brand-soft text-[#086b55]" : "border-border bg-surface-muted text-muted-foreground"}`}>{category.active ? "Aktywna" : "Nieaktywna"}</span>
-        <span className="text-xs text-muted-foreground">Główna dla {category.primaryCount}</span>
+        <span className="text-xs text-muted-foreground">Kategoria główna dla {placeCountLabel(category.primaryCount)}</span>
         <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-strong"><Pencil aria-hidden="true" size={16} /> Edytuj</span>
       </summary>
       <form action={action} className="grid gap-3 bg-[#faf9f5] p-4 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_120px_auto] lg:items-end">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Building2, Eye, Pencil, Plus, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -42,16 +43,9 @@ export default async function AdminOrganizationsPage({ searchParams }: { searchP
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-1 text-sm font-bold text-brand-strong">Baza organizacji</p>
-          <h1 className="text-3xl font-bold">Organizacje</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{organizations.length} organizacji w bieżącym widoku</p>
-        </div>
-        <Link href="/admin/organizacje/nowa" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">
+      <AdminPageHeader eyebrow="Baza organizacji" title="Organizacje" description={`${organizations.length} organizacji w bieżącym widoku`} action={<Link href="/admin/organizacje/nowa" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">
           <Plus aria-hidden="true" size={18} /> Dodaj organizację
-        </Link>
-      </header>
+        </Link>} />
 
       <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-2.5 sm:grid-cols-[minmax(220px,1fr)_220px_auto] sm:items-end">
         <label className="text-xs font-bold">Szukaj po nazwie, e-mailu lub WWW

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ExternalLink, FileInput, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader, AdminEmptyState } from "@/components/admin/admin-ui";
 
 const batchStatusLabels = {
   PROCESSING: "W trakcie zapisu",
@@ -23,12 +24,7 @@ export default async function AdminImportsPage() {
   });
   return (
     <div className="space-y-5">
-      <header>
-        <p className="mb-1 text-sm font-bold text-brand-strong">Źródła danych</p>
-        <h1 className="text-3xl font-bold">Importy</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Paczki źródłowe, kandydaci po deduplikacji i rekordy oczekujące na decyzję administratora.</p>
-        <Link href="/admin/importy/nowy" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white"><Plus aria-hidden="true" size={17} /> Nowy import</Link>
-      </header>
+      <AdminPageHeader eyebrow="Źródła danych" title="Importy" description="Paczki źródłowe, kandydaci po deduplikacji i rekordy oczekujące na decyzję administratora." action={<Link href="/admin/importy/nowy" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white"><Plus aria-hidden="true" size={17} /> Nowy import</Link>} />
       {batches.length ? <ol className="space-y-2">{batches.map((batch) => {
         const count = (status: string) => batch.candidates.filter((candidate) => candidate.status === status).length;
         return (
@@ -51,7 +47,7 @@ export default async function AdminImportsPage() {
             <a href={batch.sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-strong hover:underline"><ExternalLink aria-hidden="true" size={16} /> Otwórz dokument źródłowy</a>
           </li>
         );
-      })}</ol> : <div className="rounded-lg border border-dashed border-border bg-white px-5 py-10 text-center text-sm text-muted-foreground"><FileInput aria-hidden="true" className="mx-auto mb-2" /> Brak paczek importowych.</div>}
+      })}</ol> : <AdminEmptyState title="Brak paczek importowych" description="Nowa paczka pojawi się tutaj po rozpoczęciu importu." action={<FileInput aria-hidden="true" className="mx-auto text-muted-foreground" />} />}
     </div>
   );
 }

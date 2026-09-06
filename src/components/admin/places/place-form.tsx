@@ -138,7 +138,7 @@ function TriStateSelect({
 }) {
   return (
     <label className="grid min-h-11 items-center gap-2 border-b border-border py-2.5 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_180px]">
-      <span className="text-sm font-semibold">{label}</span>
+      <span><span className="block text-sm font-semibold">{label}</span><span className="mt-0.5 block text-xs font-normal text-muted-foreground">„Tak” oznacza potwierdzoną obecność lub wymaganie; „Nie” oznacza potwierdzony brak; „Brak danych” pozostawia stan nieznany.</span></span>
       <select className={fieldClass} value={value} onChange={(event) => onChange(event.target.value as TriState)}>
         <option value="YES">Tak</option>
         <option value="NO">Nie</option>

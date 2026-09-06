@@ -3,6 +3,7 @@ import { Pencil, Plus, Search, UserRound } from "lucide-react";
 import type { AdminRole } from "@/generated/prisma/enums";
 import { requirePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 const roleLabels: Record<AdminRole, string> = {
   SUPER_ADMIN: "Superadministrator",
@@ -15,6 +16,12 @@ const roleLabels: Record<AdminRole, string> = {
 const date = (value: Date | null) => value
   ? new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" }).format(value)
   : "Nigdy";
+
+function placeCountLabel(count: number) {
+  if (count === 1) return "1 placówka";
+  if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14)) return `${count} placówki`;
+  return `${count} placówek`;
+}
 
 export default async function UsersPage({
   searchParams,
@@ -42,38 +49,31 @@ export default async function UsersPage({
 
   return (
     <div className="min-w-0 space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-brand-strong">Dostęp administracyjny</p>
-          <h1 className="mt-1 text-3xl font-bold">Użytkownicy</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Konta, role, indywidualne uprawnienia i dostęp do placówek.</p>
-        </div>
-        <Link href="/admin/uzytkownicy/nowy" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold">
+      <AdminPageHeader eyebrow="Dostęp administracyjny" title="Użytkownicy" description="Konta, role, indywidualne uprawnienia i dostęp do placówek." action={<Link href="/admin/uzytkownicy/nowy" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold">
           <Plus aria-hidden="true" size={18} />
           Zaproś użytkownika
-        </Link>
-      </header>
+        </Link>} />
 
       <form className="grid gap-3 rounded-lg border border-border bg-white p-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_180px_160px_180px_auto]">
         <label className="relative">
-          <span className="sr-only">Szukaj</span>
+          <span className="mb-1 block text-xs font-bold">Szukaj użytkownika</span>
           <Search aria-hidden="true" size={17} className="absolute left-3 top-3.5 text-muted-foreground" />
           <input name="q" defaultValue={q} placeholder="Imię lub e-mail" className="min-h-11 w-full rounded-lg border border-border pl-10 pr-3" />
         </label>
-        <select name="role" defaultValue={role ?? ""} aria-label="Rola" className="min-h-11 rounded-lg border border-border bg-white px-3">
+        <label className="text-sm font-bold"><span className="mb-1 block text-xs">Rola</span><select name="role" defaultValue={role ?? ""} aria-label="Rola" className="min-h-11 w-full rounded-lg border border-border bg-white px-3">
           <option value="">Wszystkie role</option>
           {Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <select name="active" defaultValue={query.active ?? ""} aria-label="Stan konta" className="min-h-11 rounded-lg border border-border bg-white px-3">
+        </select></label>
+        <label className="text-sm font-bold"><span className="mb-1 block text-xs">Stan konta</span><select name="active" defaultValue={query.active ?? ""} aria-label="Stan konta" className="min-h-11 w-full rounded-lg border border-border bg-white px-3">
           <option value="">Każdy stan</option>
           <option value="yes">Aktywne</option>
           <option value="no">Nieaktywne</option>
-        </select>
-        <select name="group" defaultValue={group} aria-label="Grupa użytkowników" className="min-h-11 rounded-lg border border-border bg-white px-3">
+        </select></label>
+        <label className="text-sm font-bold"><span className="mb-1 block text-xs">Grupa użytkowników</span><select name="group" defaultValue={group} aria-label="Grupa użytkowników" className="min-h-11 w-full rounded-lg border border-border bg-white px-3">
           <option value="all">Wszyscy</option>
           <option value="facility">Placówki</option>
           <option value="staff">Administracja</option>
-        </select>
+        </select></label>
         <button className="min-h-11 rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong">Zastosuj</button>
       </form>
 
@@ -95,7 +95,7 @@ export default async function UsersPage({
               </div>
               <div>
                 <dt className="text-[11px] font-bold uppercase text-muted-foreground">Placówki</dt>
-                <dd className="mt-0.5 text-sm font-semibold">{user._count.placeAccesses}</dd>
+                <dd className="mt-0.5 text-sm font-semibold">{placeCountLabel(user._count.placeAccesses)}</dd>
               </div>
               <div className="col-span-2 min-w-0 sm:col-span-1">
                 <dt className="text-[11px] font-bold uppercase text-muted-foreground">Ostatnie logowanie</dt>

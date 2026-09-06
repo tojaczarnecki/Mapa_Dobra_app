@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
+import { AdminPageHeader, AdminSection } from "@/components/admin/admin-ui";
 import { AdminNeedsList } from "@/components/admin/needs/admin-needs-list";
 import { requirePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
@@ -16,13 +17,8 @@ export default async function AdminNeedsPage() {
   });
 
   return <div className="space-y-5">
-    <Link href="/admin" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} />Panel administratora</Link>
-    <header className="flex items-start gap-3 rounded-lg border border-border bg-white p-4 sm:p-5">
-      <ClipboardList aria-hidden="true" className="mt-1 shrink-0 text-brand-strong" size={24} />
-      <div><h1 className="text-2xl font-extrabold sm:text-3xl">Potrzeby</h1><p className="mt-1 text-sm leading-6 text-muted-foreground">Globalny widok potrzeb wolontariackich wszystkich organizacji.</p></div>
-    </header>
-    <section className="rounded-lg border border-border bg-white p-4 sm:p-5" aria-labelledby="admin-all-needs-title">
-      <h2 id="admin-all-needs-title" className="text-lg font-extrabold">Wszystkie potrzeby</h2>
+    <AdminPageHeader backHref="/admin" backLabel="Panel administratora" eyebrow="Operacje wolontariackie" title="Potrzeby" description="Globalny widok potrzeb wolontariackich wszystkich organizacji." action={<div className="flex flex-wrap items-center gap-2"><Link href="/admin/moje-miejsca" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white"><Plus aria-hidden="true" size={18} />Dodaj potrzebę</Link><ClipboardList aria-hidden="true" className="mt-1 text-brand-strong" size={24} /></div>} />
+    <AdminSection title="Wszystkie potrzeby" description="Aktywne, szkice i zakończone potrzeby w jednym uporządkowanym widoku." className="p-4 sm:p-5">
       <AdminNeedsList global needs={needs.map((need) => ({
         ...need,
         startsAt: need.startsAt.toISOString(),
@@ -30,6 +26,6 @@ export default async function AdminNeedsPage() {
         signupDeadline: need.signupDeadline?.toISOString() ?? null,
         responses: need.responses.map((response) => ({ ...response, createdAt: response.createdAt.toISOString(), updatedAt: response.updatedAt.toISOString() })),
       }))} />
-    </section>
+    </AdminSection>
   </div>;
 }

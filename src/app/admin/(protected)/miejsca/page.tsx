@@ -128,15 +128,26 @@ export default async function AdminPlacesPage({ searchParams }: { searchParams: 
             <input name="q" defaultValue={query} className="min-h-11 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 font-normal" placeholder="Nazwa, adres lub organizacja" />
           </span>
         </label>
-        <SelectFilter label="Publikacja" name="publication" value={publicationValue} options={publicationStatuses.map((value) => ({ value, label: placeStatusLabels[value] }))} />
-        <SelectFilter label="Stan działania" name="operational" value={operationalValue} options={operationalStatuses.map((value) => ({ value, label: operationalStatusLabels[value] }))} />
-        <SelectFilter label="Kategoria" name="category" value={categoryValue} options={categories.map((category) => ({ value: category.slug, label: category.name }))} />
-        <SelectFilter label="Rodzaj rekordu" name="recordKind" value={recordKindValue} includeAll={false} options={[{ value: "without-test", label: "Bez TEST" }, { value: "all", label: "Wszystkie" }, ...recordKinds.map((value) => ({ value, label: recordKindLabels[value] }))]} />
-        <SelectFilter label="Weryfikacja" name="verification" value={verificationValue} options={(Object.keys(verificationLabels) as VerificationValue[]).map((value) => ({ value, label: verificationLabels[value] }))} />
-        <SelectFilter label="Typ miejsca" name="accommodation" value={accommodationValue} options={[{ value: "yes", label: "Noclegi" }, { value: "no", label: "Pozostałe miejsca" }]} />
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <SelectFilter label="Sortowanie" name="sort" value={sortValue} options={[{ value: "updated", label: "Ostatnio zmienione" }, { value: "verified", label: "Ostatnio zweryfikowane" }, { value: "name", label: "Nazwa A-Z" }]} />
-          <button type="submit" title="Zastosuj filtry" className="mt-[22px] inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-bold hover:bg-brand-soft xl:px-3">
+        <div className="flex flex-wrap items-end gap-2 xl:col-span-3">
+          <button type="submit" name="publication" value="PUBLISHED" className="min-h-11 rounded-lg border border-brand bg-brand-soft px-3 text-sm font-bold text-brand-strong hover:bg-brand/20">Opublikowane</button>
+          <button type="submit" name="verification" value="NEEDS_CONFIRMATION" className="min-h-11 rounded-lg border border-border bg-white px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Wymaga weryfikacji</button>
+          <button type="submit" name="operational" value="OPEN" className="min-h-11 rounded-lg border border-border bg-white px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwarte</button>
+          <button type="submit" name="recordKind" value="without-test" className="min-h-11 rounded-lg border border-border bg-white px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Bez TEST</button>
+        </div>
+        <details className="sm:col-span-2 xl:col-span-4 2xl:col-span-6">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-2 text-sm font-bold text-muted-foreground hover:bg-surface-muted">Więcej filtrów</summary>
+          <div className="mt-2 grid gap-2 border-t border-border pt-2 sm:grid-cols-2 xl:grid-cols-4">
+            <SelectFilter label="Publikacja" name="publication" value={publicationValue} options={publicationStatuses.map((value) => ({ value, label: placeStatusLabels[value] }))} />
+            <SelectFilter label="Stan działania" name="operational" value={operationalValue} options={operationalStatuses.map((value) => ({ value, label: operationalStatusLabels[value] }))} />
+            <SelectFilter label="Kategoria" name="category" value={categoryValue} options={categories.map((category) => ({ value: category.slug, label: category.name }))} />
+            <SelectFilter label="Rodzaj rekordu" name="recordKind" value={recordKindValue} includeAll={false} options={[{ value: "without-test", label: "Bez TEST" }, { value: "all", label: "Wszystkie" }, ...recordKinds.map((value) => ({ value, label: recordKindLabels[value] }))]} />
+            <SelectFilter label="Weryfikacja" name="verification" value={verificationValue} options={(Object.keys(verificationLabels) as VerificationValue[]).map((value) => ({ value, label: verificationLabels[value] }))} />
+            <SelectFilter label="Typ miejsca" name="accommodation" value={accommodationValue} options={[{ value: "yes", label: "Noclegi" }, { value: "no", label: "Pozostałe miejsca" }]} />
+            <SelectFilter label="Sortowanie" name="sort" value={sortValue} options={[{ value: "updated", label: "Ostatnio zmienione" }, { value: "verified", label: "Ostatnio zweryfikowane" }, { value: "name", label: "Nazwa A-Z" }]} />
+          </div>
+        </details>
+        <div className="flex justify-end xl:col-span-1">
+          <button type="submit" title="Zastosuj filtry" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-bold hover:bg-brand-soft xl:px-3">
             <Filter aria-hidden="true" size={18} /> <span className="xl:sr-only">Zastosuj</span>
           </button>
         </div>

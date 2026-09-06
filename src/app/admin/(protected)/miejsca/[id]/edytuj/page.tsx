@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 import { PlaceForm } from "@/components/admin/places/place-form";
 import { getAdminPlace, getAdminPlaceFormOptions, toPlaceAdminPayload } from "@/lib/places/admin-data";
 import { requirePermission } from "@/lib/admin/session";
@@ -16,15 +15,7 @@ export default async function EditAdminPlacePage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-5">
-      <Link href={`/admin/miejsca/${id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft">
-        <ArrowLeft aria-hidden="true" size={18} />
-        Wróć do miejsca
-      </Link>
-      <header>
-        <p className="mb-1 text-sm font-bold text-brand-strong">Edycja miejsca</p>
-        <h1 className="text-3xl font-bold">{place.name}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Zmiany zostaną zapisane dopiero po użyciu przycisku „Zapisz zmiany”.</p>
-      </header>
+      <AdminPageHeader backHref={`/admin/miejsca/${id}`} backLabel="Wróć do miejsca" eyebrow="Edycja miejsca" title={place.name} description="Uzupełnij dane sekcjami. Zmiany zostaną zapisane dopiero po użyciu przycisku „Zapisz zmiany” i mogą wpłynąć na widok publiczny." />
       <PlaceForm initialData={toPlaceAdminPayload(place)} categories={options.categories} organizations={options.organizations} />
     </div>
   );

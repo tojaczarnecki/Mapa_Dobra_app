@@ -3,6 +3,7 @@ import { SubmissionList } from "@/components/admin/submission-list";
 import { getSubmissionSummaries } from "@/lib/admin/submissions";
 import type { ModerationStatus } from "@/generated/prisma/enums";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -40,13 +41,7 @@ export default async function AdminSubmissionsPage({
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="mb-1 text-sm font-bold text-brand-strong">Moderacja</p>
-        <h1 className="text-3xl font-bold">Zgłoszenia</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {items.length} {items.length === 1 ? "zgłoszenie" : "zgłoszeń"} w bieżącym widoku
-        </p>
-      </header>
+      <AdminPageHeader eyebrow="Moderacja" title="Zgłoszenia" description={`${items.length} ${items.length === 1 ? "zgłoszenie" : "zgłoszeń"} w bieżącym widoku`} />
 
       <form
         method="get"

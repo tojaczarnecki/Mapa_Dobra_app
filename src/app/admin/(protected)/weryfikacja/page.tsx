@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { verificationContactReasonLabel } from "@/lib/verification/contact";
 import { getVerificationQueueItems } from "@/lib/verification/queue";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const statusValues = ["PENDING", "IN_PROGRESS", "CONTACT_REQUIRED", "READY", "VERIFIED", "PUBLISHED", "SKIPPED"] as const;
@@ -53,8 +54,15 @@ export default async function VerificationQueuePage({ searchParams }: { searchPa
   ];
   return (
     <div className="space-y-5">
-      <header><p className="mb-1 text-sm font-bold text-brand-strong">Jakość danych</p><h1 className="text-3xl font-bold">Weryfikacja</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Źródło → porównanie → poprawka → lokalizacja → aktualne potwierdzenie → świadoma publikacja.</p></header>
-      <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">{stats.map(({ label, value, icon: Icon }) => <div key={label} className="rounded-lg border border-border bg-white p-3"><dt className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><Icon aria-hidden="true" size={16} />{label}</dt><dd className="mt-1 text-2xl font-bold">{value}</dd></div>)}</dl>
+      <AdminPageHeader eyebrow="Jakość danych" title="Weryfikacja" description="Źródło → porównanie → poprawka → lokalizacja → aktualne potwierdzenie → świadoma publikacja." />
+      <section aria-labelledby="verification-priority-heading" className="space-y-2">
+        <h2 id="verification-priority-heading" className="text-sm font-bold text-muted-foreground">Od czego zacząć</h2>
+        <dl className="grid gap-2 sm:grid-cols-3">{stats.slice(0, 3).map(({ label, value, icon: Icon }) => <div key={label} className="rounded-lg border border-border bg-white p-3"><dt className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><Icon aria-hidden="true" size={16} />{label}</dt><dd className="mt-1 text-2xl font-bold">{value}</dd></div>)}</dl>
+        <details className="rounded-lg border border-border bg-white px-3 py-2 text-sm">
+          <summary className="cursor-pointer font-bold text-brand-strong">Pozostałe statystyki</summary>
+          <dl className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-4">{stats.slice(3).map(({ label, value, icon: Icon }) => <div key={label}><dt className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><Icon aria-hidden="true" size={15} />{label}</dt><dd className="mt-1 text-xl font-bold">{value}</dd></div>)}</dl>
+        </details>
+      </section>
       <form method="get" className="grid gap-2 rounded-lg border border-border bg-white p-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
         <FilterSelect label="Status" name="status" value={status ?? "all"} options={statusValues.map((value) => ({ value, label: statusLabels[value] }))} />
         <FilterSelect label="Typ" name="type" value={type ?? "all"} options={typeValues.map((value) => ({ value, label: typeLabels[value] }))} />

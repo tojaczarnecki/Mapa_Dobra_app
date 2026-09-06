@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { DetailSection, InfoRows } from "@/components/admin/detail-section";
 import { OrganizationStatusForm } from "@/components/admin/organizations/organization-status-form";
@@ -8,6 +8,7 @@ import { PlaceRecordBadge } from "@/components/admin/places/place-record-badge";
 import { operationalStatusLabels } from "@/lib/places/constants";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
+import { AdminPageHeader } from "@/components/admin/admin-ui";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" }).format(value);
@@ -48,11 +49,7 @@ export default async function OrganizationDetailPage({ params }: { params: Promi
 
   return (
     <div className="space-y-5">
-      <Link href="/admin/organizacje" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} /> Wróć do organizacji</Link>
-      <header className="rounded-lg border border-border bg-white p-4 sm:flex sm:items-end sm:justify-between sm:gap-5 sm:p-5">
-        <div className="min-w-0"><span className={`inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-xs font-bold ${organization.active ? "border-brand/35 bg-brand-soft text-[#086b55]" : "border-border bg-surface-muted text-muted-foreground"}`}>{organization.active ? "Aktywna" : "Zarchiwizowana"}</span><h1 className="mt-2 text-2xl font-bold sm:text-3xl">{organization.name}</h1><p className="mt-1 text-sm text-muted-foreground">Prowadzi {placeCountLabel(organization.places.length)}</p></div>
-        <Link href={`/admin/organizacje/${id}/edytuj`} className="mt-3 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white sm:mt-0"><Pencil aria-hidden="true" size={17} /> Edytuj organizację</Link>
-      </header>
+      <AdminPageHeader backHref="/admin/organizacje" backLabel="Wróć do organizacji" eyebrow="Baza organizacji" title={organization.name} description={`Organizacja ${organization.active ? "aktywna" : "zarchiwizowana"} · prowadzi ${placeCountLabel(organization.places.length)}`} action={<Link href={`/admin/organizacje/${id}/edytuj`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white"><Pencil aria-hidden="true" size={17} />Edytuj organizację</Link>} />
 
       <DetailSection title="Podstawowe informacje">
         <InfoRows rows={[

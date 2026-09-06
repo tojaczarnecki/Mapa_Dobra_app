@@ -8,6 +8,7 @@ import { getDashboardData } from "@/lib/admin/submissions";
 import { requirePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
 import { classifyPlaceVerificationFreshness, type PlaceVerificationFreshness } from "@/lib/places/verification-freshness";
+import { AdminPageHeader, AdminSection } from "@/components/admin/admin-ui";
 
 const metricDescriptions = {
   PENDING: "Do weryfikacji",
@@ -50,28 +51,37 @@ export default async function AdminDashboardPage() {
     const placeCount = session.user.permissions.includes("VIEW_PLACES") ? await prisma.place.count() : 0;
     return <div className="space-y-5"><header><p className="text-sm font-bold text-brand-strong">Panel administracyjny</p><h1 className="mt-1 text-3xl font-bold">Dashboard</h1><p className="mt-2 text-sm text-muted-foreground">Zakres widoku wynika z bieżących uprawnień konta.</p></header><section className="rounded-lg border border-border bg-white p-5"><h2 className="font-bold">Dostępne dane</h2><p className="mt-2 text-sm text-muted-foreground">Miejsca w zakresie odczytu: <strong className="text-foreground">{placeCount}</strong></p>{session.user.permissions.includes("VIEW_PLACES") ? <Link href="/admin/miejsca" className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-brand px-4 text-sm font-bold text-brand-strong">Otwórz miejsca</Link> : null}</section></div>;
   }
-  const { metrics, latest } = await getDashboardData();
+  const staleCutoff = new Date();
+  staleCutoff.setDate(staleCutoff.getDate() - 30);
+  const [{ metrics, latest }, attention] = await Promise.all([
+    getDashboardData(),
+    Promise.all([
+      prisma.place.count({ where: { verificationStatus: "NEEDS_CONFIRMATION", publicationStatus: "PUBLISHED" } }),
+      prisma.place.count({ where: { publicationStatus: "PUBLISHED", verifiedAt: { lt: staleCutoff } } }),
+      prisma.placeUpdateSubmission.count({ where: { moderationStatus: "PENDING" } }),
+      prisma.newPlaceSubmission.count({ where: { moderationStatus: "PENDING" } }),
+      prisma.organizationNeed.count({ where: { status: "PUBLISHED" } }),
+      prisma.volunteerNeedResponse.count({ where: { status: "NEW" } }),
+      prisma.helpRequest.count({ where: { status: { in: ["NEW", "REVIEWING"] }, urgency: "IMMEDIATE" } }),
+    ]),
+  ]);
+  const [placesToReview, stalePlaces, pendingUpdates, pendingNewPlaces, activeNeeds, newNeedResponses, urgentHelpRequests] = attention;
 
   return (
     <div className="space-y-7">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-1 text-sm font-bold text-brand-strong">Panel administratora</p>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Stan kolejki publicznych zgłoszeń Mapy Dobra.
-          </p>
-        </div>
-        <Link
-          href="/admin/zgloszenia?status=pending"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-[#10231e] transition hover:bg-brand-strong hover:text-white"
-        >
-          <ClipboardCheck aria-hidden="true" size={19} />
-          Otwórz kolejkę
-        </Link>
-      </header>
+      <AdminPageHeader eyebrow="Panel administratora" title="Dashboard" description="Najważniejsze zadania i stan kolejki publicznych zgłoszeń Mapy Dobra." action={<Link href="/admin/zgloszenia?status=pending" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-[#10231e] transition hover:bg-brand-strong hover:text-white"><ClipboardCheck aria-hidden="true" size={19} />Otwórz kolejkę</Link>} />
 
       <AdminPushSettings />
+
+      <AdminSection title="Wymaga uwagi" description="Zadania, które mogą zmienić lub uzupełnić informacje widoczne publicznie.">
+        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3 xl:grid-cols-5">
+          <AttentionLink href="/admin/weryfikacja" label="Miejsca do potwierdzenia" value={placesToReview} />
+          <AttentionLink href="/admin/miejsca" label="Nieaktualne dane" value={stalePlaces} detail="Ponad 30 dni bez potwierdzenia" />
+          <AttentionLink href="/admin/zgloszenia-pomocy?urgency=IMMEDIATE" label="Pilne zgłoszenia pomocy" value={urgentHelpRequests} detail="Bezpośrednie zagrożenie" />
+          <AttentionLink href="/admin/potrzeby" label="Aktywne potrzeby" value={activeNeeds} detail={newNeedResponses ? `${newNeedResponses} nowych zgłoszeń` : undefined} />
+          <AttentionLink href="/admin/zgloszenia?status=pending" label="Nowe zgłoszenia moderacyjne" value={pendingUpdates + pendingNewPlaces} />
+        </div>
+      </AdminSection>
 
       <section aria-labelledby="queue-status-heading">
         <h2 id="queue-status-heading" className="mb-4 text-lg font-bold">
@@ -113,4 +123,8 @@ export default async function AdminDashboardPage() {
       </section>
     </div>
   );
+}
+
+function AttentionLink({ href, label, value, detail }: { href: string; label: string; value: number; detail?: string }) {
+  return <Link href={href} className="block min-h-24 px-4 py-4 transition hover:bg-brand-soft focus-visible:bg-brand-soft"><p className="text-sm font-bold text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p>{detail ? <p className="mt-1 text-xs font-bold text-brand-strong">{detail}</p> : null}</Link>;
 }

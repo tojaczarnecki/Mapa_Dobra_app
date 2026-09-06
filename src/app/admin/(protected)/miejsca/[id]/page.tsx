@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
 import { DetailSection, InfoRows, TagList } from "@/components/admin/detail-section";
-import { PlacePublicationBadge } from "@/components/admin/places/place-publication-badge";
 import { PlaceRecordBadge } from "@/components/admin/places/place-record-badge";
 import { PlaceStatusActions } from "@/components/admin/places/place-status-actions";
 import { QuickAvailabilityForm } from "@/components/admin/places/quick-availability-form";
@@ -22,6 +21,7 @@ import { isPubliclyVisiblePlace } from "@/lib/places/public-visibility";
 import type { PlacePublicationStatusValue } from "@/types/place-admin";
 import { requirePermission } from "@/lib/admin/session";
 import { resolveAvailabilityFreshness, type AvailabilityFreshness } from "@/lib/accommodations/freshness";
+import { AdminStatusBadge } from "@/components/admin/admin-status-badge";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const stateLabels = { YES: "Tak", NO: "Nie", UNKNOWN: "Brak danych" } as const;
@@ -113,6 +113,12 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
   const operationHours = place.openingHours.filter((row) => row.kind === "OPERATION");
   const admissionHours = place.openingHours.filter((row) => row.kind === "ADMISSION");
   const canOpenPublicly = isPubliclyVisiblePlace(place);
+  const attentionIssues = [
+    place.publicationStatus !== "PUBLISHED" ? "Miejsce nie jest widoczne publicznie." : null,
+    place.verificationStatus !== "VERIFIED" ? "Dane wymagają weryfikacji lub potwierdzenia." : null,
+    !place.addressLine ? "Brakuje adresu miejsca." : null,
+    !place.openingHours.some((row) => row.status !== "UNKNOWN") ? "Nie ma potwierdzonych godzin działania." : null,
+  ].filter((issue): issue is string => Boolean(issue));
 
   return (
     <div className="space-y-5">
@@ -123,9 +129,10 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
         <div className="sm:flex sm:items-end sm:justify-between sm:gap-5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <PlacePublicationBadge status={place.publicationStatus} />
+              <AdminStatusBadge status={place.publicationStatus} />
               <PlaceRecordBadge kind={place.recordKind} />
-              <span className="inline-flex min-h-7 items-center rounded-full border border-border bg-white px-2.5 py-1 text-xs font-bold">{operationalStatusLabels[place.operationalStatus]}</span>
+              <AdminStatusBadge status={place.operationalStatus === "CLOSED" ? "TEMPORARILY_CLOSED" : place.operationalStatus === "UNKNOWN" ? "UNKNOWN" : "PUBLISHED"} label={operationalStatusLabels[place.operationalStatus]} />
+              <AdminStatusBadge status={place.verificationStatus} />
             </div>
             <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{place.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{place.addressLine}</p>
@@ -142,6 +149,8 @@ export default async function AdminPlaceDetailPage({ params }: { params: Promise
           </div>
         </div>
       </header>
+
+      {attentionIssues.length ? <section className="rounded-lg border border-[#d7a548]/60 bg-[#fffaf0] p-4 sm:p-5" aria-labelledby="place-attention-title"><h2 id="place-attention-title" className="text-lg font-bold">Wymaga uwagi</h2><ul className="mt-2 grid gap-2 text-sm leading-6 sm:grid-cols-2">{attentionIssues.map((issue) => <li key={issue} className="flex items-start gap-2"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#b7791f]" />{issue}</li>)}</ul></section> : null}
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_310px] lg:items-start">
         <div className="min-w-0 space-y-5">
