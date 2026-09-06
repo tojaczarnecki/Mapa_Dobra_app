@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AccommodationCard } from "@/components/accommodations/accommodation-card";
-import guidedShelter from "../../../Branding_app/Ilustarions/guided/guided-shelter.png";
+const guidedShelter = "/branding/guided/guided-shelter.png";
 import {
   type Accommodation,
   type AccommodationNeed,

@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Phone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import guidedHealth from "../../../Branding_app/Ilustarions/guided/guided-health.png";
-import guidedShelter from "../../../Branding_app/Ilustarions/guided/guided-shelter.png";
+const guidedHealth = "/branding/guided/guided-health.png";
+const guidedShelter = "/branding/guided/guided-shelter.png";
 
 type MainNeed = "basic" | "shelter" | "health" | "advice";
 type Screen = "intro" | "main" | "branch" | "shelter" | "unknown";
