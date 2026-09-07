@@ -10,7 +10,7 @@ export async function POST() {
   const result = await sendPushToAdminUser(admin.user.id, {
     title: "Dobra Mapa",
     body: "Powiadomienia działają na tym urządzeniu.",
-    url: "/admin/moje-miejsca",
+    url: "/admin",
     tag: "admin-push-test",
   });
   return NextResponse.json(result);

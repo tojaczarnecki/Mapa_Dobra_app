@@ -45,7 +45,7 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
     <form action={formAction} className="space-y-4 pb-16" onChange={() => setDirty(true)}>
       {initialData.id ? <input type="hidden" name="id" value={initialData.id} /> : null}
       <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <h2 className="text-lg font-bold">Podstawowe informacje</h2>
+        <h2 className="text-lg font-bold">Informacje publiczne</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm font-bold sm:col-span-2">
             <span className="mb-1.5 block">Nazwa *</span>
@@ -71,7 +71,8 @@ export function OrganizationForm({ initialData }: { initialData: OrganizationFor
       </section>
 
       <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <h2 className="text-lg font-bold">Dane rejestrowe</h2>
+        <h2 className="text-lg font-bold">Dane administracyjne</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Identyfikatory pomagają odróżnić organizacje i nie są główną informacją dla użytkownika.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           {(["nip", "regon", "krs"] as const).map((field) => (
             <label key={field} className="block text-sm font-bold">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/admin/session";
@@ -14,6 +14,8 @@ import { BulkCategoryDecisionPanel } from "@/components/admin/imports/bulk-categ
 import { deriveBulkCategoryGroups, type BulkCategoryCandidate } from "@/lib/imports/bulk-category-decision";
 import { parseOrganizationDecision, resolveEffectiveOrganization } from "@/lib/imports/organization-decisions";
 import { resolveEffectiveCategory } from "@/lib/imports/category-decisions";
+import { AdminPageHeader, AdminWorkflowSteps } from "@/components/admin/admin-ui";
+import { recordKindLabels } from "@/lib/places/constants";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const statusLabels = {
@@ -116,13 +118,22 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
   const bulkGroups = deriveBulkCategoryGroups(bulkCandidates, categories);
   return (
     <div className="space-y-5">
-      <Link href="/admin/importy" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} /> Wróć do importów</Link>
-      <header className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <p className="text-sm font-bold text-brand-strong">{batch.key}</p>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{batch.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{batch.publisher} · edycja {batch.edition}</p>
+      <AdminPageHeader backHref="/admin/importy" backLabel="Wróć do importów" eyebrow="Źródła danych" title={batch.title} description={`${batch.publisher} · edycja ${batch.edition}`} />
+      <AdminWorkflowSteps steps={[
+        { label: "Sprawdź problemy", detail: `${conflicts.length - resolvedConflicts} pozycji wymaga decyzji`, state: conflicts.length > resolvedConflicts ? "current" : "done" },
+        { label: "Rozwiąż duplikaty", detail: "Potwierdź, czy wpisy opisują to samo miejsce.", state: conflicts.length > resolvedConflicts ? "next" : "done" },
+        { label: "Przypisz organizację", detail: "Wybierz istniejącą organizację lub świadomie utwórz nowy szkic.", state: "next" },
+        { label: "Sprawdź kategorie", detail: "Upewnij się, że pomoc trafi do właściwej kategorii.", state: "next" },
+        { label: "Uzupełnij dane", detail: "Braki nie publikują miejsca automatycznie.", state: "next" },
+        { label: "Utwórz szkic miejsca", detail: "Szkic będzie gotowy do dalszej weryfikacji.", state: "next" },
+      ]} />
+      <details className="rounded-lg border border-border bg-white px-4 py-3">
+        <summary className="cursor-pointer text-sm font-bold text-brand-strong">Informacje źródłowe</summary>
+        <div className="mt-3 border-t border-border pt-3">
+        <p className="text-sm font-bold">{batch.key}</p>
         <a href={batch.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-strong hover:underline"><ExternalLink aria-hidden="true" size={16} /> Dokument źródłowy</a>
-      </header>
+        </div>
+      </details>
       <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Postęp paczki">
         <Progress label="Nowe miejsca" value={importedPlaces} detail={`${verifiedPlaces} zweryfikowanych`} />
         <Progress label="Wymaga potwierdzenia" value={pendingPlaces} detail="bez automatycznej publikacji" urgent={pendingPlaces > 0} />
@@ -140,7 +151,7 @@ export default async function AdminImportBatchPage({ params, searchParams }: { p
         <li key={candidate.id} className="rounded-lg border border-border bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0"><span className="text-xs font-bold uppercase text-muted-foreground">{statusLabels[effectiveStatus(candidate)]}</span><h2 className="mt-1 text-base font-bold">{candidate.proposedName}</h2><p className="mt-1 text-sm">{candidate.proposedAddress ?? "Brak stałego adresu"}</p><p className="mt-1 text-xs text-muted-foreground">{candidate.categorySlugs.join(" · ") || "Brak klasyfikacji"}</p></div>
-            <div className="flex flex-wrap gap-2">{dispositionFor(candidate) === "LOSER" ? <span className="inline-flex min-h-11 items-center rounded-lg border border-border bg-[#f5f3ed] px-3 text-sm font-bold text-muted-foreground">Pominięto jako duplikat</span> : candidate.createdPlace ? <><span className="inline-flex min-h-11 items-center rounded-lg border border-brand/30 bg-brand-soft px-3 text-sm font-bold text-brand-strong">Utworzono szkic</span><Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link></> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {candidate.matchedPlace.recordKind}</Link> : candidate.status === "IMPORT_READY" ? <MaterializeCandidateButton candidateId={candidate.id} batchId={id} /> : null}{dispositionFor(candidate) !== "LOSER" && (candidate.queueStatus || isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution }, dispositionFor(candidate))) ? <Link href={`/admin/weryfikacja/${candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link> : null}</div>
+            <div className="flex flex-wrap gap-2">{dispositionFor(candidate) === "LOSER" ? <span className="inline-flex min-h-11 items-center rounded-lg border border-border bg-[#f5f3ed] px-3 text-sm font-bold text-muted-foreground">Pominięto jako duplikat</span> : candidate.createdPlace ? <><span className="inline-flex min-h-11 items-center rounded-lg border border-brand/30 bg-brand-soft px-3 text-sm font-bold text-brand-strong">Utworzono szkic</span><Link href={`/admin/miejsca/${candidate.createdPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz szkic</Link></> : candidate.matchedPlace ? <Link href={`/admin/miejsca/${candidate.matchedPlace.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Możliwy rekord: {recordKindLabels[candidate.matchedPlace.recordKind]}</Link> : candidate.status === "IMPORT_READY" ? <MaterializeCandidateButton candidateId={candidate.id} batchId={id} /> : null}{dispositionFor(candidate) !== "LOSER" && (candidate.queueStatus || isSpreadsheetPlaceReviewCandidate({ batchMetadata: batch.metadata, status: candidate.status, proposedData: candidate.proposedData, resolution: candidate.resolution }, dispositionFor(candidate))) ? <Link href={`/admin/weryfikacja/${candidate.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand px-3 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white">Weryfikuj</Link> : null}</div>
             {isSpreadsheetBatchMetadata(batch.metadata) && hasSpreadsheetSourceRowDuplicate({ proposedData: candidate.proposedData }) && dispositionFor(candidate) === "UNRESOLVED" ? <p className="mt-2 text-sm text-muted-foreground">Rekord wymaga rozstrzygnięcia duplikatu w pliku.</p> : null}
             {dispositionFor(candidate) === "LOSER" ? <p className="mt-2 text-sm text-muted-foreground">Ten wpis nie będzie importowany — zachowano inny rekord z tego pliku.</p> : null}
           </div>

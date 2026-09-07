@@ -6,6 +6,10 @@ const source = readFileSync(
   new URL("../src/app/admin/login/actions.ts", import.meta.url),
   "utf8",
 );
+const loginFormSource = readFileSync(
+  new URL("../src/components/admin/login-form.tsx", import.meta.url),
+  "utf8",
+);
 
 test("admin login redirects outside the caught authentication work", () => {
   const catchIndex = source.indexOf("  } catch (error) {");
@@ -23,4 +27,11 @@ test("invalid credentials return the form error before session creation", () => 
   assert.match(source, /Nieprawidłowy e-mail lub hasło\./);
   assert.ok(invalidCredentialsIndex >= 0);
   assert.ok(sessionCreationIndex > invalidCredentialsIndex);
+});
+
+test("password recovery help stays on login without navigating to a reset route", () => {
+  assert.match(loginFormSource, /Nie pamiętasz hasła\?/);
+  assert.match(loginFormSource, /role="dialog"/);
+  assert.match(loginFormSource, /W wersji pilota link do ustawienia nowego hasła generuje administrator/);
+  assert.doesNotMatch(loginFormSource, /href=.*reset-hasla/);
 });

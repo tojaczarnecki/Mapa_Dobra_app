@@ -1,12 +1,13 @@
-import Link from "next/link";
-import { ClipboardList, Plus } from "lucide-react";
 import { AdminPageHeader, AdminSection } from "@/components/admin/admin-ui";
 import { AdminNeedsList } from "@/components/admin/needs/admin-needs-list";
+import { GlobalNeedLauncher } from "@/components/admin/needs/global-need-launcher";
 import { requirePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
 
-export default async function AdminNeedsPage() {
+export default async function AdminNeedsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requirePermission("MANAGE_VOLUNTEER_NEEDS");
+  const params = await searchParams;
+  const created = params.created === "published" || params.created === "draft" ? params.created : null;
   const needs = await prisma.organizationNeed.findMany({
     include: {
       organization: { select: { name: true } },
@@ -17,9 +18,10 @@ export default async function AdminNeedsPage() {
   });
 
   return <div className="space-y-5">
-    <AdminPageHeader backHref="/admin" backLabel="Panel administratora" eyebrow="Operacje wolontariackie" title="Potrzeby" description="Globalny widok potrzeb wolontariackich wszystkich organizacji." action={<div className="flex flex-wrap items-center gap-2"><Link href="/admin/moje-miejsca" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-[#10231e] hover:bg-brand-strong hover:text-white"><Plus aria-hidden="true" size={18} />Dodaj potrzebę</Link><ClipboardList aria-hidden="true" className="mt-1 text-brand-strong" size={24} /></div>} />
+    <AdminPageHeader backHref="/admin" backLabel="Panel administratora" eyebrow="Operacje wolontariackie" title="Potrzeby" description="Globalny widok potrzeb wolontariackich wszystkich organizacji." action={<GlobalNeedLauncher />} />
     <AdminSection title="Wszystkie potrzeby" description="Aktywne, szkice i zakończone potrzeby w jednym uporządkowanym widoku." className="p-4 sm:p-5">
-      <AdminNeedsList global needs={needs.map((need) => ({
+      {created ? <p role="status" className="border-b border-brand/20 bg-brand-soft/40 px-4 py-3 text-sm font-semibold text-brand-strong sm:px-5">{created === "published" ? "Potrzeba została opublikowana." : "Szkic potrzeby został zapisany."}</p> : null}
+      <AdminNeedsList global initialView={created === "draft" ? "DRAFTS" : "ACTIVE"} needs={needs.map((need) => ({
         ...need,
         startsAt: need.startsAt.toISOString(),
         endsAt: need.endsAt.toISOString(),

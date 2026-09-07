@@ -27,7 +27,7 @@ test("an endpoint can never be claimed by another admin", () => {
 });
 
 test("notification payloads accept only same-app relative URLs", () => {
-  assert.equal(safeNotificationUrl("/admin/moje-miejsca"), "/admin/moje-miejsca");
+  assert.equal(safeNotificationUrl("/admin"), "/admin");
   assert.equal(safeNotificationUrl("https://evil.example/"), null);
   assert.equal(safeNotificationUrl("//evil.example/"), null);
   assert.equal(isValidPushPayload({ title: "Dobra Mapa", body: "Aktualizacja", url: "/admin" }), true);

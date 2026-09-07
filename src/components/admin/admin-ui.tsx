@@ -51,3 +51,16 @@ export function AdminActionButton({ children, href, variant = "primary", type = 
   if (href) return <Link href={href} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition ${variant !== "tertiary" ? "border" : ""} ${classes}`}>{children}</Link>;
   return <button type={type} disabled={disabled} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition disabled:cursor-wait disabled:opacity-60 ${variant !== "tertiary" ? "border" : ""} ${classes}`}>{children}</button>;
 }
+
+export function AdminWorkflowSteps({ steps }: { steps: Array<{ label: string; detail?: string; state: "done" | "current" | "next" | "blocked" }> }) {
+  const stateLabel = { done: "Gotowe", current: "Teraz", next: "Następnie", blocked: "Wymaga decyzji" };
+  return <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-label="Postęp procesu">{steps.map((step, index) => <li key={step.label} className={`rounded-lg border p-3 ${step.state === "current" ? "border-brand bg-brand-soft/45" : step.state === "blocked" ? "border-urgent/30 bg-urgent-soft/35" : "border-border bg-white"}`}><div className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-current">{index + 1}</span>{stateLabel[step.state]}</div><p className="mt-2 text-sm font-bold">{step.label}</p>{step.detail ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{step.detail}</p> : null}</li>)}</ol>;
+}
+
+export function AdminImpactSummary({ title = "Co zmieni się publicznie?", children }: { title?: string; children: ReactNode }) {
+  return <section className="rounded-lg border border-brand/30 bg-brand-soft/35 p-4" aria-label={title}><h2 className="text-base font-bold">{title}</h2><div className="mt-2 text-sm leading-6">{children}</div></section>;
+}
+
+export function AdminFieldDiff({ label, current, proposed }: { label: string; current: ReactNode; proposed: ReactNode }) {
+  return <article className="rounded-lg border border-border p-4"><h3 className="text-sm font-bold">{label}</h3><dl className="mt-3 grid gap-3 sm:grid-cols-2"><div><dt className="text-xs font-bold uppercase text-muted-foreground">Było</dt><dd className="mt-1 break-words text-sm leading-6">{current}</dd></div><div><dt className="text-xs font-bold uppercase text-brand-strong">Będzie</dt><dd className="mt-1 break-words text-sm font-semibold leading-6">{proposed}</dd></div></dl></article>;
+}

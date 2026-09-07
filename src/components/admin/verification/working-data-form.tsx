@@ -27,7 +27,7 @@ export function WorkingDataForm({ place, categories, organizations, openingDays,
   return (
     <form action={formAction} className="space-y-4">
       <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase text-brand-strong">Wersja administratora</p><h2 className="mt-1 text-xl font-bold">Dane robocze</h2><p className="mt-1 text-sm text-muted-foreground">Zmiany zapisują się do Place, nie do niezmiennego wpisu źródłowego.</p></div><Link href={`/admin/miejsca/${place.id}/edytuj`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Pełny formularz CMS</Link></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase text-brand-strong">Wersja administratora</p><h2 className="mt-1 text-xl font-bold">Dane robocze</h2><p className="mt-1 text-sm text-muted-foreground">Zmiany zapisują się w danych miejsca, a nie w niezmiennym wpisie źródłowym.</p></div><Link href={`/admin/miejsca/${place.id}/edytuj`} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-bold text-brand-strong hover:bg-brand-soft">Otwórz pełny formularz miejsca</Link></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label="Nazwa" name="name" defaultValue={place.name} required wide />
           <Field label="Ulica" name="street" defaultValue={place.street} />
@@ -50,7 +50,7 @@ export function WorkingDataForm({ place, categories, organizations, openingDays,
       </section>
 
       <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <h2 className="text-xl font-bold">Godziny działania</h2>{rawOpeningHours ? <div className="mt-3 rounded-md border border-brand/25 bg-brand-soft/40 p-3"><p className="text-xs font-bold uppercase text-brand-strong">Tekst źródłowy z PDF</p><p className="mt-1 text-sm whitespace-pre-wrap">{rawOpeningHours}</p></div> : <p className="mt-2 text-sm text-muted-foreground">PDF nie zawierał jednoznacznego tekstu godzin. UNKNOWN pozostaje poprawnym stanem.</p>}
+        <h2 className="text-xl font-bold">Godziny działania</h2>{rawOpeningHours ? <div className="mt-3 rounded-md border border-brand/25 bg-brand-soft/40 p-3"><p className="text-xs font-bold uppercase text-brand-strong">Tekst źródłowy z PDF</p><p className="mt-1 text-sm whitespace-pre-wrap">{rawOpeningHours}</p></div> : <p className="mt-2 text-sm text-muted-foreground">PDF nie zawierał jednoznacznego tekstu godzin. Brak danych pozostaje poprawnym stanem.</p>}
         <div className="mt-3"><VerificationOpeningHoursEditor initialDays={openingDays} /></div>
       </section>
 

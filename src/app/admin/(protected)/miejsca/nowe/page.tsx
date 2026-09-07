@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { AdminPageHeader, AdminImpactSummary } from "@/components/admin/admin-ui";
 import { PlaceForm } from "@/components/admin/places/place-form";
 import { emptyPlaceAdminPayload, getAdminPlaceFormOptions } from "@/lib/places/admin-data";
 import { requirePermission } from "@/lib/admin/session";
@@ -11,15 +10,8 @@ export default async function NewAdminPlacePage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/admin/miejsca" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft">
-        <ArrowLeft aria-hidden="true" size={18} />
-        Wróć do miejsc
-      </Link>
-      <header>
-        <p className="mb-1 text-sm font-bold text-brand-strong">Baza miejsc</p>
-        <h1 className="text-3xl font-bold">Nowe miejsce</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Nowy rekord zostanie zapisany jako szkic. Publikacja wymaga osobnej decyzji.</p>
-      </header>
+      <AdminPageHeader backHref="/admin/miejsca" backLabel="Wróć do miejsc" eyebrow="Baza miejsc" title="Nowe miejsce" description="Uzupełnij minimum potrzebne do utworzenia szkicu." />
+      <AdminImpactSummary title="Tworzysz szkic miejsca"><p>Nie będzie jeszcze widoczne publicznie. Po zapisaniu możesz uzupełnić dane, zweryfikować je i dopiero potem opublikować miejsce.</p><p className="mt-2 font-semibold">Minimum: nazwa, adres lub lokalizacja, kategoria oraz organizacja, jeśli jest wymagana.</p></AdminImpactSummary>
       <PlaceForm initialData={emptyPlaceAdminPayload(primaryCategory)} categories={categories} organizations={organizations} />
     </div>
   );

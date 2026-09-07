@@ -61,8 +61,8 @@ function NeedRow({ need, defaultPlaceId }: { need: Need; defaultPlaceId?: string
   </details>;
 }
 
-export function AdminNeedsList({ placeId, needs, global = false }: { placeId?: string; needs: Need[]; global?: boolean }) {
-  const [view, setView] = useState<View>("ACTIVE");
+export function AdminNeedsList({ placeId, needs, global = false, initialView = "ACTIVE" }: { placeId?: string; needs: Need[]; global?: boolean; initialView?: View }) {
+  const [view, setView] = useState<View>(initialView);
   const counts = needs.reduce<Record<View, number>>((result, need) => { result[viewForStatus(need.status)] += 1; return result; }, { ACTIVE: 0, DRAFTS: 0, COMPLETED: 0, CANCELLED: 0 });
   const visibleNeeds = needs.filter((need) => viewForStatus(need.status) === view);
   return <div className="mt-5">

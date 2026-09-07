@@ -23,11 +23,12 @@ export default async function AdminLoginPage() {
           className="mb-7 h-11 w-auto"
         />
         <p className="mb-1 text-sm font-bold uppercase text-brand-strong">Panel administratora</p>
-        <h1 className="text-2xl font-bold">Zaloguj się</h1>
+        <h1 className="text-2xl font-bold">Zaloguj się do Dobrej Mapy</h1>
         <p className="mb-7 mt-2 text-sm leading-6 text-muted-foreground">
           Dostęp wyłącznie dla upoważnionych osób moderujących zgłoszenia.
         </p>
         <LoginForm />
+        <p className="mt-7 border-t border-border pt-5 text-center text-xs leading-5 text-muted-foreground">Dostęp do panelu mają wyłącznie zaproszeni użytkownicy.</p>
       </section>
     </div>
   );

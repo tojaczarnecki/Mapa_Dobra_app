@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireNeedPermission, requirePlacePermission } from "@/lib/admin/session";
+import { redirect } from "next/navigation";
+import { requireNeedPermission, requirePermission, requirePlacePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
 import { canDecideVolunteerResponse, needHasAvailableCapacity, shouldReopenFilledNeed, statusAfterConfirmedResponse, validateNeedInput } from "@/lib/needs/validation";
 
@@ -32,6 +33,39 @@ export async function createNeed(placeId: string, _state: NeedActionState, formD
   await prisma.organizationNeed.create({ data: { ...validation.data, type: "VOLUNTEERS", status, publishedAt: status === "PUBLISHED" ? new Date() : null, createdByAdminUserId: session.user.id, updatedByAdminUserId: session.user.id, organizationId: place.organizationId, placeId } });
   refresh(placeId);
   return { success: status === "PUBLISHED" ? "Potrzeba została opublikowana." : "Szkic potrzeby został zapisany." };
+}
+
+export async function createNeedForOrganization(_state: NeedActionState, formData: FormData): Promise<NeedActionState> {
+  const session = await requirePermission("MANAGE_VOLUNTEER_NEEDS");
+  const organizationId = value(formData, "organizationId");
+  const placeId = value(formData, "placeId") || null;
+  const validation = validateNeedInput({
+    title: value(formData, "title"), description: value(formData, "description"), peopleNeeded: value(formData, "peopleNeeded"),
+    startsAt: value(formData, "startsAt"), endsAt: value(formData, "endsAt"), signupDeadline: value(formData, "signupDeadline"),
+    experienceRequired: formData.get("experienceRequired") === "true", requirements: value(formData, "requirements"), locationNote: value(formData, "locationNote"),
+  });
+  if (!validation.ok) return { error: validation.message };
+  if (!organizationId) return { error: "Wybierz organizację." };
+
+  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { active: true } });
+  if (!organization?.active) return { error: "Wybierz aktywną organizację." };
+  if (placeId && !(await prisma.place.findFirst({ where: { id: placeId, organizationId }, select: { id: true } }))) return { error: "Wybrana placówka nie należy do tej organizacji." };
+
+  const status = formData.get("status") === "PUBLISHED" ? "PUBLISHED" : "DRAFT";
+  await prisma.organizationNeed.create({
+    data: {
+      ...validation.data,
+      type: "VOLUNTEERS",
+      status,
+      publishedAt: status === "PUBLISHED" ? new Date() : null,
+      createdByAdminUserId: session.user.id,
+      updatedByAdminUserId: session.user.id,
+      organizationId,
+      placeId,
+    },
+  });
+  refresh(placeId);
+  redirect(`/admin/potrzeby?created=${status === "PUBLISHED" ? "published" : "draft"}`);
 }
 
 export async function updateNeed(needId: string, placeId: string | null, _state: NeedActionState, formData: FormData): Promise<NeedActionState> {

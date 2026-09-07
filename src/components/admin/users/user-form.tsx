@@ -182,7 +182,7 @@ export function UserForm({
             <h2 className="text-lg font-bold">Przypisane placówki</h2>
             <p className="mt-1 text-sm text-muted-foreground">Wybierz miejsca, do których użytkownik ma otrzymać dostęp.</p>
           </div>
-          <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-bold text-brand-strong">Wybrane placówki: {selectedPlaces.length}</span>
+          {role === "SUPER_ADMIN" ? <p className="max-w-md text-sm leading-5 text-brand-strong">Superadministrator ma dostęp do wszystkich placówek i nie wymaga indywidualnego przypisania.</p> : <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-bold text-brand-strong">Wybrane placówki: {selectedPlaces.length}</span>}
         </div>
 
         {selectedPlaces.length ? (
@@ -275,13 +275,14 @@ export function UserForm({
                 <span>{permissionLabels[permission]}</span>
                 <select aria-label={`${permissionLabels[permission]}: ustawienie uprawnienia`} value={overrideState[permission] ?? "ROLE"} onChange={(event) => setOverrideState((current) => ({ ...current, [permission]: event.target.value as "ROLE" | "ALLOW" | "DENY" }))} className="min-h-11 rounded-md border border-border bg-white px-2 text-xs font-bold">
                   <option value="ROLE">Domyślnie</option>
-                  <option value="ALLOW">Zezwól</option>
+                  <option value="ALLOW">Dodatkowo zezwól</option>
                   <option value="DENY">Zablokuj</option>
                 </select>
               </label>
             ))}
           </div>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">To ustawienie nadpisuje uprawnienie wynikające z roli tylko dla tego użytkownika.</p>
       </details>
 
       {state.error ? <p role="alert" className="rounded-lg bg-urgent-soft p-3 text-sm font-semibold text-[#8c2d0c]">{state.error}</p> : null}

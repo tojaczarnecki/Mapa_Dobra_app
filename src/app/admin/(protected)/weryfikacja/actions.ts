@@ -524,7 +524,7 @@ export async function publishVerifiedPlace(placeId: string): Promise<Verificatio
     revalidatePath("/znajdz-nocleg");
     return { success: "Miejsce zostało opublikowane." };
   } catch {
-    return { error: "Miejsce nie spełnia jeszcze warunków publikacji albo nie jest rekordem PRODUCTION." };
+    return { error: "Miejsce nie spełnia jeszcze warunków publikacji albo nie jest rekordem produkcyjnym." };
   }
 }
 

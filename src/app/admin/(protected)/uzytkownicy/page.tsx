@@ -95,7 +95,7 @@ export default async function UsersPage({
               </div>
               <div>
                 <dt className="text-[11px] font-bold uppercase text-muted-foreground">Placówki</dt>
-                <dd className="mt-0.5 text-sm font-semibold">{placeCountLabel(user._count.placeAccesses)}</dd>
+                <dd className="mt-0.5 text-sm font-semibold">{user.role === "SUPER_ADMIN" ? "Wszystkie placówki" : placeCountLabel(user._count.placeAccesses)}</dd>
               </div>
               <div className="col-span-2 min-w-0 sm:col-span-1">
                 <dt className="text-[11px] font-bold uppercase text-muted-foreground">Ostatnie logowanie</dt>

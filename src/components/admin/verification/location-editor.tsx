@@ -53,11 +53,11 @@ export function LocationEditor({ placeId, nextId, address, initialLatitude, init
       <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><MousePointerClick aria-hidden="true" size={16} />Kliknij mapę lub przeciągnij marker. Wynik geokodowania nie jest zapisywany bez zatwierdzenia.</p>
 
       <form action={formAction} className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
-        <label className="text-sm font-bold">Latitude<input name="latitude" inputMode="decimal" required value={position?.[0] ?? ""} onChange={(event) => {
+        <label className="text-sm font-bold">Szerokość geograficzna<input name="latitude" inputMode="decimal" required value={position?.[0] ?? ""} onChange={(event) => {
           const value = Number(event.target.value);
           if (Number.isFinite(value)) changePosition([value, position?.[1] ?? 19.455], "MANUAL");
         }} className="mt-1 min-h-11 w-full rounded-lg border border-border px-3 font-normal focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/25" /></label>
-        <label className="text-sm font-bold">Longitude<input name="longitude" inputMode="decimal" required value={position?.[1] ?? ""} onChange={(event) => {
+        <label className="text-sm font-bold">Długość geograficzna<input name="longitude" inputMode="decimal" required value={position?.[1] ?? ""} onChange={(event) => {
           const value = Number(event.target.value);
           if (Number.isFinite(value)) changePosition([position?.[0] ?? 51.7592, value], "MANUAL");
         }} className="mt-1 min-h-11 w-full rounded-lg border border-border px-3 font-normal focus:border-brand-strong focus:outline-none focus:ring-4 focus:ring-brand-strong/25" /></label>

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { AdminPageHeader, AdminImpactSummary } from "@/components/admin/admin-ui";
 import { notFound } from "next/navigation";
 import { OrganizationForm } from "@/components/admin/organizations/organization-form";
 import { prisma } from "@/lib/prisma";
@@ -15,8 +14,8 @@ export default async function EditOrganizationPage({ params }: { params: Promise
   if (!organization) notFound();
   return (
     <div className="space-y-5">
-      <Link href={`/admin/organizacje/${id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft aria-hidden="true" size={18} /> Wróć do organizacji</Link>
-      <header><p className="mb-1 text-sm font-bold text-brand-strong">Edycja organizacji</p><h1 className="text-3xl font-bold">{organization.name}</h1></header>
+      <AdminPageHeader backHref={`/admin/organizacje/${id}`} backLabel="Wróć do organizacji" eyebrow="Edycja organizacji" title={organization.name} description="Zmień dane organizacji i sprawdź ich publiczny wpływ." />
+      <AdminImpactSummary title="Informacje publiczne"><p>Zmiany opisu i kontaktu mogą być widoczne użytkownikom Dobrej Mapy przy powiązanych miejscach.</p></AdminImpactSummary>
       <OrganizationForm initialData={{ id, name: organization.name, description: organization.description ?? "", phone: organization.phone ?? "", email: organization.email ?? "", website: organization.website ?? "", nip: organization.nip ?? "", regon: organization.regon ?? "", krs: organization.krs ?? "" }} />
     </div>
   );

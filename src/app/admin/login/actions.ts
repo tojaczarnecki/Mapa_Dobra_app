@@ -32,6 +32,7 @@ export async function loginAdmin(
     const email = normalizeEmail(formData.get("email"));
     const passwordEntry = formData.get("password");
     const password = typeof passwordEntry === "string" ? passwordEntry : "";
+    const remember = formData.get("remember") === "on";
     const headerStore = await headers();
     const rateLimitKey = getTrustedClientAddress(headerStore);
     const rateLimit = await consumeLoginAttempt(rateLimitKey);
@@ -57,7 +58,7 @@ export async function loginAdmin(
     }
 
     const token = createSessionToken();
-    const expiresAt = getSessionExpiry();
+    const expiresAt = getSessionExpiry(new Date(), remember);
 
     await prisma.$transaction(async (transaction) => {
       await transaction.adminUser.update({

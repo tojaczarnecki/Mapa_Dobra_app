@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { ModerationPanel } from "@/components/admin/moderation-panel";
@@ -20,6 +19,8 @@ import { getSubmissionDetail } from "@/lib/admin/submissions";
 import { getOrCreateSubmissionDraft, getSubmissionDraft } from "@/lib/admin/submission-drafts";
 import { requirePermission } from "@/lib/admin/session";
 import { prepareApprovedSubmissionDraft } from "../draft-actions";
+import { AdminFieldDiff, AdminImpactSummary, AdminPageHeader } from "@/components/admin/admin-ui";
+import { weekdayLabels } from "@/lib/places/opening-hours";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -103,7 +104,7 @@ function currentOpeningHours(place: PlaceUpdateDetail["targetPlace"]) {
         : row.status === "UNKNOWN"
           ? row.note ?? "Brak potwierdzonych godzin"
           : `${row.opensAt ?? "?"}-${row.closesAt ?? "?"}`;
-      return `${row.weekday}: ${value}`;
+      return `${weekdayLabels[row.weekday]}: ${value}`;
     })
     .join("; ");
 }
@@ -129,38 +130,10 @@ export default async function AdminSubmissionDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/admin/zgloszenia"
-        className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"
-      >
-        <ArrowLeft aria-hidden="true" size={18} />
-        Wróć do zgłoszeń
-      </Link>
-
-      <header className="rounded-lg border border-border bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-bold text-brand-strong">
-            {isPlaceUpdate ? "Zgłoszenie zmiany" : "Zgłoszenie nowego miejsca"}
-          </span>
-          <StatusBadge status={submission.moderationStatus} />
-          {submission.publicationStatus === "PUBLISHED" ? (
-            <span className="rounded-full border border-brand/40 bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-strong">Zatwierdzone i opublikowane</span>
-          ) : submission.moderationStatus === "APPROVED" ? (
-            <span className="rounded-full border border-urgent/45 bg-urgent-soft px-2.5 py-1 text-xs font-bold text-[#8c2d0c]">Zatwierdzone, ale nieopublikowane</span>
-          ) : (
-            <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">Nieopublikowane</span>
-          )}
-        </div>
-        <h1 className="mt-3 text-2xl font-bold sm:text-3xl">{title}</h1>
-        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          <span>Zgłoszono: <strong className="text-foreground">{formatAdminDate(submission.createdAt)}</strong></span>
-          <span>ID: <code className="text-xs text-foreground">{submission.id}</code></span>
-          {submission.moderatedBy ? (
-            <span>Moderator: <strong className="text-foreground">{submission.moderatedBy.displayName}</strong></span>
-          ) : null}
-        </div>
-      </header>
-
+      <AdminPageHeader backHref="/admin/zgloszenia" backLabel="Wróć do zgłoszeń" eyebrow={isPlaceUpdate ? "Zgłoszenie zmiany" : "Zgłoszenie nowego miejsca"} title={title} description={`Zgłoszono: ${formatAdminDate(submission.createdAt)}${submission.moderatedBy ? ` · Moderator: ${submission.moderatedBy.displayName}` : ""}`} action={<div className="flex flex-wrap gap-2"><StatusBadge status={submission.moderationStatus} />{submission.publicationStatus === "PUBLISHED" ? <span className="rounded-full border border-brand/40 bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-strong">Opublikowane</span> : null}</div>} />
+      <AdminImpactSummary>
+        {isPlaceUpdate ? "Po zatwierdzeniu wybrane dane zostaną przeniesione do publicznego rekordu po zapisaniu wersji roboczej." : "Po zatwierdzeniu powstanie wersja robocza miejsca do uzupełnienia i świadomej publikacji."}
+      </AdminImpactSummary>
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="order-2 min-w-0 space-y-5 lg:order-1">
           {draft ? (
@@ -238,19 +211,7 @@ function PlaceUpdateDetails({ submission }: { submission: PlaceUpdateDetail }) {
         >
           <div className="space-y-4">
             {comparisons.map((comparison) => (
-              <article key={comparison.label} className="rounded-lg border border-border p-4">
-                <h3 className="mb-3 text-sm font-bold">{comparison.label}</h3>
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs font-bold uppercase text-muted-foreground">Obecnie</dt>
-                    <dd className="mt-1 break-words text-sm leading-6">{comparison.current ?? "Brak wiarygodnych danych"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-bold uppercase text-brand-strong">Zgłoszona zmiana</dt>
-                    <dd className="mt-1 break-words text-sm font-semibold leading-6">{comparison.proposed}</dd>
-                  </div>
-                </dl>
-              </article>
+              <AdminFieldDiff key={comparison.label} label={comparison.label} current={comparison.current ?? "Brak wiarygodnych danych"} proposed={comparison.proposed} />
             ))}
           </div>
         </DetailSection>

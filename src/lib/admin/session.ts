@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const ADMIN_SESSION_COOKIE = "mapa_dobra_admin_session";
 export const ADMIN_SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
+export const ADMIN_REMEMBERED_SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function createSessionToken() {
   return randomBytes(32).toString("base64url");
@@ -16,8 +17,8 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function getSessionExpiry(now = new Date()) {
-  return new Date(now.getTime() + ADMIN_SESSION_DURATION_MS);
+export function getSessionExpiry(now = new Date(), remember = false) {
+  return new Date(now.getTime() + (remember ? ADMIN_REMEMBERED_SESSION_DURATION_MS : ADMIN_SESSION_DURATION_MS));
 }
 
 export async function setAdminSessionCookie(token: string, expiresAt: Date) {
