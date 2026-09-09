@@ -9,7 +9,7 @@ import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-sta
 
 const findLinks = [
   { href: "/szukaj", label: "Szukaj pomocy" },
-  { href: "/mapa", label: "Mapa" },
+  { href: "/szukaj?view=map", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
   { href: "/ulubione", label: "Ulubione" },
   { href: "/uruchom-pomoc", label: "Przekaż informację o sytuacji" },
