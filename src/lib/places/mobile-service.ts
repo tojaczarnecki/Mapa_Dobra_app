@@ -40,7 +40,8 @@ export function isAnnualDateInRange(
 }
 
 export function isMobileSeasonActive(season: MobileSeasonRange | null | undefined, date = new Date()) {
-  if (!season?.active) return false;
+  if (!season) return true;
+  if (!season.active) return false;
 
   return isAnnualDateInRange(
     date,
