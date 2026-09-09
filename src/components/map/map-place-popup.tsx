@@ -10,15 +10,18 @@ import styles from "./map.module.css";
 
 export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?: string }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
-  const routeHref = directionsHref(place);
-  const status = place.status.kind === "standard"
+  const presentation = place.status.kind === "standard"
     ? resolvePublicPlaceStatus({
         status: place.status.status,
         profileKind: place.profileKind,
         mobileSeasonLabel: place.mobileSeasonLabel,
         mobileSeasonActive: place.mobileSeasonActive,
-      }).label
-    : place.status.availabilityLabel;
+      })
+    : undefined;
+  const routeAllowed = place.profileKind !== "MOBILE_SERVICE" && !(place.profileKind === "FOOD_SHARING" && presentation?.publicStatus !== "confirmed");
+  const routeHref = routeAllowed ? directionsHref(place) : undefined;
+  const status = presentation?.label ?? (place.status.kind === "accommodation" ? place.status.availabilityLabel : undefined);
+  const mobileBase = place.profileKind === "MOBILE_SERVICE";
 
   return (
     <article className={styles.mapPopupContent}>
@@ -26,7 +29,7 @@ export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?:
       <p className={styles.mapPopupTypes}>{place.profileKind === "FOOD_SHARING" ? "Lodówka społeczna" : place.helpTypes.join(" • ")}</p>
       <p className={styles.mapPopupAddress}>
         <MapPin aria-hidden="true" size={15} />
-        <span>{place.address}</span>
+        <span>{mobileBase ? "Baza / organizator: " : ""}{place.address}{mobileBase ? " · nie jest to miejsce postoju" : ""}</span>
       </p>
       {status ? <div className={styles.mapPopupMeta}><span>{status}</span></div> : null}
       <div className={styles.mapPopupActions}>
