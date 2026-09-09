@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - release/pilot-current-ui
 
 permissions:
   contents: read
