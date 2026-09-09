@@ -41,14 +41,20 @@ jobs:
             return [...new Set(await page.locator('a[href*="/lodz/"]').evaluateAll(els => els.map(a => a.getAttribute('href')).filter(Boolean)))];
           }
 
-          // Canonical map -> select a result -> detail -> return with preserved filters.
+          // Canonical map -> Leaflet marker -> detail -> return with preserved filters.
           const mapUrl = '/szukaj?view=map&kategoria=jedzenie&otwarte=1';
           await page.goto(base + mapUrl, { waitUntil: 'networkidle' });
-          await page.getByRole('button', { name: /Rozwiń listę miejsc/i }).click();
-          const firstPlaceButton = page.locator('.mobile-map-sheet-place-button').first();
-          await firstPlaceButton.waitFor({ state: 'visible' });
-          await firstPlaceButton.click();
-          const detailLink = page.getByRole('link', { name: /Szczegóły/i }).first();
+          const individualMarker = page.locator('.leaflet-marker-icon[title]').first();
+          if (!(await individualMarker.count())) {
+            const cluster = page.locator('.leaflet-marker-icon:not([title])').first();
+            assert.ok(await cluster.count(), 'map should expose an individual marker or a marker cluster');
+            await cluster.click();
+            await page.waitForTimeout(1200);
+          }
+          const marker = page.locator('.leaflet-marker-icon[title]').first();
+          await marker.waitFor({ state: 'visible' });
+          await marker.click();
+          const detailLink = page.locator('.leaflet-popup a[href*="/lodz/"]').last();
           await detailLink.waitFor({ state: 'visible' });
           await detailLink.click();
           await page.waitForLoadState('networkidle');
@@ -63,7 +69,6 @@ jobs:
           assert.equal(returned.searchParams.get('otwarte'), '1');
           console.log('MAP_RETURN_OK', returned.pathname + returned.search);
 
-          // Inspect concrete FOOD_SHARING records exposed by the staging catalogue.
           const fridgeLinks = await placeLinks('/lodowki-spoleczne');
           console.log('FOOD_SHARING_LINKS', JSON.stringify(fridgeLinks));
           for (const href of fridgeLinks.slice(0, 8)) {
@@ -75,8 +80,6 @@ jobs:
             console.log('FOOD_SHARING_DETAIL', JSON.stringify({ href, routeCount, text: text.slice(0, 900) }));
           }
 
-          // Discover MOBILE_SERVICE records through public search. If staging has none,
-          // record that fact instead of manufacturing a false pass.
           const mobileLinks = await placeLinks('/szukaj?zapytanie=mobilna');
           console.log('MOBILE_SEARCH_LINKS', JSON.stringify(mobileLinks));
           let mobileFound = 0;
