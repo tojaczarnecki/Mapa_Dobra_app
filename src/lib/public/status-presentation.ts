@@ -99,7 +99,11 @@ export function resolvePublicPlaceStatus(input: PublicPlaceStatusInput): PublicP
         : { publicStatus: "absent", label: "Poza sezonem", showStandardHours: false };
     }
 
-    return { publicStatus: "unknown", label: "Mobilna usługa", showStandardHours: false };
+    return {
+      publicStatus: standard.publicStatus,
+      label: compact ? "Według rozkładu" : "KURSUJE WEDŁUG ROZKŁADU",
+      showStandardHours: false,
+    };
   }
 
   return {
