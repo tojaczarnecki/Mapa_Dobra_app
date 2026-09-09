@@ -70,3 +70,23 @@ test("mobile service outside season is unavailable even when generic status says
   assert.equal(presentation.publicStatus, "absent");
   assert.equal(presentation.label, "Poza sezonem");
 });
+
+test("seasonless mobile service can be confirmed by its current schedule", () => {
+  const presentation = resolvePublicPlaceStatus({
+    status: "open",
+    profileKind: "MOBILE_SERVICE",
+  });
+
+  assert.equal(presentation.publicStatus, "confirmed");
+  assert.equal(presentation.label, "KURSUJE WEDŁUG ROZKŁADU");
+});
+
+test("uncertainty still wins for a seasonless mobile service", () => {
+  const presentation = resolvePublicPlaceStatus({
+    status: "unknownHours",
+    profileKind: "MOBILE_SERVICE",
+  });
+
+  assert.equal(presentation.publicStatus, "unknown");
+  assert.equal(presentation.label, "BRAK POTWIERDZONYCH GODZIN");
+});
