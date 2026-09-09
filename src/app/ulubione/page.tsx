@@ -5,7 +5,7 @@ import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Ulubione | Dobra Mapa",
-  description: "Zapisane miejsca pomocy w Mapie Dobra.",
+  description: "Zapisane miejsca pomocy w Dobrej Mapie.",
   alternates: canonicalAlternates("/ulubione"),
 };
 
@@ -33,7 +33,7 @@ export default async function FavoritesPage() {
           Miejsca zapisane na tym urządzeniu. Bez logowania i bez zakładania konta.
         </p>
       </header>
-      <FavoritesList livePlaces={livePlaces} />
+      <FavoritesList livePlaces={livePlaces} liveDataAvailable />
     </div>
   );
 }
