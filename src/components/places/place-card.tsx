@@ -32,7 +32,6 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
   const isMobileService = place.profileKind === "MOBILE_SERVICE";
   const illustrationSlug = placeIllustrationSlug(place.profileKind, place.categorySlug);
   const routeHref = isFoodSharing ? directionsHref(place) : undefined;
-  const showDistance = place.distance !== "Odległość nieznana";
 
   return (
     <article data-search-result-id={place.id} data-profile-kind={place.profileKind} tabIndex={0} className="search-result-card">
@@ -49,11 +48,9 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
         </div>
 
         <div className="search-result-meta">
-          {isMobileService || showHours || showDistance ? (
+          {isMobileService || showHours ? (
             <p>
               {isMobileService ? <><Clock3 aria-hidden="true" size={15} /><span>{place.mobileTodayStops?.length ? `Dziś: ${place.mobileTodayStops[0]}` : "Postoje według rozkładu"}</span></> : showHours ? <><Clock3 aria-hidden="true" size={15} /><span>{place.todayHours}</span></> : null}
-              {(isMobileService || showHours) && showDistance ? <span aria-hidden="true">·</span> : null}
-              {showDistance ? <><Navigation aria-hidden="true" size={15} /><span>{place.distance}</span></> : null}
             </p>
           ) : null}
           <p className="search-result-address">
