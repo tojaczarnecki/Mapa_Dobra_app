@@ -6,6 +6,10 @@ import {
   isMobileSeasonActive,
 } from "../src/lib/places/mobile-service.ts";
 
+test("service without a season is schedule-driven and not disabled by missing season data", () => {
+  assert.equal(isMobileSeasonActive(undefined, new Date(2026, 8, 9)), true);
+});
+
 test("inactive mobile season stays inactive even when current date is inside the range", () => {
   assert.equal(
     isMobileSeasonActive(
@@ -39,5 +43,12 @@ test("all-day mobile schedule keeps weekday", () => {
   assert.equal(
     formatMobileSchedule({ weekday: "SUNDAY", allDay: true }),
     "Niedziela · Całodobowo",
+  );
+});
+
+test("incomplete mobile schedule does not invent a time", () => {
+  assert.equal(
+    formatMobileSchedule({ weekday: "MONDAY" }),
+    "Poniedziałek · Godzina wymaga potwierdzenia",
   );
 });
