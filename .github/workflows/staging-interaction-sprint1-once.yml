@@ -44,18 +44,19 @@ jobs:
           // Canonical map -> Leaflet marker -> detail -> return with preserved filters.
           const mapUrl = '/szukaj?view=map&kategoria=jedzenie&otwarte=1';
           await page.goto(base + mapUrl, { waitUntil: 'networkidle' });
+          await page.waitForTimeout(5000);
           const individualMarker = page.locator('.leaflet-marker-icon[title]').first();
           if (!(await individualMarker.count())) {
             const cluster = page.locator('.leaflet-marker-icon:not([title])').first();
-            assert.ok(await cluster.count(), 'map should expose an individual marker or a marker cluster');
+            assert.ok(await cluster.count(), 'map should expose an individual marker or a marker cluster after Leaflet settles');
             await cluster.click();
-            await page.waitForTimeout(1200);
+            await page.waitForTimeout(1500);
           }
           const marker = page.locator('.leaflet-marker-icon[title]').first();
-          await marker.waitFor({ state: 'visible' });
+          await marker.waitFor({ state: 'visible', timeout: 10000 });
           await marker.click();
           const detailLink = page.locator('.leaflet-popup a[href*="/lodz/"]').last();
-          await detailLink.waitFor({ state: 'visible' });
+          await detailLink.waitFor({ state: 'visible', timeout: 10000 });
           await detailLink.click();
           await page.waitForLoadState('networkidle');
           const back = page.getByRole('link', { name: /Wróć do mapy/i }).first();
