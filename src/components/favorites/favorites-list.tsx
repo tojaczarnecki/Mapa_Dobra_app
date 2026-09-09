@@ -16,7 +16,8 @@ export type FavoriteLivePlace = {
   href: string;
   name: string;
   categoryLabel: string;
-  status: "open" | "closed" | "openToday" | "unknownHours" | "needsConfirmation";
+  statusLabel: string;
+  statusTone: FavoritePlace["statusTone"];
   todayHours: string;
   distanceLabel: string;
   address: string;
@@ -26,21 +27,6 @@ export type FavoriteLivePlace = {
 type DisplayedFavorite = FavoritePlace & {
   unavailable?: boolean;
 };
-
-function statusLabel(status: FavoriteLivePlace["status"]) {
-  if (status === "open") return "OTWARTE TERAZ";
-  if (status === "openToday") return "OTWARTE DZISIAJ";
-  if (status === "closed") return "ZAMKNIĘTE TERAZ";
-  if (status === "needsConfirmation") return "DANE WYMAGAJĄ POTWIERDZENIA";
-  return "BRAK POTWIERDZONYCH GODZIN";
-}
-
-function statusTone(status: FavoriteLivePlace["status"]): FavoritePlace["statusTone"] {
-  if (status === "open") return "open";
-  if (status === "openToday") return "openToday";
-  if (status === "closed") return "closed";
-  return "unknown";
-}
 
 function statusClasses(place: FavoritePlace) {
   if (place.statusTone === "open" || place.statusTone === "openToday") {
@@ -108,8 +94,8 @@ export function FavoritesList({
         href: live.href,
         name: live.name,
         categoryLabel: live.categoryLabel,
-        statusLabel: statusLabel(live.status),
-        statusTone: statusTone(live.status),
+        statusLabel: live.statusLabel,
+        statusTone: live.statusTone,
         todayHours: live.todayHours,
         distanceLabel: live.distanceLabel,
         address: live.address,
