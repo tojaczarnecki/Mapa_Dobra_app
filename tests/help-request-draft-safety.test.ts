@@ -25,6 +25,11 @@ test("resuming consumes hook state instead of leaving storedDraft active", () =>
   assert.match(wizard, /const draft = legacyFormDraft\.resume\(\)/);
 });
 
+test("untrusted restored draft is forced back to the safety question", () => {
+  assert.match(wizard, /const restoredStep = emergency\.selected[\s\S]*\? restoreHelpRequestStep[\s\S]*: 1;/);
+  assert.match(wizard, /setScreen\(screenForStep\[restoredStep\]\)/);
+});
+
 test("legacy default UNKNOWN still cannot bypass the safety question", () => {
   assert.deepEqual(restoreEmergencyAnswer({ emergencyAnswer: "UNKNOWN" }), { answer: null, selected: false });
   assert.deepEqual(restoreEmergencyAnswer({ emergencyAnswer: "UNKNOWN", emergencyAnswerSelected: true }), { answer: "UNKNOWN", selected: true });
