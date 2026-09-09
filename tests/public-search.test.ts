@@ -45,7 +45,7 @@ test("resetting search filters preserves the query and location context", () => 
 test("search is case and diacritic insensitive across name and category", () => {
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "LODZKI" }).map((place) => place.id), ["food"]);
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "prysznic" }).map((place) => place.id), ["shower"]);
-  assert.deepEqual(filterPublicSearchPlaces(places, { category: "food" }).map((place) => place.id), ["unknown", "food"]);
+  assert.deepEqual(filterPublicSearchPlaces(places, { category: "food" }).map((place) => place.id), ["food", "unknown"]);
 });
 
 test("filters preserve UNKNOWN and only accept explicitly confirmed conditions", () => {
@@ -58,14 +58,14 @@ test("filters preserve UNKNOWN and only accept explicitly confirmed conditions",
 
 test("food journey keeps social fridges out of the confirmed-help ranking and open-now filter", () => {
   const foodPlaces = [...places, socialFridge];
-  assert.deepEqual(filterPublicSearchPlaces(foodPlaces, { category: "jedzenie" }).map((place) => place.id), ["unknown", "food", "fridge"]);
+  assert.deepEqual(filterPublicSearchPlaces(foodPlaces, { category: "jedzenie" }).map((place) => place.id), ["food", "unknown", "fridge"]);
   assert.deepEqual(filterPublicSearchPlaces(foodPlaces, { category: "jedzenie", openNow: true }).map((place) => place.id), ["food"]);
 });
 
-test("search supports no results, combined filters and distance sorting", () => {
+test("search supports no results, combined filters and deterministic best sorting", () => {
   assert.equal(filterPublicSearchPlaces(places, { query: "nie istnieje" }).length, 0);
   assert.deepEqual(filterPublicSearchPlaces(places, { category: "jedzenie", noReferral: true }).map((place) => place.id), ["food"]);
-  assert.deepEqual(filterPublicSearchPlaces(places, { sort: "distance" }).map((place) => place.id), ["unknown", "shower", "food"]);
+  assert.deepEqual(filterPublicSearchPlaces(places, { sort: "best" }).map((place) => place.id), ["shower", "food", "unknown"]);
 });
 
 test("homepage autosuggest requires two characters and prioritizes categories for short queries", () => {
@@ -86,14 +86,14 @@ test("homepage autosuggest interprets natural language into actionable filters",
   assert.match(bestMatch?.href ?? "", /bezplatne=1/);
 });
 
-test("homepage autosuggest understands practical access constraints", () => {
+test("homepage autosuggest keeps practical access constraints without inventing nearest sorting", () => {
   const suggestions = getHomeSuggestions("nocleg bez dokumentów bez skierowania najbliżej", [], places);
   const bestMatch = suggestions[0];
   assert.equal(bestMatch?.secondary, "Najlepsze dopasowanie");
   assert.match(bestMatch?.href ?? "", /kategoria=nocleg/);
   assert.match(bestMatch?.href ?? "", /bez_dokumentow=1/);
   assert.match(bestMatch?.href ?? "", /bez_skierowania=1/);
-  assert.match(bestMatch?.href ?? "", /sort=distance/);
+  assert.doesNotMatch(bestMatch?.href ?? "", /sort=distance/);
 });
 
 test("intent parser distinguishes today from open now and preserves original phrase", () => {
@@ -180,11 +180,11 @@ test("smart search returns categories, combined intent and a safe plain-text fal
   assert.match(getSmartSearchSuggestions("zzzz", { places })[0]?.href ?? "", /[?&]q=zzzz/);
 });
 
-test("smart search recognizes practical natural-language criteria without inventing filters", () => {
+test("smart search recognizes practical natural-language criteria without inventing unsupported filters", () => {
   const examples = [
     ["nocleg na dziś", "nocleg", "today"],
     ["jedzenie otwarte teraz", "jedzenie", "openNow"],
-    ["psycholog najbliżej mnie", "pomoc-psychologiczna", "sort"],
+    ["psycholog najbliżej mnie", "pomoc-psychologiczna", undefined],
     ["nocleg z psem", "nocleg", undefined],
     ["pomoc bez skierowania", undefined, "noReferral"],
   ] as const;
@@ -193,6 +193,7 @@ test("smart search recognizes practical natural-language criteria without invent
     const intent = interpretSearchQuery(query);
     assert.equal(intent.filters.category, category);
     if (filter) assert.ok(intent.filters[filter]);
+    assert.equal("sort" in intent.filters, false);
   }
   assert.equal(interpretSearchQuery("nocleg z psem").filters.free, undefined);
 });
