@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { helpRequestNeedLabels, validateHelpRequest } from "../src/lib/help-requests/validation.ts";
+import { helpRequestNeedLabels, validateHelpRequest, validateHelpRequestContact } from "../src/lib/help-requests/validation.ts";
 
 const base = {
   emergencyAnswer: "UNKNOWN",
@@ -35,8 +35,23 @@ test("help request preserves immediate danger and location coordinates", () => {
   }
 });
 
+test("optional reporter contact is either actionable or fully anonymous", () => {
+  assert.deepEqual(validateHelpRequestContact({}), { ok: true });
+  assert.deepEqual(validateHelpRequestContact({ reporterPhone: "+48 500 600 700" }), { ok: true });
+  assert.deepEqual(validateHelpRequestContact({ reporterEmail: "osoba@example.com" }), { ok: true });
+
+  const nameOnly = validateHelpRequestContact({ reporterName: "Anna" });
+  assert.equal(nameOnly.ok, false);
+  if (!nameOnly.ok) assert.match(nameOnly.reason, /telefon lub e-mail/u);
+
+  const invalidEmail = validateHelpRequestContact({ reporterEmail: "not-an-email" });
+  assert.equal(invalidEmail.ok, false);
+  if (!invalidEmail.ok) assert.match(invalidEmail.reason, /poprawny adres e-mail/u);
+});
+
 test("help request rejects invalid contact, coordinates and honeypot", () => {
   assert.equal(validateHelpRequest({ ...base, reporterEmail: "not-an-email" }).ok, false);
+  assert.equal(validateHelpRequest({ ...base, reporterName: "Anna" }).ok, false);
   assert.equal(validateHelpRequest({ ...base, latitude: 120 }).ok, false);
   assert.equal(validateHelpRequest({ ...base, honeypot: "filled" }).ok, false);
 });
