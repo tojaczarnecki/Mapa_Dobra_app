@@ -67,7 +67,15 @@ export function HelpRequestWizard() {
     setError(undefined);
   }
 
-  function restore(draft: { data: HelpRequestDraft; currentStep?: number | string }) { const emergency = restoreEmergencyAnswer(draft.data); const restoredData = stripHelpRequestContact(draft.data as Record<string, unknown>); setForm((current) => ({ ...current, ...restoredData, reporterName: "", reporterPhone: "", reporterEmail: "", emergencyAnswer: emergency.answer, emergencyAnswerSelected: emergency.selected })); setScreen(screenForStep[restoreHelpRequestStep(typeof draft.currentStep === "number" ? draft.currentStep : 1)]); }
+  function restore(draft: { data: HelpRequestDraft; currentStep?: number | string }) {
+    const emergency = restoreEmergencyAnswer(draft.data);
+    const restoredData = stripHelpRequestContact(draft.data as Record<string, unknown>);
+    setForm((current) => ({ ...current, ...restoredData, reporterName: "", reporterPhone: "", reporterEmail: "", emergencyAnswer: emergency.answer, emergencyAnswerSelected: emergency.selected }));
+    const restoredStep = emergency.selected
+      ? restoreHelpRequestStep(typeof draft.currentStep === "number" ? draft.currentStep : 1)
+      : 1;
+    setScreen(screenForStep[restoredStep]);
+  }
 
   function resumeAvailableDraft() {
     if (formDraft.storedDraft) {
