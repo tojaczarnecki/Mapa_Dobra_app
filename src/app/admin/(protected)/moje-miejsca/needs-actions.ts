@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireNeedPermission, requirePermission, requirePlacePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
-import { canDecideVolunteerResponse, needHasAvailableCapacity, shouldReopenFilledNeed, statusAfterConfirmedResponse, validateNeedInput } from "@/lib/needs/validation";
+import { canDecideVolunteerResponse, needHasAvailableCapacity, shouldReopenFilledNeed, statusAfterCapacityEdit, statusAfterConfirmedResponse, validateNeedInput } from "@/lib/needs/validation";
 
 export type NeedActionState = { error?: string; success?: string };
 
@@ -76,14 +76,36 @@ export async function updateNeed(needId: string, placeId: string | null, _state:
     experienceRequired: formData.get("experienceRequired") === "true", requirements: value(formData, "requirements"), locationNote: value(formData, "locationNote"),
   });
   if (!validation.ok) return { error: validation.message };
-  const status = formData.get("status") === "PUBLISHED" ? "PUBLISHED" : formData.get("status") === "CANCELLED" ? "CANCELLED" : "DRAFT";
-  if (status === "PUBLISHED") {
-    const existing = await prisma.organizationNeed.findFirst({ where: { id: needId, ...(placeId ? { placeId } : {}) }, select: { peopleNeeded: true, responses: { where: { status: "CONFIRMED" }, select: { id: true } } } });
-    if (!existing) return { error: "Nie znaleziono potrzeby w tej placówce." };
-    if (!needHasAvailableCapacity(existing.peopleNeeded, existing.responses.length)) return { error: "Nie można opublikować potrzeby: potwierdzono już wszystkie potrzebne osoby." };
+
+  try {
+    const updated = await prisma.$transaction(async (transaction) => {
+      const existing = await transaction.organizationNeed.findFirst({
+        where: { id: needId, ...(placeId ? { placeId } : {}) },
+        select: { status: true, responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
+      });
+      if (!existing) return false;
+
+      const lifecycle = statusAfterCapacityEdit(existing.status, validation.data.peopleNeeded, existing.responses.length);
+      if (!lifecycle.ok) throw new Error("PEOPLE_NEEDED_BELOW_CONFIRMED");
+
+      await transaction.organizationNeed.update({
+        where: { id: needId },
+        data: {
+          ...validation.data,
+          status: lifecycle.status as "DRAFT" | "PUBLISHED" | "FILLED" | "CANCELLED",
+          closedAt: lifecycle.status === "FILLED" && existing.status === "PUBLISHED" ? new Date() : undefined,
+          updatedByAdminUserId: session.user.id,
+        },
+      });
+      return true;
+    }, { isolationLevel: "Serializable" });
+
+    if (!updated) return { error: "Nie znaleziono potrzeby w tej placówce." };
+  } catch (error) {
+    if (error instanceof Error && error.message === "PEOPLE_NEEDED_BELOW_CONFIRMED") return { error: "Liczba potrzebnych osób nie może być mniejsza niż liczba już potwierdzonych wolontariuszy." };
+    return { error: "Nie udało się zapisać potrzeby." };
   }
-  const result = await prisma.organizationNeed.updateMany({ where: { id: needId, ...(placeId ? { placeId } : {}) }, data: { ...validation.data, status, publishedAt: status === "PUBLISHED" ? new Date() : undefined, closedAt: status === "CANCELLED" ? new Date() : undefined, updatedByAdminUserId: session.user.id } });
-  if (!result.count) return { error: "Nie znaleziono potrzeby w tej placówce." };
+
   refresh(placeId);
   return { success: "Potrzeba została zapisana." };
 }
@@ -95,16 +117,18 @@ export async function changeNeedStatus(needId: string, placeId: string | null, s
       const need = await transaction.organizationNeed.findFirst({ where: { id: needId, ...(placeId ? { placeId } : {}) }, select: { peopleNeeded: true, responses: { where: { status: "CONFIRMED" }, select: { id: true } } } });
       if (!need) return false;
       if (status === "PUBLISHED" && !needHasAvailableCapacity(need.peopleNeeded, need.responses.length)) throw new Error("NEED_FULL");
+      if (status === "FILLED" && needHasAvailableCapacity(need.peopleNeeded, need.responses.length)) throw new Error("NEED_NOT_FULL");
       await transaction.organizationNeed.update({ where: { id: needId }, data: { status, publishedAt: status === "PUBLISHED" ? new Date() : undefined, closedAt: status === "PUBLISHED" ? null : new Date(), updatedByAdminUserId: session.user.id } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!updated) return { error: "Nie znaleziono potrzeby w tej placówce." };
   } catch (error) {
     if (error instanceof Error && error.message === "NEED_FULL") return { error: "Nie można otworzyć potrzeby: potwierdzono już wszystkie potrzebne osoby." };
+    if (error instanceof Error && error.message === "NEED_NOT_FULL") return { error: "Status „Komplet” jest ustawiany dopiero wtedy, gdy liczba potwierdzonych osób osiągnie potrzebną liczbę." };
     return { error: "Nie udało się zmienić statusu potrzeby." };
   }
   refresh(placeId);
-  return { success: status === "PUBLISHED" ? "Potrzeba została opublikowana." : "Status potrzeby został zmieniony." };
+  return { success: status === "PUBLISHED" ? "Potrzeba została opublikowana." : status === "CANCELLED" ? "Potrzeba została anulowana." : "Status potrzeby został zmieniony." };
 }
 
 export async function publishNeed(needId: string, placeId: string | null, _state: NeedActionState, _formData: FormData): Promise<NeedActionState> {
