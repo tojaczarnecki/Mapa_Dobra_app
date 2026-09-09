@@ -17,12 +17,14 @@ type PublicActionLinkProps = {
 };
 
 export function PublicActionLink({ href, children, icon, variant = "secondary", external = false, className = "", journey, system = false, chevron = false }: PublicActionLinkProps) {
+  const openInNewTab = external && /^https?:\/\//iu.test(href);
+
   return (
     <a
       className={["public-action-link", `public-action-link-${variant}`, system ? "public-action-link-system" : "", journey ? `public-action-link-journey-${journey}` : "", className].filter(Boolean).join(" ")}
       href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
+      target={openInNewTab ? "_blank" : undefined}
+      rel={openInNewTab ? "noreferrer" : undefined}
     >
       {icon}
       <span>{children}</span>
