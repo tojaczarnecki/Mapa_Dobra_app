@@ -67,8 +67,14 @@ export function confirmedCountAfterTransition(currentCount: number, previousStat
   return Math.max(0, currentCount - (previousStatus === "CONFIRMED" ? 1 : 0) + (nextStatus === "CONFIRMED" ? 1 : 0));
 }
 
-export function shouldReopenFilledNeed(needStatus: string, previousResponseStatus: string, nextStatus: string, confirmedCount: number, peopleNeeded: number) {
-  return needStatus === "FILLED" && previousResponseStatus === "CONFIRMED" && nextStatus === "NEW" && confirmedCount < peopleNeeded;
+export function shouldReopenFilledNeed(needStatus: string, previousResponseStatus: string, nextResponseStatus: string, confirmedCount: number, peopleNeeded: number) {
+  return needStatus === "FILLED" && previousResponseStatus === "CONFIRMED" && nextResponseStatus === "NEW" && confirmedCount < peopleNeeded;
+}
+
+export function canTransitionVolunteerResponse(responseStatus: string, nextStatus: string) {
+  if (responseStatus === "NEW") return nextStatus === "CONFIRMED" || nextStatus === "DECLINED";
+  if (responseStatus === "CONFIRMED" || responseStatus === "DECLINED") return nextStatus === "NEW";
+  return false;
 }
 
 export function canDecideVolunteerResponse(needStatus: string, responseStatus: string, nextStatus: string) {
