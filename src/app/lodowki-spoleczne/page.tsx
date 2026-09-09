@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDownWideNarrow, ArrowLeft, MapPinned } from "lucide-react";
+import { ArrowLeft, MapPinned } from "lucide-react";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchResultsFilterPanel } from "@/components/places/search-results-filter-panel";
 import { SearchResultsInteractive } from "@/components/places/search-results-interactive";
@@ -12,27 +12,18 @@ import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Lodówki społeczne w pobliżu | Dobra Mapa",
-  description: "Sprawdź pobliskie lodówki społeczne i ich lokalizację na mapie.",
+  description: "Sprawdź lodówki społeczne i ich lokalizację na mapie.",
   alternates: canonicalAlternates("/lodowki-spoleczne"),
 };
 
-type FoodSharingPageProps = { searchParams: Promise<{ sort?: string | string[] }> };
-
-function first(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
-}
-
-export default async function FoodSharingPage({ searchParams }: FoodSharingPageProps) {
-  const params = await searchParams;
-  const sort = first(params.sort) === "distance" ? "distance" : "best";
+export default async function FoodSharingPage() {
   const allPlaces = await getPublicSearchPlaces();
   const fridges = filterPublicSearchPlaces(
     allPlaces.filter((place) => place.profileKind === "FOOD_SHARING"),
-    { sort },
+    { sort: "best" },
   );
   const ids = new Set(fridges.map((place) => place.id));
   const mapPlaces = (await getPublicMapPlaces()).filter((place) => ids.has(place.id));
-  const sortHref = sort === "distance" ? "/lodowki-spoleczne" : "/lodowki-spoleczne?sort=distance";
   const categories = Array.from(
     new Map(
       allPlaces.flatMap((place) =>
@@ -41,7 +32,7 @@ export default async function FoodSharingPage({ searchParams }: FoodSharingPageP
     ).entries(),
   ).sort((left, right) => left[1].localeCompare(right[1], "pl"));
   const searchFilterPlaces = allPlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }) => ({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }));
-  const baseFilters: PublicSearchFilters = { query: undefined, category: undefined, openNow: false, today: false, free: false, noReferral: false, noDocuments: false, sort };
+  const baseFilters: PublicSearchFilters = { query: undefined, category: undefined, openNow: false, today: false, free: false, noReferral: false, noDocuments: false, sort: "best" };
   const practicalFilters = [
     { label: "Otwarte teraz", key: "otwarte", value: "1", active: false },
     { label: "Dzisiaj", key: "dzisiaj", value: "1", active: false },
@@ -51,8 +42,7 @@ export default async function FoodSharingPage({ searchParams }: FoodSharingPageP
   ];
   const categoryOptions = categories.map(([slug, label]) => ({ label, key: "kategoria", value: slug, href: "/szukaj", active: false }));
   const sortOptions = [
-    { label: "Najlepiej dopasowane", key: "sort", value: "best", href: "/szukaj", active: sort === "best" },
-    { label: "Najbliżej", key: "sort", value: "distance", href: "/szukaj?sort=distance", active: sort === "distance" },
+    { label: "Najlepiej dopasowane", key: "sort", value: "best", href: "/szukaj", active: true },
   ];
 
   return (
@@ -78,7 +68,6 @@ export default async function FoodSharingPage({ searchParams }: FoodSharingPageP
         <div className="food-sharing-toolbar">
           <LocationControl />
           <span className="food-sharing-result-count">{fridges.length} {fridges.length === 1 ? "lodówka" : "lodówek"}</span>
-          <Link href={sortHref} className="food-sharing-sort"><ArrowDownWideNarrow aria-hidden="true" size={16} />{sort === "distance" ? "Sortuj: polecane" : "Sortuj: najbliżej"}</Link>
           <span className="food-sharing-map-hint"><MapPinned aria-hidden="true" size={16} /> Lista + mapa</span>
         </div>
       </header>
