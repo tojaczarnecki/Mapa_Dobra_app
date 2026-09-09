@@ -13,14 +13,16 @@ export function getResultPrimaryAction(place: DemoPlace, detailsHref?: string): 
   const route = directionsHref(place);
   const fallbackDetailsHref = detailsHref ?? `/lodz/${place.categorySlug}/${place.slug}`;
   const needsConfirmation = place.freshnessWarning || place.status === "unknownHours" || place.status === "needsConfirmation";
-  if (place.profileKind === "FOOD_SHARING") return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
-  if (place.profileKind === "MOBILE_SERVICE") return { href: fallbackDetailsHref, label: "Zobacz postoje", kind: "details" };
 
-  if (needsConfirmation && phone) return { href: phone, label: "Zadzwoń i potwierdź", kind: "call" };
-  if (needsConfirmation) return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
+  // Current operational state always wins over profile-specific actions.
   if (place.status === "closed") {
     return { href: "/szukaj?otwarte=1", label: "Zobacz miejsca otwarte teraz", kind: "search" };
   }
+  if (needsConfirmation && phone) return { href: phone, label: "Zadzwoń i potwierdź", kind: "call" };
+  if (needsConfirmation) return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
+
+  if (place.profileKind === "FOOD_SHARING") return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
+  if (place.profileKind === "MOBILE_SERVICE") return { href: fallbackDetailsHref, label: "Zobacz postoje", kind: "details" };
   if (place.status === "openToday") {
     return { href: fallbackDetailsHref, label: "Zobacz godziny", kind: "details" };
   }
