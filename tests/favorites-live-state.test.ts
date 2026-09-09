@@ -20,3 +20,13 @@ test("unavailable favorites do not link to potentially removed place detail", ()
   assert.match(favoritesList, /place\.unavailable \? \([\s\S]*<div className="block min-w-0 p-4">/);
   assert.match(favoritesList, /Znajdź inne/);
 });
+
+test("online favorites use the shared public status resolver instead of duplicating raw status labels", () => {
+  assert.match(favoritesPage, /resolvePublicPlaceStatus/);
+  assert.match(favoritesPage, /freshnessWarning: place\.freshnessWarning/);
+  assert.match(favoritesPage, /profileKind: place\.profileKind/);
+  assert.match(favoritesList, /statusLabel: live\.statusLabel/);
+  assert.match(favoritesList, /statusTone: live\.statusTone/);
+  assert.doesNotMatch(favoritesList, /function statusLabel\(/);
+  assert.doesNotMatch(favoritesList, /function statusTone\(/);
+});
