@@ -38,6 +38,10 @@ export type HelpRequestValidationResult =
   | { ok: true; data: ValidHelpRequest }
   | { ok: false; reason: string };
 
+export type HelpRequestContactValidationResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
 function text(value: unknown, max: number) {
   if (value === undefined || value === null || value === "") return undefined;
   if (typeof value !== "string") return null;
@@ -49,6 +53,23 @@ function optionalNumber(value: unknown, min: number, max: number) {
   if (value === undefined || value === null || value === "") return undefined;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) && number >= min && number <= max ? number : null;
+}
+
+export function validateHelpRequestContact(input: { reporterName?: unknown; reporterPhone?: unknown; reporterEmail?: unknown }): HelpRequestContactValidationResult {
+  const reporterName = text(input.reporterName, 160);
+  const reporterPhone = text(input.reporterPhone, 50);
+  const reporterEmail = text(input.reporterEmail, 320);
+
+  if (reporterName === null || reporterPhone === null || reporterEmail === null) {
+    return { ok: false, reason: "Sprawdź długość danych kontaktowych." };
+  }
+  if (reporterEmail && !emailPattern.test(reporterEmail)) {
+    return { ok: false, reason: "Podaj poprawny adres e-mail albo usuń go i wyślij zgłoszenie anonimowo." };
+  }
+  if (reporterName && !reporterPhone && !reporterEmail) {
+    return { ok: false, reason: "Jeśli zostawiasz imię, podaj też telefon lub e-mail albo usuń dane kontaktowe i wyślij zgłoszenie anonimowo." };
+  }
+  return { ok: true };
 }
 
 export function validateHelpRequest(input: unknown): HelpRequestValidationResult {
@@ -83,12 +104,11 @@ export function validateHelpRequest(input: unknown): HelpRequestValidationResult
   const reporterName = text(value.reporterName, 160);
   const reporterPhone = text(value.reporterPhone, 50);
   const reporterEmail = text(value.reporterEmail, 320);
-  if (addressText === null || reporterName === null || reporterPhone === null || reporterEmail === null) {
-    return { ok: false, reason: "Sprawdź długość wpisanych danych." };
+  if (addressText === null) {
+    return { ok: false, reason: "Sprawdź długość opisu lokalizacji." };
   }
-  if (reporterEmail && !emailPattern.test(reporterEmail)) {
-    return { ok: false, reason: "Podaj poprawny adres e-mail." };
-  }
+  const contactValidation = validateHelpRequestContact({ reporterName, reporterPhone, reporterEmail });
+  if (!contactValidation.ok) return contactValidation;
 
   const latitude = optionalNumber(value.latitude, -90, 90);
   const longitude = optionalNumber(value.longitude, -180, 180);
