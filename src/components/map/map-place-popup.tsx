@@ -7,10 +7,6 @@ import { directionsHref } from "@/lib/places/actions";
 import { mapDetailsHref } from "./map-place-links";
 import styles from "./map.module.css";
 
-function hasDistanceLabel(label: string) {
-  return Boolean(label.trim()) && label !== "Odległość nieznana";
-}
-
 export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?: string }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
   const routeHref = directionsHref(place);
@@ -26,10 +22,7 @@ export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?:
         <MapPin aria-hidden="true" size={15} />
         <span>{place.address}</span>
       </p>
-      <div className={styles.mapPopupMeta}>
-        {hasDistanceLabel(place.distanceLabel) ? <span>{place.distanceLabel}</span> : null}
-        {status ? <span>{status}</span> : null}
-      </div>
+      {status ? <div className={styles.mapPopupMeta}><span>{status}</span></div> : null}
       <div className={styles.mapPopupActions}>
         {routeHref ? <a href={routeHref} target="_blank" rel="noreferrer"><Navigation aria-hidden="true" size={14} />Trasa</a> : null}
         <Link href={detailsHref}>Szczegóły<ChevronRight aria-hidden="true" size={14} /></Link>
