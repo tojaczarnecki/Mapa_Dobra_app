@@ -38,9 +38,14 @@ export default async function NeedDetailPage({ params }: { params: Promise<{ id:
     : remaining > 0
       ? "Aktualne"
       : "Mamy komplet";
+  const actionTitle = acceptsResponses
+    ? `Potrzebujemy jeszcze ${remaining} ${peopleLabel(remaining)}`
+    : !signup.open
+      ? "Zapisy są zamknięte"
+      : "Mamy komplet";
   const closedMessage = !signup.open
     ? needSignupClosedMessage(signup.reason)
-    : "Ta potrzeba nie przyjmuje już nowych zgłoszeń.";
+    : "Mamy już komplet osób. Ta potrzeba nie przyjmuje nowych zgłoszeń.";
 
   return <div className="needs-detail-page mx-auto w-full max-w-[1200px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
     <Link href="/potrzeby" className="needs-back-link"><ArrowLeft aria-hidden="true" size={17} />Wróć do potrzeb</Link>
@@ -68,7 +73,7 @@ export default async function NeedDetailPage({ params }: { params: Promise<{ id:
       <aside className="needs-detail-rail">
         <div className="needs-action-card">
           <p className="needs-card-status">{actionStatus}</p>
-          <h2 className={acceptsResponses ? "needs-action-title" : "needs-action-title needs-mobile-status"}>{acceptsResponses ? `Potrzebujemy jeszcze ${remaining} ${peopleLabel(remaining)}` : remaining > 0 ? "Zapisy są zamknięte" : "Mamy komplet"}</h2>
+          <h2 className={acceptsResponses ? "needs-action-title" : "needs-action-title needs-mobile-status"}>{actionTitle}</h2>
           <p className="needs-action-date"><CalendarDays aria-hidden="true" size={17} />{dateLabel} · {timeLabel}</p>
           {signupDeadlineLabel ? <p className="needs-action-date"><CalendarDays aria-hidden="true" size={17} />Zapisy do {signupDeadlineLabel}</p> : null}
           {acceptsResponses ? <VolunteerResponseForm needId={need.id} /> : <p className="needs-action-closed" role="status">{closedMessage}</p>}
