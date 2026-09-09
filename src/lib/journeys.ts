@@ -17,8 +17,11 @@ export function resolveJourney(pathname: string, searchParams?: SearchParamsLike
   if (pathname.startsWith("/lodowki-spoleczne")) return "search";
   if (pathname === "/szukam" && searchParams?.get("tryb") === "guided") return "guided";
   if (pathname === "/znajdz-nocleg") return "guided";
-  if (pathname === "/mapa" && searchParams?.get("otwarte") === "1") return "now";
-  if (pathname.startsWith("/pomagam") || pathname.startsWith("/uruchom-pomoc")) return "help";
+  if (
+    (pathname === "/mapa" || (pathname === "/szukaj" && searchParams?.get("view") === "map")) &&
+    searchParams?.get("otwarte") === "1"
+  ) return "now";
+  if (pathname.startsWith("/pomagam") || pathname.startsWith("/uruchom-pomoc") || pathname.startsWith("/potrzeby")) return "help";
   if (pathname.startsWith("/szukam") || pathname.startsWith("/szukaj") || pathname.startsWith("/mapa") || pathname.startsWith("/lodz/")) return "search";
   return "neutral";
 }
