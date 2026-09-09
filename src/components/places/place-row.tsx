@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock3 } from "lucide-react";
+import { ChevronRight, Clock3 } from "lucide-react";
 import type { DemoPlace } from "@/data/demo-places";
 import { DataFreshness } from "@/components/ui/data-freshness";
 import { StatusIndicator } from "@/components/ui/status-indicator";
@@ -65,6 +65,8 @@ export function PlaceRow({ place }: { place: DemoPlace }) {
           </span>
         ) : null}
       </span>
+
+      <ChevronRight className="md-place-chevron" aria-hidden="true" size={18} strokeWidth={2} />
     </Link>
   );
 }
