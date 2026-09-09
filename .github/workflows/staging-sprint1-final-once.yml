@@ -32,7 +32,14 @@ jobs:
         with:
           node-version: 22.x
           cache: npm
-      - name: Validate, test and build
+      - name: Install, generate, test and lint
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run prisma:generate
+          npm test
+          npm run lint
+      - name: Build staging production application
         env:
           NODE_ENV: production
           DEPLOYMENT_ENV: staging
@@ -44,10 +51,6 @@ jobs:
           GEOCODER_CONTACT_EMAIL: ci@example.invalid
         run: |
           set -euo pipefail
-          npm ci
-          npm run prisma:generate
-          npm test
-          npm run lint
           npm run build
           npm prune --omit=dev
           test -s .next/BUILD_ID
