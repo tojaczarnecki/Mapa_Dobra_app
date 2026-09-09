@@ -4,20 +4,27 @@ import { readSubmissionBody, submissionErrorResponse } from "@/lib/submissions/h
 import { validateHelpRequest } from "@/lib/help-requests/validation";
 import { publicWriteBlockedResponse } from "@/lib/system/public-guard";
 
+function helpRequestErrorResponse(status: number, message: string) {
+  return Response.json(
+    { ok: false, message },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 export async function POST(request: Request) {
   const blockedResponse = await publicWriteBlockedResponse();
   if (blockedResponse) return blockedResponse;
   const address = getRequestAddress(request);
   const limit = await consumeSubmissionRateLimit(`help-request:${address}`);
   if (!limit.allowed) {
-    const response = submissionErrorResponse(429);
+    const response = helpRequestErrorResponse(429, "Wysłano zbyt wiele zgłoszeń w krótkim czasie. Odczekaj chwilę i spróbuj ponownie.");
     response.headers.set("Retry-After", String(limit.retryAfterSeconds));
     return response;
   }
 
   const body = await readSubmissionBody(request);
   const validation = validateHelpRequest(body);
-  if (!validation.ok) return submissionErrorResponse(400);
+  if (!validation.ok) return helpRequestErrorResponse(400, validation.reason);
 
   try {
     const record = await prisma.helpRequest.create({ data: validation.data });
