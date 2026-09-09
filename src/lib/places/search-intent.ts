@@ -139,14 +139,6 @@ export function interpretSearchQuery(query: string): SearchIntent {
     addToken(tokens, "no-documents", "Bez dokumentów", "noDocuments", true);
   }
 
-  const nearest = containsAny(normalized, [
-    "najblizej", "najblizsze", "najblizszy", "blisko mnie", "w poblizu", "niedaleko",
-  ]);
-  if (nearest) {
-    filters.sort = "distance";
-    addToken(tokens, "nearest", "Najbliżej", "sort", "distance");
-  }
-
   return {
     recognized: tokens.length > 0,
     sentenceLike,
@@ -178,7 +170,6 @@ type SmartSearchOptions = {
 const quickActionSuggestions: SmartSearchSuggestion[] = [
   { id: "action-open-now", label: "Otwarte teraz", description: "Szybka akcja", group: "Szybka akcja", query: "otwarte teraz", href: "/szukaj?otwarte=1" },
   { id: "action-today", label: "Dostępne dzisiaj", description: "Szybka akcja", group: "Szybka akcja", query: "dostępne dzisiaj", href: "/szukaj?dzisiaj=1" },
-  { id: "action-nearest", label: "Najbliżej mnie", description: "Szybka akcja", group: "Szybka akcja", query: "najbliżej mnie", href: "/szukaj?sort=distance" },
 ];
 
 function suggestionHref(query: string) {
