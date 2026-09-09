@@ -1,5 +1,5 @@
 import type { DemoPlace } from "@/data/demo-places";
-import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
+import { resolvePublicPlaceStatus } from "../public/status-presentation.ts";
 import { directionsHref, telephoneHref } from "./actions.ts";
 
 export type ResultPrimaryAction = {
