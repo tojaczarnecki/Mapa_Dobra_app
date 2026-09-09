@@ -5,7 +5,7 @@ import { canonicalAlternates } from "@/lib/site-url";
 export const metadata: Metadata = {
   title: "Mapa miejsc pomocy | Dobra Mapa",
   description: "Znajdź miejsca pomocy w swojej okolicy na mapie Łodzi.",
-  alternates: canonicalAlternates("/mapa"),
+  alternates: canonicalAlternates("/szukaj?view=map"),
 };
 
 type MapPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
