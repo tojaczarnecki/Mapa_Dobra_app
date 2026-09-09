@@ -60,16 +60,13 @@ const standardLabels = {
 
 /**
  * Single precedence rule for public place status labels.
- * Operational closure and uncertainty always win over profile-specific messaging.
+ * Explicit uncertainty and stale data win over profile-specific messaging and
+ * over previously known operational state. Fresh current closure remains definitive.
  */
 export function resolvePublicPlaceStatus(input: PublicPlaceStatusInput): PublicPlaceStatusPresentation {
   const { status, compact = false, freshnessWarning = false, profileKind, mobileSeasonLabel, mobileSeasonActive } = input;
   const standard = standardLabels[status];
   const baseLabel = compact ? standard.compact : standard.full;
-
-  if (status === "closed") {
-    return { publicStatus: "absent", label: baseLabel, showStandardHours: true };
-  }
 
   if (status === "unknownHours" || status === "needsConfirmation") {
     return { publicStatus: "unknown", label: baseLabel, showStandardHours: false };
@@ -81,6 +78,10 @@ export function resolvePublicPlaceStatus(input: PublicPlaceStatusInput): PublicP
       label: `Według ostatnich danych: ${baseLabel.toLocaleLowerCase("pl-PL")}`,
       showStandardHours: false,
     };
+  }
+
+  if (status === "closed") {
+    return { publicStatus: "absent", label: baseLabel, showStandardHours: true };
   }
 
   if (profileKind === "FOOD_SHARING") {
