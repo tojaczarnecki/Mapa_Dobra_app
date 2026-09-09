@@ -15,9 +15,11 @@ const primaryItems = [
 function itemIsActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/szukam") {
-    return pathname === "/szukam" || pathname === "/szukaj" || pathname.startsWith("/szukaj/");
+    return pathname === "/szukam" || pathname === "/szukaj" || pathname.startsWith("/szukaj/") || pathname.startsWith("/lodz/");
   }
-  if (href === "/pomagam") return pathname === "/pomagam" || pathname === "/uruchom-pomoc" || pathname.startsWith("/uruchom-pomoc/");
+  if (href === "/pomagam") {
+    return pathname === "/pomagam" || pathname === "/uruchom-pomoc" || pathname.startsWith("/uruchom-pomoc/") || pathname === "/potrzeby" || pathname.startsWith("/potrzeby/");
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
