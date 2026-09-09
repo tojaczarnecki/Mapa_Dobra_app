@@ -4,15 +4,21 @@ import Link from "next/link";
 import { ChevronRight, MapPin, Navigation } from "lucide-react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { directionsHref } from "@/lib/places/actions";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 import { mapDetailsHref } from "./map-place-links";
 import styles from "./map.module.css";
 
 export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?: string }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
   const routeHref = directionsHref(place);
-  const status = place.profileKind === "FOOD_SHARING"
-    ? "Dostęp 24/7 · zawartość zmienna"
-    : place.status.kind === "standard" ? place.status.todayHours : place.status.availabilityLabel;
+  const status = place.status.kind === "standard"
+    ? resolvePublicPlaceStatus({
+        status: place.status.status,
+        profileKind: place.profileKind,
+        mobileSeasonLabel: place.mobileSeasonLabel,
+        mobileSeasonActive: place.mobileSeasonActive,
+      }).label
+    : place.status.availabilityLabel;
 
   return (
     <article className={styles.mapPopupContent}>
