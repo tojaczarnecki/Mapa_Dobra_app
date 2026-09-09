@@ -1,0 +1,85 @@
+name: One-time Sprint 1 staging smoke
+
+on:
+  push:
+    branches:
+      - audit-fixes/sprint-1-correctness
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_URL: https://staging.host11515.iqhs.pl
+
+    steps:
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: HTTP smoke and correctness assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/staging-smoke
+
+          curl --fail --silent --show-error --max-time 20 "$BASE_URL/api/health" | tee /tmp/staging-smoke/health.json
+          jq -e '.status == "ok" and .checks.application == "ok" and .checks.configuration == "ok" and .checks.database == "ok"' /tmp/staging-smoke/health.json >/dev/null
+
+          routes=(
+            "/"
+            "/szukaj?kategoria=jedzenie"
+            "/szukaj?view=map&kategoria=jedzenie"
+            "/uruchom-pomoc"
+            "/potrzeby"
+            "/ulubione"
+            "/offline"
+            "/lodowki-spoleczne"
+          )
+
+          for route in "${routes[@]}"; do
+            echo "GET $route"
+            curl --fail --silent --show-error --max-time 25 "$BASE_URL$route" >/dev/null
+          done
+
+          curl --fail --silent --show-error --max-time 25 "$BASE_URL/szukaj?kategoria=jedzenie" > /tmp/staging-smoke/search.html
+          curl --fail --silent --show-error --max-time 25 "$BASE_URL/lodowki-spoleczne" > /tmp/staging-smoke/fridges.html
+
+          ! grep -Fq "Sortuj: najbliżej" /tmp/staging-smoke/fridges.html
+          ! grep -Fq ">Najbliżej<" /tmp/staging-smoke/search.html
+          ! grep -Fq " km od Ciebie" /tmp/staging-smoke/search.html
+
+      - name: Install Chromium
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+
+      - name: Capture 360, 390 and desktop reference screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p screenshots
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=1500"
+          PWMAP="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=4500"
+
+          $PW --viewport-size="360,800" "$BASE_URL/" screenshots/01-home-360.png
+          $PW --viewport-size="390,844" "$BASE_URL/" screenshots/02-home-390.png
+          $PW --viewport-size="360,800" "$BASE_URL/szukaj?kategoria=jedzenie" screenshots/03-search-360.png
+          $PW --viewport-size="390,844" "$BASE_URL/szukaj?kategoria=jedzenie" screenshots/04-search-390.png
+          $PWMAP --viewport-size="390,844" "$BASE_URL/szukaj?view=map&kategoria=jedzenie" screenshots/05-map-390.png
+          $PW --viewport-size="360,800" "$BASE_URL/uruchom-pomoc" screenshots/06-help-360.png
+          $PW --viewport-size="390,844" "$BASE_URL/uruchom-pomoc" screenshots/07-help-390.png
+          $PW --viewport-size="390,844" "$BASE_URL/potrzeby" screenshots/08-needs-390.png
+          $PW --viewport-size="390,844" "$BASE_URL/lodowki-spoleczne" screenshots/09-fridges-390.png
+          $PW --viewport-size="1440,1000" "$BASE_URL/szukaj?kategoria=jedzenie" screenshots/10-search-1440.png
+          $PWMAP --viewport-size="1440,1000" "$BASE_URL/szukaj?view=map&kategoria=jedzenie" screenshots/11-map-1440.png
+
+      - name: Upload smoke screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint1-staging-smoke
+          path: screenshots/*.png
+          if-no-files-found: error
+          retention-days: 3
