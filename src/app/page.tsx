@@ -48,7 +48,7 @@ export default function Home() {
           variant="activate"
         />
         <PrimaryActionCard
-          href="/mapa?otwarte=1&lokalizacja=moja"
+          href="/szukaj?otwarte=1&lokalizacja=moja&view=map"
           title="Pomoc dostępna teraz"
           description="Zobacz miejsca otwarte w tej chwili."
           variant="now"
