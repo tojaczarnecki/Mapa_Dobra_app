@@ -41,11 +41,17 @@ jobs:
             return [...new Set(await page.locator('a[href*="/lodz/"]').evaluateAll(els => els.map(a => a.getAttribute('href')).filter(Boolean)))];
           }
 
+          // Canonical map -> select a result -> detail -> return with preserved filters.
           const mapUrl = '/szukaj?view=map&kategoria=jedzenie&otwarte=1';
           await page.goto(base + mapUrl, { waitUntil: 'networkidle' });
-          const detailHref = await page.locator('a[href*="/lodz/"]').first().getAttribute('href');
-          assert.ok(detailHref, 'map should expose at least one place detail link');
-          await page.goto(new URL(detailHref, base).href, { waitUntil: 'networkidle' });
+          await page.getByRole('button', { name: /Rozwiń listę miejsc/i }).click();
+          const firstPlaceButton = page.locator('.mobile-map-sheet-place-button').first();
+          await firstPlaceButton.waitFor({ state: 'visible' });
+          await firstPlaceButton.click();
+          const detailLink = page.getByRole('link', { name: /Szczegóły/i }).first();
+          await detailLink.waitFor({ state: 'visible' });
+          await detailLink.click();
+          await page.waitForLoadState('networkidle');
           const back = page.getByRole('link', { name: /Wróć do mapy/i }).first();
           assert.ok(await back.count(), 'detail should expose Wróć do mapy');
           await back.click();
@@ -57,15 +63,20 @@ jobs:
           assert.equal(returned.searchParams.get('otwarte'), '1');
           console.log('MAP_RETURN_OK', returned.pathname + returned.search);
 
+          // Inspect concrete FOOD_SHARING records exposed by the staging catalogue.
           const fridgeLinks = await placeLinks('/lodowki-spoleczne');
           console.log('FOOD_SHARING_LINKS', JSON.stringify(fridgeLinks));
           for (const href of fridgeLinks.slice(0, 8)) {
             await page.goto(new URL(href, base).href, { waitUntil: 'networkidle' });
             const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ').trim();
             const routeCount = await page.getByRole('link', { name: /^Trasa$/i }).count();
+            const contradictory = /ZAMKNIĘTE TERAZ/i.test(text) && /DOSTĘP 24\/7/i.test(text);
+            assert.equal(contradictory, false, `closed food-sharing record must not claim 24/7: ${href}`);
             console.log('FOOD_SHARING_DETAIL', JSON.stringify({ href, routeCount, text: text.slice(0, 900) }));
           }
 
+          // Discover MOBILE_SERVICE records through public search. If staging has none,
+          // record that fact instead of manufacturing a false pass.
           const mobileLinks = await placeLinks('/szukaj?zapytanie=mobilna');
           console.log('MOBILE_SEARCH_LINKS', JSON.stringify(mobileLinks));
           let mobileFound = 0;
@@ -75,6 +86,7 @@ jobs:
             if (/Mobilna usługa|Sezonowo|postoj|Baza \/ organizator/i.test(text)) {
               mobileFound++;
               const routeCount = await page.getByRole('link', { name: /^Trasa$/i }).count();
+              assert.equal(routeCount, 0, `mobile service must not route to its base address: ${href}`);
               console.log('MOBILE_DETAIL', JSON.stringify({ href, routeCount, text: text.slice(0, 1200) }));
             }
           }
