@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireNeedPermission, requirePermission, requirePlacePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
-import { canDecideVolunteerResponse, needHasAvailableCapacity, shouldReopenFilledNeed, statusAfterCapacityEdit, statusAfterConfirmedResponse, validateNeedInput } from "@/lib/needs/validation";
+import { canDecideVolunteerResponse, canTransitionVolunteerResponse, needHasAvailableCapacity, shouldReopenFilledNeed, statusAfterCapacityEdit, statusAfterConfirmedResponse, validateNeedInput } from "@/lib/needs/validation";
 
 export type NeedActionState = { error?: string; success?: string };
 
@@ -149,6 +149,7 @@ export async function changeResponseStatus(responseId: string, placeId: string |
     await prisma.$transaction(async (transaction) => {
       const response = await transaction.volunteerNeedResponse.findFirst({ where: { id: responseId, ...(placeId ? { need: { placeId } } : {}) }, select: { status: true, needId: true } });
       if (!response) throw new Error("RESPONSE_NOT_FOUND");
+      if (!canTransitionVolunteerResponse(response.status, status)) throw new Error("RESPONSE_TRANSITION_INVALID");
       if (status === "CONFIRMED" || status === "DECLINED") {
         const need = await transaction.organizationNeed.findUniqueOrThrow({ where: { id: response.needId }, select: { status: true, peopleNeeded: true, responses: { where: { status: "CONFIRMED" }, select: { id: true } } } });
         if (!canDecideVolunteerResponse(need.status, response.status, status)) throw new Error("RESPONSE_NOT_DECIDABLE");
@@ -170,6 +171,7 @@ export async function changeResponseStatus(responseId: string, placeId: string |
   } catch (error) {
     if (error instanceof Error && error.message === "NEED_FULL") return { error: "Nie można potwierdzić zgłoszenia: potrzeba ma już komplet potwierdzonych osób." };
     if (error instanceof Error && error.message === "RESPONSE_NOT_DECIDABLE") return { error: "Decyzję można zmienić tylko dla nowego zgłoszenia opublikowanej potrzeby." };
+    if (error instanceof Error && error.message === "RESPONSE_TRANSITION_INVALID") return { error: "Ta zmiana statusu zgłoszenia nie jest dozwolona w obecnym etapie obsługi." };
     if (error instanceof Error && error.message === "RESPONSE_NOT_FOUND") return { error: "Nie znaleziono tego zgłoszenia w tej placówce." };
     return { error: "Nie udało się zmienić statusu zgłoszenia." };
   }
