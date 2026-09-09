@@ -1,0 +1,6 @@
+/* Place detail utility rail spacing lives after the institutional layer so it cannot be reset to zero inline padding. */
+@media (min-width: 1024px) {
+  .place-detail-page .place-detail-utility-group {
+    padding-inline: 1.25rem;
+  }
+}
