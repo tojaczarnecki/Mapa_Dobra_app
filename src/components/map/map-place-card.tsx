@@ -14,6 +14,7 @@ import {
 import type { MapPlace } from "@/data/demo-map-places";
 import { PlaceStatusBadge } from "@/components/places/place-status-badge";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 import styles from "./map.module.css";
 import { mapDetailsHref } from "./map-place-links";
 
@@ -82,11 +83,23 @@ export function MapPlaceCard({
   const isFoodSharing = place.profileKind === "FOOD_SHARING";
   const isMobileService = place.profileKind === "MOBILE_SERVICE";
   const callHref = telephoneHref(place.phone);
-  const routeHref = directionsHref(place);
+  const statusPresentation = place.status.kind === "standard"
+    ? resolvePublicPlaceStatus({
+        status: place.status.status,
+        profileKind: place.profileKind,
+        mobileSeasonLabel: place.mobileSeasonLabel,
+        mobileSeasonActive: place.mobileSeasonActive,
+      })
+    : undefined;
+  const routeAllowed = !isMobileService && !(isFoodSharing && statusPresentation?.publicStatus !== "confirmed");
+  const routeHref = routeAllowed ? directionsHref(place) : undefined;
   const useCompactAccommodation = isAccommodation && compactAccommodation;
   const showAdmissionsToday =
     place.status.kind === "accommodation" &&
     place.status.admissionsToday !== place.status.availabilityLabel;
+  const mobileTodayStop = isMobileService && statusPresentation?.publicStatus === "confirmed"
+    ? place.mobileTodayStops?.[0]
+    : undefined;
 
   const placeHeading = (
     <div className={["min-w-0 space-y-1", useCompactAccommodation ? "pr-10" : ""].join(" ")}>
@@ -105,7 +118,8 @@ export function MapPlaceCard({
     place.status.kind === "standard" ? (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <PlaceStatusBadge status={place.status.status} profileKind={place.profileKind} mobileSeasonLabel={place.mobileSeasonLabel} mobileSeasonActive={place.mobileSeasonActive} />
-        {!isFoodSharing ? <span className="text-sm font-bold text-foreground">{isMobileService ? place.mobileTodayStops?.[0] ?? "Postoje według rozkładu" : place.status.todayHours}</span> : null}
+        {statusPresentation?.showStandardHours && !isFoodSharing && !isMobileService ? <span className="text-sm font-bold text-foreground">{place.status.todayHours}</span> : null}
+        {mobileTodayStop ? <span className="text-sm font-bold text-foreground">Dziś: {mobileTodayStop}</span> : null}
       </div>
     ) : useCompactAccommodation ? (
       <div
@@ -165,7 +179,11 @@ export function MapPlaceCard({
     <div className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
       <p className="flex min-w-0 items-start gap-2 leading-5">
         <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={17} />
-        <span className="min-w-0">{place.address}</span>
+        <span className="min-w-0">
+          {isMobileService ? <strong>Baza / organizator: </strong> : null}
+          {place.address}
+          {isMobileService ? <span className="block text-xs font-semibold text-muted-foreground">To nie jest miejsce postoju.</span> : null}
+        </span>
       </p>
     </div>
   );
@@ -202,10 +220,10 @@ export function MapPlaceCard({
         <Navigation aria-hidden="true" size={17} />
         Trasa
       </a> : (
-        <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
+        !isMobileService ? <span className="place-card-action cursor-not-allowed opacity-55" aria-disabled="true">
           <Navigation aria-hidden="true" size={17} />
           Trasa
-        </span>
+        </span> : null
       )}
       <Link href={detailsHref} className="place-card-action">
         <ChevronRight aria-hidden="true" size={17} />
@@ -233,7 +251,8 @@ export function MapPlaceCard({
     const compactPlaceStatus = place.status.kind === "standard" ? (
       <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
         <PlaceStatusBadge compact status={place.status.status} profileKind={place.profileKind} mobileSeasonLabel={place.mobileSeasonLabel} mobileSeasonActive={place.mobileSeasonActive} />
-        {!isFoodSharing ? <span className="truncate">{isMobileService ? place.mobileTodayStops?.[0] ?? "Postoje według rozkładu" : place.status.todayHours}</span> : null}
+        {statusPresentation?.showStandardHours && !isFoodSharing && !isMobileService ? <span className="truncate">{place.status.todayHours}</span> : null}
+        {mobileTodayStop ? <span className="truncate">Dziś: {mobileTodayStop}</span> : null}
       </div>
     ) : (
       <span className="truncate text-xs font-semibold text-foreground">
@@ -251,7 +270,7 @@ export function MapPlaceCard({
         </div>
         <div className="flex min-w-0 items-center gap-x-2 text-xs font-semibold text-foreground">
           <MapPin aria-hidden="true" className="shrink-0 text-brand-strong" size={15} />
-          <span className="truncate">{place.address}</span>
+          <span className="truncate">{isMobileService ? "Baza / organizator: " : ""}{place.address}</span>
         </div>
         {compactPlaceStatus}
         {compactPlaceActions}
