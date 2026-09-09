@@ -23,6 +23,7 @@ function openSignupWhere(now = new Date()) {
 export async function getPublicNeeds() {
   const now = new Date();
   const needs = await prisma.organizationNeed.findMany({
+    // The public list is a list of opportunities a person can still join.
     where: openSignupWhere(now),
     include: { organization: { select: { name: true } }, place: { select: { name: true, addressLine: true, city: true, slug: true, primaryCategory: { select: { slug: true } } } }, responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
     orderBy: [{ startsAt: "asc" }, { publishedAt: "desc" }],
