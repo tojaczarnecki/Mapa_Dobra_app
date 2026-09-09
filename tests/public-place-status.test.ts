@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolvePublicPlaceStatus } from "../src/lib/public/status-presentation.ts";
 
-test("operational closure wins over FOOD_SHARING 24/7 messaging", () => {
+test("fresh operational closure wins over FOOD_SHARING 24/7 messaging", () => {
   const presentation = resolvePublicPlaceStatus({
     status: "closed",
     profileKind: "FOOD_SHARING",
@@ -11,6 +11,33 @@ test("operational closure wins over FOOD_SHARING 24/7 messaging", () => {
   assert.equal(presentation.publicStatus, "absent");
   assert.equal(presentation.label, "ZAMKNIĘTE TERAZ");
   assert.equal(presentation.informational, undefined);
+});
+
+test("stale operational closure is presented as unconfirmed instead of definitive", () => {
+  const presentation = resolvePublicPlaceStatus({
+    status: "closed",
+    freshnessWarning: true,
+  });
+
+  assert.equal(presentation.publicStatus, "unknown");
+  assert.match(presentation.label, /według ostatnich danych/i);
+  assert.match(presentation.label, /zamknięte/i);
+  assert.equal(presentation.showStandardHours, false);
+});
+
+test("stale closure also wins over FOOD_SHARING and MOBILE_SERVICE profile messaging", () => {
+  for (const profileKind of ["FOOD_SHARING", "MOBILE_SERVICE"] as const) {
+    const presentation = resolvePublicPlaceStatus({
+      status: "closed",
+      freshnessWarning: true,
+      profileKind,
+      mobileSeasonLabel: profileKind === "MOBILE_SERVICE" ? "kwiecień–październik" : undefined,
+      mobileSeasonActive: profileKind === "MOBILE_SERVICE" ? true : undefined,
+    });
+
+    assert.equal(presentation.publicStatus, "unknown");
+    assert.match(presentation.label, /według ostatnich danych/i);
+  }
 });
 
 test("FOOD_SHARING uses 24/7 messaging only when current state is not closed or uncertain", () => {
@@ -35,7 +62,7 @@ test("freshness warning wins over FOOD_SHARING profile messaging", () => {
   assert.match(presentation.label, /według ostatnich danych/i);
 });
 
-test("operational closure wins over MOBILE_SERVICE season messaging", () => {
+test("fresh operational closure wins over MOBILE_SERVICE season messaging", () => {
   const presentation = resolvePublicPlaceStatus({
     status: "closed",
     profileKind: "MOBILE_SERVICE",
