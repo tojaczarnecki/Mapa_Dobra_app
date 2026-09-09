@@ -351,7 +351,7 @@ function ActionRail({ place, className = "" }: { place: PlaceDetail; className?:
   const statusLine = isMobileService ? mobileStatus?.label : place.status.todayHours;
 
   return <aside className={["place-detail-utility-rail min-w-0 lg:sticky lg:top-24", className].filter(Boolean).join(" ")}>
-    <section className="place-detail-utility-group place-detail-action-rail">
+    <section className="place-detail-utility-group place-detail-action-rail px-5">
       <h2 className="text-xl font-extrabold text-foreground">{heading}</h2>
       {statusLine ? <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground"><Clock3 aria-hidden="true" className="mr-1 inline text-brand-strong" size={16} />{statusLine}</p> : null}
       <div className="mt-3 grid min-w-0 gap-1.5">
@@ -361,8 +361,8 @@ function ActionRail({ place, className = "" }: { place: PlaceDetail; className?:
         {!isMobileService ? <PublicActionLink href="#godziny-otwarcia" variant="tertiary" icon={<Clock3 aria-hidden="true" size={17} />} className="place-detail-rail-tertiary">Zobacz godziny</PublicActionLink> : null}
       </div>
     </section>
-    {place.contact.email || place.contact.website || place.contact.social ? <section className="place-detail-utility-group place-detail-rail-contact"><h2>Kontakt</h2><div className="mt-2 grid gap-1">{place.contact.email ? <a className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-strong" href={`mailto:${place.contact.email}`}><Mail aria-hidden="true" size={16} /><span className="min-w-0 break-words">{place.contact.email}</span></a> : null}{place.contact.website ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.website}><Globe aria-hidden="true" size={16} />Strona internetowa</a> : null}{place.contact.social ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.social}><Globe aria-hidden="true" size={16} />Social media</a> : null}</div></section> : null}
-    <section className="place-detail-utility-group place-detail-rail-report"><Link className="place-detail-tertiary-action touch-target inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground" href={{ pathname: "/zglos-zmiane", query: { place: place.id } }}><Flag aria-hidden="true" size={17} />Zgłoś zmianę lub błąd</Link></section>
+    {place.contact.email || place.contact.website || place.contact.social ? <section className="place-detail-utility-group place-detail-rail-contact px-5"><h2>Kontakt</h2><div className="mt-2 grid gap-1">{place.contact.email ? <a className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-strong" href={`mailto:${place.contact.email}`}><Mail aria-hidden="true" size={16} /><span className="min-w-0 break-words">{place.contact.email}</span></a> : null}{place.contact.website ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.website}><Globe aria-hidden="true" size={16} />Strona internetowa</a> : null}{place.contact.social ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.social}><Globe aria-hidden="true" size={16} />Social media</a> : null}</div></section> : null}
+    <section className="place-detail-utility-group place-detail-rail-report px-5"><Link className="place-detail-tertiary-action touch-target inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground" href={{ pathname: "/zglos-zmiane", query: { place: place.id } }}><Flag aria-hidden="true" size={17} />Zgłoś zmianę lub błąd</Link></section>
   </aside>;
 }
 
