@@ -122,18 +122,18 @@ export function PrivacyConsent({
                 <p className="privacy-consent-eyebrow">INFORMACJE O APLIKACJI</p>
                 <h1 id="privacy-consent-title">Prywatność</h1>
                 <p>
-                  Dobra Mapa używa tylko technologii niezbędnych do działania aplikacji i zapamiętania Twoich ustawień. Nie używamy obecnie reklamowych ani marketingowych plików cookie.
+                  Dobra Mapa korzysta z niezbędnych cookies oraz pamięci przeglądarki, żeby aplikacja działała, zapamiętywała ustawienia, zapisane miejsca i bezpieczne drafty formularzy. W tej wersji nie używamy reklamowych ani marketingowych technologii śledzących.
                 </p>
                 <ul className="privacy-consent-benefits">
-                  <li>Działanie aplikacji</li>
-                  <li>Zapamiętanie ustawień</li>
-                  <li>Działanie PWA</li>
+                  <li>Działanie aplikacji i PWA</li>
+                  <li>Zapamiętanie ustawień i zapisanych miejsc</li>
+                  <li>Tymczasowe zapisywanie niedokończonych formularzy</li>
                 </ul>
                 {!isInitialVisit ? (
                   <div className="privacy-consent-category">
                     <div>
                       <h2>Niezbędne technologie</h2>
-                      <p>Aktywne zawsze i potrzebne do działania Mapy Dobra.</p>
+                      <p>Są potrzebne do podstawowych funkcji Dobrej Mapy i nie służą reklamie.</p>
                     </div>
                     <input type="checkbox" checked readOnly aria-label="Niezbędne technologie są aktywne" />
                   </div>
