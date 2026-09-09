@@ -21,6 +21,7 @@ import "./home-pdf-fidelity.css";
 import "./support-flow-fidelity.css";
 import "./support-search-fidelity.css";
 import "./search-results-fidelity.css";
+import "./place-detail-fixes.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
