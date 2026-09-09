@@ -12,7 +12,7 @@ type GuidedFlowShellProps = {
   children: ReactNode;
 };
 
-function conceptualProgress(screen: number, canGoBack: boolean) {
+export function conceptualProgress(screen: number, canGoBack: boolean) {
   if (screen <= 1) return 1;
   if (screen >= 2 && screen <= 4) return 2;
   if (screen === 5) return 3;
