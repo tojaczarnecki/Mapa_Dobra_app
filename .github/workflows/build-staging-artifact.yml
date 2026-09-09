@@ -6,7 +6,6 @@ on:
     branches:
       - staging-uruchom-pomoc
       - release/pilot-current-ui
-      - audit-fixes/sprint-1-correctness
 
 permissions:
   contents: read
