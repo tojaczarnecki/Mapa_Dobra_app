@@ -26,10 +26,6 @@ const accommodationStatus = {
   suspended: { icon: AlertTriangle, className: "border-urgent-border bg-urgent-soft" },
 };
 
-function hasDistanceLabel(label: string) {
-  return Boolean(label.trim()) && label !== "Odległość nieznana";
-}
-
 function compactAccommodationNote(state: MapPlace["status"]) {
   if (state.kind !== "accommodation") {
     return undefined;
@@ -167,12 +163,6 @@ export function MapPlaceCard({
 
   const placeLocation = (
     <div className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
-      {hasDistanceLabel(place.distanceLabel) ? (
-        <p className="flex min-w-0 items-center gap-2">
-          <Navigation aria-hidden="true" className="shrink-0 text-brand-strong" size={17} />
-          {place.distanceLabel}
-        </p>
-      ) : null}
       <p className="flex min-w-0 items-start gap-2 leading-5">
         <MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={17} />
         <span className="min-w-0">{place.address}</span>
@@ -202,9 +192,7 @@ export function MapPlaceCard({
               ? "Zadzwoń i potwierdź"
               : "Zadzwoń"}
         </a>
-      ) : (
-        null
-      )}
+      ) : null}
       {routeHref ? <a
         href={routeHref}
         target="_blank"
@@ -219,12 +207,7 @@ export function MapPlaceCard({
           Trasa
         </span>
       )}
-      <Link
-        href={detailsHref}
-        className={[
-          "place-card-action",
-        ].join(" ")}
-      >
+      <Link href={detailsHref} className="place-card-action">
         <ChevronRight aria-hidden="true" size={17} />
         Szczegóły
       </Link>
@@ -269,7 +252,6 @@ export function MapPlaceCard({
         <div className="flex min-w-0 items-center gap-x-2 text-xs font-semibold text-foreground">
           <MapPin aria-hidden="true" className="shrink-0 text-brand-strong" size={15} />
           <span className="truncate">{place.address}</span>
-          {hasDistanceLabel(place.distanceLabel) ? <span className="shrink-0 text-muted-foreground">{place.distanceLabel}</span> : null}
         </div>
         {compactPlaceStatus}
         {compactPlaceActions}
