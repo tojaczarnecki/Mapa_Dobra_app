@@ -26,7 +26,7 @@ jobs:
       - name: Run interaction smoke
         shell: bash
         run: |
-          cat > /tmp/smoke.mjs <<'NODE'
+          cat > .staging-smoke.mjs <<'NODE'
           import { chromium } from 'playwright';
           import assert from 'node:assert/strict';
 
@@ -41,7 +41,6 @@ jobs:
             return [...new Set(await page.locator('a[href*="/lodz/"]').evaluateAll(els => els.map(a => a.getAttribute('href')).filter(Boolean)))];
           }
 
-          // Canonical map -> detail -> return with preserved filters.
           const mapUrl = '/szukaj?view=map&kategoria=jedzenie&otwarte=1';
           await page.goto(base + mapUrl, { waitUntil: 'networkidle' });
           const detailHref = await page.locator('a[href*="/lodz/"]').first().getAttribute('href');
@@ -58,7 +57,6 @@ jobs:
           assert.equal(returned.searchParams.get('otwarte'), '1');
           console.log('MAP_RETURN_OK', returned.pathname + returned.search);
 
-          // Inspect real food-sharing records on staging.
           const fridgeLinks = await placeLinks('/lodowki-spoleczne');
           console.log('FOOD_SHARING_LINKS', JSON.stringify(fridgeLinks));
           for (const href of fridgeLinks.slice(0, 8)) {
@@ -68,7 +66,6 @@ jobs:
             console.log('FOOD_SHARING_DETAIL', JSON.stringify({ href, routeCount, text: text.slice(0, 900) }));
           }
 
-          // Discover mobile-service records through public search and inspect their detail semantics.
           const mobileLinks = await placeLinks('/szukaj?zapytanie=mobilna');
           console.log('MOBILE_SEARCH_LINKS', JSON.stringify(mobileLinks));
           let mobileFound = 0;
@@ -85,4 +82,4 @@ jobs:
 
           await browser.close();
           NODE
-          node /tmp/smoke.mjs
+          node .staging-smoke.mjs
