@@ -67,8 +67,8 @@ export function confirmedCountAfterTransition(currentCount: number, previousStat
   return Math.max(0, currentCount - (previousStatus === "CONFIRMED" ? 1 : 0) + (nextStatus === "CONFIRMED" ? 1 : 0));
 }
 
-export function shouldReopenFilledNeed(needStatus: string, previousResponseStatus: string, nextResponseStatus: string, confirmedCount: number, peopleNeeded: number) {
-  return needStatus === "FILLED" && previousResponseStatus === "CONFIRMED" && nextResponseStatus === "NEW" && confirmedCount < peopleNeeded;
+export function shouldReopenFilledNeed(needStatus: string, previousResponseStatus: string, nextStatus: string, confirmedCount: number, peopleNeeded: number) {
+  return needStatus === "FILLED" && previousResponseStatus === "CONFIRMED" && nextStatus === "NEW" && confirmedCount < peopleNeeded;
 }
 
 export function canDecideVolunteerResponse(needStatus: string, responseStatus: string, nextStatus: string) {
@@ -89,4 +89,10 @@ export function needHasAvailableCapacity(peopleNeeded: number, confirmedCount: n
 
 export function statusAfterConfirmedResponse(needStatus: string, peopleNeeded: number, confirmedCount: number) {
   return needStatus === "PUBLISHED" && !needHasAvailableCapacity(peopleNeeded, confirmedCount) ? "FILLED" : needStatus;
+}
+
+export function statusAfterCapacityEdit(needStatus: string, peopleNeeded: number, confirmedCount: number) {
+  if (confirmedCount > peopleNeeded) return { ok: false as const, reason: "BELOW_CONFIRMED" as const };
+  if (needStatus === "PUBLISHED" && confirmedCount === peopleNeeded) return { ok: true as const, status: "FILLED" as const };
+  return { ok: true as const, status: needStatus };
 }
