@@ -41,6 +41,7 @@ export function validateNeedInput(input: unknown): { ok: true; data: NeedInput }
   if (requirements === null || locationNote === null) return { ok: false, message: "Sprawdź długość dodatkowych informacji." };
   const signupDeadline = value.signupDeadline ? date(value.signupDeadline) : null;
   if (value.signupDeadline && !signupDeadline) return { ok: false, message: "Sprawdź termin zgłoszeń." };
+  if (signupDeadline && signupDeadline > endsAt) return { ok: false, message: "Termin zgłoszeń nie może przypadać po zakończeniu potrzeby." };
   return { ok: true, data: { title, description, peopleNeeded, startsAt, endsAt, signupDeadline, experienceRequired: value.experienceRequired === true || value.experienceRequired === "true", requirements: requirements ?? null, locationNote: locationNote ?? null } };
 }
 
