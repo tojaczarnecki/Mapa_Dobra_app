@@ -20,13 +20,13 @@ test("help-request review includes all information that will be submitted", () =
 test("help-request review repeats the operational promise before final submit", () => {
   assert.match(review, /prywatnej kolejki Dobrej Mapy/);
   assert.match(review, /nie jest wezwanie służb/);
-  assert.match(review, /gwarancją interwencji lub czasu reakcji/);
+  assert.match(review, /gwarancja interwencji lub czasu reakcji/);
   assert.match(review, /nie publikujemy treści ani dokładnej lokalizacji/);
 });
 
 test("wizard validates optional contact and communicates its requirement", () => {
   assert.match(wizard, /validateHelpRequestContact/);
-  assert.match(wizard, /Jeśli chcesz zostawić kontakt, podaj telefon lub e-mail/);
+  assert.match(wizard, /Jeśli zostawiasz kontakt, podaj telefon lub e-mail/);
   assert.match(wizard, /setShowContact\(true\)/);
   assert.match(wizard, /setError\(contactValidation\.reason\)/);
 });
