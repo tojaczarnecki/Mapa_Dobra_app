@@ -49,7 +49,7 @@ export function PlaceHero({
   const mobileCanShowStops = Boolean(
     isMobileService &&
     mobileStatus?.publicStatus === "confirmed" &&
-    place.mobile?.season?.isActiveNow,
+    (!place.mobile?.season || place.mobile.season.isActiveNow),
   );
   const accommodationPrimaryAction = place.accommodation
     ? getAccommodationPrimaryAction({ phoneHref: callHref, routeHref, closedNow, needsConfirmation })
