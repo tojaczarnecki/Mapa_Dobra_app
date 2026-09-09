@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveNeedSignupAvailability } from "../src/lib/needs/availability.ts";
+import { needSignupClosedMessage, resolveNeedSignupAvailability } from "../src/lib/needs/availability.ts";
 
 const now = new Date("2026-09-09T12:00:00.000Z");
 
@@ -56,5 +56,12 @@ test("unpublished need cannot accept responses", () => {
   assert.deepEqual(
     resolveNeedSignupAvailability(need({ status: "DRAFT", signupDeadline: null }), now),
     { open: false, reason: "NOT_PUBLISHED" },
+  );
+});
+
+test("signup deadline has a specific public message", () => {
+  assert.equal(
+    needSignupClosedMessage("SIGNUP_DEADLINE_PASSED"),
+    "Zapisy do tej potrzeby zostały zakończone.",
   );
 });
