@@ -61,8 +61,23 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p screenshots
-          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=1500"
-          PWMAP="npx --yes playwright@1.55.0 screenshot --browser=chromium --wait-for-timeout=4500"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const origin = process.env.BASE_URL;
+          const state = {
+            cookies: [],
+            origins: [{
+              origin,
+              localStorage: [
+                { name: 'mapa-dobra:privacy-consent', value: 'necessary' },
+              ],
+            }],
+          };
+          fs.writeFileSync('screenshots/consented-state.json', JSON.stringify(state));
+          NODE
+
+          PW="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/consented-state.json --wait-for-timeout=1500"
+          PWMAP="npx --yes playwright@1.55.0 screenshot --browser=chromium --load-storage=screenshots/consented-state.json --wait-for-timeout=4500"
 
           $PW --viewport-size="360,800" "$BASE_URL/" screenshots/01-home-360.png
           $PW --viewport-size="390,844" "$BASE_URL/" screenshots/02-home-390.png
