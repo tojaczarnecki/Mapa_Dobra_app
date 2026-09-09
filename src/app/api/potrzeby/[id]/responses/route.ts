@@ -33,6 +33,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
       if (!need) throw new Error("NEED_NOT_ACTIVE");
 
+      // Server-side enforcement is authoritative: a stale page or a handcrafted
+      // request cannot bypass publication/end/deadline rules.
       const signup = resolveNeedSignupAvailability(need, now);
       if (!signup.open) {
         if (signup.reason === "SIGNUP_DEADLINE_PASSED") throw new Error("SIGNUP_CLOSED");
