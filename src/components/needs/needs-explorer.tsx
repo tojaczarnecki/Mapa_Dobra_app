@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { NeedCard } from "./need-card";
 
 type Need = { id: string; title: string; peopleNeeded: number; responsesCount: number; startsAt: string; endsAt: string; experienceRequired: boolean; requirements: string | null; place: { name: string; city: string; addressLine: string } | null; organization: { name: string } };
-type Filter = "TODAY" | "WEEKEND" | "NO_EXPERIENCE" | "NEAREST";
+type Filter = "TODAY" | "WEEKEND" | "NO_EXPERIENCE";
 
-const filterLabels: Record<Filter, string> = { TODAY: "Dziś", WEEKEND: "Weekend", NO_EXPERIENCE: "Bez doświadczenia", NEAREST: "Najbliżej" };
+const filterLabels: Record<Filter, string> = { TODAY: "Dziś", WEEKEND: "Weekend", NO_EXPERIENCE: "Bez doświadczenia" };
 
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
@@ -32,7 +32,7 @@ export function NeedsExplorer({ needs }: { needs: Need[] }) {
   const filtered = useMemo(() => needs.filter((need) => {
     if (filter === "TODAY") return bucketFor(need.startsAt, now) === "Dzisiaj";
     if (filter === "WEEKEND") return bucketFor(need.startsAt, now) === "W ten weekend";
-    if (filter === "NO_EXPERIENCE") return !need.requirements;
+    if (filter === "NO_EXPERIENCE") return !need.experienceRequired;
     return true;
   }), [filter, needs, now]);
   const visible = filtered.slice(0, visibleCount);
