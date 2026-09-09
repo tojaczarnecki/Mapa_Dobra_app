@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, MapPin, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, MapPin, Users } from "lucide-react";
 import { VolunteerResponseForm } from "@/components/needs/volunteer-response-form";
+import { PlaceDetailMap } from "@/components/place-details/place-detail-map";
 import { getPublicNeed } from "@/lib/needs/queries";
+import { directionsHref } from "@/lib/places/actions";
 import { remainingPeople } from "@/lib/needs/validation";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +14,51 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: need ? `${need.title} | Dobra Mapa` : "Potrzeba | Dobra Mapa" };
 }
 
+function peopleLabel(value: number) {
+  return value === 1 ? "osoba" : value < 5 ? "osoby" : "osób";
+}
+
 export default async function NeedDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const need = await getPublicNeed((await params).id);
-  if (!need) return <div className="mx-auto max-w-3xl px-4 py-16"><h1 className="text-3xl font-extrabold">Ta potrzeba nie jest już aktywna.</h1><Link href="/potrzeby" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand px-4 py-2 text-sm font-bold text-brand-strong"><ArrowLeft size={17} />Zobacz aktualne potrzeby</Link></div>;
+  if (!need) return <div className="needs-detail-not-found"><h1>Ta potrzeba nie jest już aktywna.</h1><Link href="/potrzeby" className="needs-detail-link"><ArrowLeft aria-hidden="true" size={17} />Zobacz aktualne potrzeby</Link></div>;
+
   const remaining = remainingPeople(need.peopleNeeded, need.responsesCount);
-  const formatter = new Intl.DateTimeFormat("pl-PL", { weekday: "long", day: "numeric", month: "long" });
-  const time = new Intl.DateTimeFormat("pl-PL", { hour: "2-digit", minute: "2-digit" });
-  return <div className="mx-auto w-full max-w-[1040px] px-4 pb-24 pt-10 sm:px-6 lg:px-8"><Link href="/potrzeby" className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-bold text-brand-strong hover:bg-brand-soft"><ArrowLeft size={17} />Aktualne potrzeby</Link><article className="mt-8 max-w-3xl"><p className="inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-brand-strong"><Users size={17} />Potrzebne jeszcze {remaining} {remaining === 1 ? "osoba" : remaining < 5 ? "osoby" : "osób"}</p><h1 className="mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{need.title}</h1><p className="mt-2 text-lg font-bold text-brand-strong">{need.place?.name ?? need.organization.name}</p><p className="mt-5 text-base leading-7 text-muted-foreground">{need.description}</p><div className="mt-6 grid gap-3 border-y border-border py-5 text-sm font-semibold sm:grid-cols-2"><span className="inline-flex items-center gap-2"><CalendarDays size={18} />{formatter.format(need.startsAt)} · {time.format(need.startsAt)}–{time.format(need.endsAt)}</span><span className="inline-flex items-center gap-2"><MapPin size={18} />{need.place?.city ?? "Łódź"}</span><span>{need.requirements ? `Potrzebne doświadczenie: ${need.requirements}` : "Bez doświadczenia"}</span>{need.locationNote ? <span>Wskazówka: {need.locationNote}</span> : null}</div><VolunteerResponseForm needId={need.id} /></article></div>;
+  const dateFormatter = new Intl.DateTimeFormat("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+  const timeFormatter = new Intl.DateTimeFormat("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  const dateLabel = dateFormatter.format(need.startsAt);
+  const timeLabel = `${timeFormatter.format(need.startsAt)}–${timeFormatter.format(need.endsAt)}`;
+
+  return <div className="needs-detail-page mx-auto w-full max-w-[1200px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
+    <Link href="/potrzeby" className="needs-back-link"><ArrowLeft aria-hidden="true" size={17} />Wróć do potrzeb</Link>
+    <header className="needs-detail-hero">
+      <p className="needs-eyebrow">{need.organization.name}</p>
+      <h1>{need.title}</h1>
+      <div className="needs-detail-facts" aria-label="Najważniejsze informacje">
+        <span><MapPin aria-hidden="true" size={17} />{need.place?.name ?? "Cała organizacja"}</span>
+        <span><CalendarDays aria-hidden="true" size={17} />{dateLabel} · {timeLabel}</span>
+        <span><Users aria-hidden="true" size={17} />Potrzebujemy {need.peopleNeeded} {peopleLabel(need.peopleNeeded)}</span>
+        <span>{need.experienceRequired ? "Wymagane doświadczenie" : "Bez doświadczenia"}</span>
+      </div>
+    </header>
+
+    <div className="needs-detail-layout">
+      <main className="needs-detail-content">
+        <section className="needs-detail-section"><p className="needs-section-eyebrow">O potrzebie</p><h2>Na czym polega pomoc?</h2><p>{need.description}</p></section>
+        <section className="needs-detail-section"><p className="needs-section-eyebrow">Termin</p><h2>Kiedy?</h2><div className="needs-detail-info-list"><p><CalendarDays aria-hidden="true" size={18} />{dateLabel}</p><p>{timeLabel}</p></div></section>
+        <section className="needs-detail-section"><p className="needs-section-eyebrow">Udział</p><h2>Kogo potrzebujemy?</h2><p className="needs-detail-strong"><Users aria-hidden="true" size={18} />Potrzebujemy {need.peopleNeeded} {peopleLabel(need.peopleNeeded)}.</p><p>{need.experienceRequired ? "Wymagane doświadczenie." : "Nie potrzebujesz wcześniejszego doświadczenia."}</p>{need.requirements ? <p>{need.requirements}</p> : null}</section>
+        {need.place ? <section className="needs-detail-section needs-location-section"><p className="needs-section-eyebrow">Lokalizacja</p><h2>Gdzie będziesz pomagać?</h2><div className="needs-location-layout"><div><p className="needs-detail-strong"><MapPin aria-hidden="true" size={18} />{need.place.name}</p><p>{need.place.addressLine}</p>{need.locationNote ? <p className="needs-detail-muted">Wskazówka: {need.locationNote}</p> : null}{directionsHref({ latitude: need.place.latitude === null ? undefined : Number(need.place.latitude), longitude: need.place.longitude === null ? undefined : Number(need.place.longitude), address: need.place.addressLine }) ? <a className="needs-detail-link needs-location-route" href={directionsHref({ latitude: need.place.latitude === null ? undefined : Number(need.place.latitude), longitude: need.place.longitude === null ? undefined : Number(need.place.longitude), address: need.place.addressLine })!} target="_blank" rel="noreferrer">Wyznacz trasę <ArrowRight aria-hidden="true" size={17} /></a> : null}</div>{need.place.latitude !== null && need.place.longitude !== null ? <div className="needs-location-map"><PlaceDetailMap latitude={Number(need.place.latitude)} longitude={Number(need.place.longitude)} label={need.place.name} /></div> : null}</div></section> : null}
+        <section className="needs-detail-section"><p className="needs-section-eyebrow">Organizator</p><h2>Organizator</h2><p className="needs-detail-strong">{need.organization.name}</p></section>
+      </main>
+
+      <aside className="needs-detail-rail">
+        <div className="needs-action-card">
+          <p className="needs-card-status">Aktualne</p>
+          <h2 className={remaining ? "needs-action-title" : "needs-action-title needs-mobile-status"}>{remaining ? `Potrzebujemy jeszcze ${remaining} ${peopleLabel(remaining)}` : "Mamy komplet"}</h2>
+          <p className="needs-action-date"><CalendarDays aria-hidden="true" size={17} />{dateLabel} · {timeLabel}</p>
+          {remaining ? <VolunteerResponseForm needId={need.id} /> : <p className="needs-action-closed">Ta potrzeba nie przyjmuje już nowych zgłoszeń.</p>}
+          <Link href="/potrzeby" className="needs-detail-link needs-rail-secondary">Zobacz inne potrzeby <ArrowRight aria-hidden="true" size={17} /></Link>
+        </div>
+      </aside>
+    </div>
+  </div>;
 }

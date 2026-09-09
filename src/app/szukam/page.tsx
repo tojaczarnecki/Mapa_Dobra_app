@@ -77,7 +77,6 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
           <CategoryTile href="/szukaj" label="Więcej" slug="wiecej" icon={CircleHelp} accent="#0B4F48" />
         </div>
         <Link href="/szukam?tryb=guided" className="support-uncertain-entry">
-          <span className="support-uncertain-icon" aria-hidden="true"><CircleHelp size={20} /></span>
           <span className="support-uncertain-copy">
             <strong>Nie wiem, czego potrzebuję</strong>
             <small>Pomóż mi wybrać właściwą pomoc.</small>

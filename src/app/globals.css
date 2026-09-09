@@ -25,6 +25,7 @@
   --home-amber: #d79a2b;
   --home-amber-soft: #fff7e8;
   --home-border: #e5e5e5;
+
 }
 
 @theme inline {
@@ -187,10 +188,6 @@ body:has(.home-page) {
 
 body:has(.home-page) > div {
   background: var(--home-background);
-}
-
-body:has(.home-page) {
-  font-family: "Source Sans 3", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a,
@@ -1940,6 +1937,30 @@ body[data-privacy-screen-open="true"] .mobile-bottom-nav {
 .public-action-link-tertiary:hover { background: var(--brand-soft); }
 .public-action-link-utility { color: var(--muted-foreground); }
 .public-action-link:focus-visible { outline: 3px solid rgb(11 79 72 / 35%); outline-offset: 2px; }
+
+/* Main public actions share one geometry while their journey keeps its meaning. */
+.public-action-link-system {
+  min-height: 3.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 1.25rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+.public-action-link-system.public-action-link-primary { border-color: var(--public-cta-color, var(--brand)); background: var(--public-cta-color, var(--brand)); color: #fff; }
+.public-action-link-system.public-action-link-primary:hover { border-color: var(--public-cta-hover, var(--brand-strong)); background: var(--public-cta-hover, var(--brand-strong)); color: #fff; }
+.public-action-link-system.public-action-link-secondary { border-color: var(--public-cta-color, var(--brand)); color: var(--public-cta-color, var(--brand-strong)); }
+.public-action-link-system.public-action-link-secondary:hover { border-color: var(--public-cta-color, var(--brand)); background: color-mix(in srgb, var(--public-cta-color, var(--brand)) 9%, white); }
+.public-action-link-system.public-action-link-tertiary { min-height: 2.75rem; border-radius: 0.75rem; padding-inline: 0.5rem; }
+.public-action-link-system.public-action-link-journey-search { --public-cta-color: #3158d8; --public-cta-hover: #2445b0; }
+.public-action-link-system.public-action-link-journey-help { --public-cta-color: #f0644b; --public-cta-hover: #d94d37; }
+.public-action-link-system.public-action-link-journey-guide { --public-cta-color: #c66c98; --public-cta-hover: #a9537e; }
+.public-action-link-system.public-action-link-journey-emergency { --public-cta-color: #a4493f; --public-cta-hover: #87372f; }
+@media (max-width: 767px) {
+  .public-action-link-system { min-height: 3.25rem; padding-inline: 1.25rem; }
+}
 
 .public-status-badge {
   display: inline-flex;

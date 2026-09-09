@@ -1,0 +1,208 @@
+/* Home-only visual rules. Keep the route independent from the global utility cascade. */
+@font-face { font-family: "Inconsolata"; src: url("/fonts/inconsolata-regular.ttf") format("truetype"); font-display: swap; font-style: normal; font-weight: 400; }
+@font-face { font-family: "Inconsolata"; src: url("/fonts/inconsolata-bold.ttf") format("truetype"); font-display: swap; font-style: normal; font-weight: 700; }
+@font-face { font-family: "Jost"; src: url("/fonts/jost-regular.ttf") format("truetype"); font-display: swap; font-style: normal; font-weight: 400; }
+@font-face { font-family: "Jost"; src: url("/fonts/jost-semibold.ttf") format("truetype"); font-display: swap; font-style: normal; font-weight: 600; }
+
+.home-page { width: min(100%, 67.5rem); margin-inline: auto; padding: 1.25rem 2rem 4rem; background: #fff; color: #090d0d; font-family: "Jost", Arial, Helvetica, sans-serif; }
+.home-intro { max-width: none; }
+.home-wordmark { margin: 0; color: #090d0d; font-family: "Jost", Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0.08em; line-height: 1; }
+.home-wordmark-line { height: 1px; margin-top: 0.75rem; background: #090d0d; }
+.home-hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(15rem, 0.9fr); align-items: center; gap: 1.25rem; }
+.home-hero-copy { min-width: 0; padding: 1.25rem 0 1.5rem; }
+.home-motto { margin: 0; max-width: 16ch; color: #090d0d; font-family: "Inconsolata", "Courier New", monospace; font-size: clamp(3.5rem, 4.2vw, 3.75rem); font-weight: 700; letter-spacing: 0.01em; line-height: 1.06; text-transform: uppercase; }
+.home-motto-mobile { display: none; }
+.home-motto-desktop { display: inline; }
+.home-subheadline { margin: 1.25rem 0 0; max-width: 30rem; color: #090d0d; font-family: "Jost", Arial, Helvetica, sans-serif; font-size: 1.1rem; font-weight: 400; line-height: 1.35; }
+.home-hero-illustration { display: block; width: min(100%, 25rem); height: auto; justify-self: center; }
+.home-art-stage { display: contents; }
+.home-paths { margin-top: 3.5rem; }
+.home-paths-heading h2 { margin: 0; color: #090d0d; font-family: "Jost", Arial, Helvetica, sans-serif; font-size: 1.25rem; font-weight: 600; letter-spacing: 0.06em; line-height: 1.1; }
+.home-rule { height: 1px; margin-top: 0.65rem; background: #090d0d; }
+.home-primary-actions { display: grid; grid-template-columns: max-content max-content; align-items: start; justify-content: start; gap: 0.9rem 1rem; margin-top: 1.25rem; }
+.home-page .home-primary-card { position: relative; display: flex; min-width: 0; min-height: 4.125rem; align-items: center; justify-content: flex-start; gap: 1.15rem; border: 0; border-radius: 0; box-shadow: none; padding: 0.5rem 1.35rem; color: #090d0d; flex-direction: row; flex-wrap: nowrap; transform: none; }
+.home-page .home-primary-card:hover { box-shadow: none; transform: none; }
+.home-page .home-primary-card:focus-visible { outline: 2px solid #090d0d; outline-offset: 3px; }
+.home-page .home-primary-card .home-primary-copy { max-width: none; min-width: 0; padding: 0; }
+.home-page .home-primary-title { font-family: "Inconsolata", "Courier New", monospace; font-size: 3rem; font-weight: 700; letter-spacing: 0.01em; line-height: 1; text-transform: uppercase; }
+.home-page .home-primary-title-row { display: inline-flex; min-width: 0; align-items: baseline; gap: 1.15rem; }
+.home-page .home-primary-description { display: none; }
+.home-page .home-primary-arrow { position: static; flex: 0 0 auto; margin: 0; color: #090d0d; font-family: "Inconsolata", "Courier New", monospace; font-size: 3rem; font-weight: 400; line-height: 1; }
+.home-page .home-primary-card[data-journey="search"] { width: fit-content; max-width: 100%; background: #9bd3aa; }
+.home-page .home-primary-card[data-journey="help"] { width: fit-content; max-width: 100%; background: #e99bd3; }
+.home-page .home-primary-card[data-journey="now"] { width: fit-content; max-width: 100%; grid-column: 1 / -1; background: #efbd58; }
+.home-page .home-primary-card[data-journey="guide"] { display: block; width: min(36rem, 100%); max-width: 100%; min-height: 0; grid-column: 1; align-items: flex-start; background: #fff; border: 1px solid #efbd58; padding: 1.1rem; }
+.home-page .home-primary-card[data-journey="guide"] .home-primary-copy { display: block; }
+.home-page .home-primary-card[data-journey="guide"] .home-primary-title-row { display: flex; align-items: flex-end; }
+.home-page .home-primary-card[data-journey="guide"] .home-primary-title { flex: 1 1 auto; max-width: none; white-space: normal; }
+.home-page .home-primary-card[data-journey="guide"] .home-primary-description { display: block; max-width: 30rem; margin-top: 0.75rem; color: #090d0d; font-family: "Jost", Arial, Helvetica, sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.25; }
+.home-page .home-primary-icon, .home-page .home-primary-illustration { display: none; }
+
+@media (max-width: 767px) {
+  .home-page { width: 100%; padding: calc(18px + env(safe-area-inset-top)) 22px 2.5rem; }
+  .home-page .home-intro { padding-top: 4px; }
+  .home-page .home-wordmark-line { margin-top: 0.75rem; }
+  .home-motto-mobile { display: inline; }
+  .home-motto-desktop { display: none; }
+  .home-hero-grid { display: block; min-height: 0; }
+  .home-hero-copy { padding: 0.75rem 0 0; }
+  .home-page .home-motto { max-width: none; font-size: clamp(36px, 11.55vw, 45px); letter-spacing: 0; line-height: 1.08; }
+  .home-subheadline { margin-top: 1.125rem; font-size: 1rem; }
+  .home-art-stage { position: relative; display: block; height: clamp(11.25rem, 45vw, 12rem); }
+  .home-hero-illustration { position: absolute; top: -1.25rem; right: 0; bottom: auto; width: clamp(210px, 54vw, 230px); max-width: 100%; margin: 0; z-index: 0; }
+  .home-paths { margin-top: 0.25rem; }
+  .home-paths-heading h2 { font-size: 1rem; line-height: 1.1; }
+  .home-rule { margin-top: 0.4rem; }
+  .home-primary-actions { grid-template-columns: minmax(0, 1fr); gap: 0.7rem; margin-top: 0.7rem; }
+  .home-page .home-primary-card { min-height: 3.6rem; padding-block: 0.25rem; padding-inline: 1.35rem; }
+  .home-page .home-primary-title { font-size: clamp(1.8rem, 8.7vw, 2.125rem); }
+  .home-page .home-primary-arrow { font-size: clamp(2.25rem, 11.5vw, 3rem); }
+  .home-page .home-primary-card[data-journey="guide"] { width: 86%; min-height: 0; padding-block: 0.7rem; }
+  .home-page .home-primary-card[data-journey="guide"] .home-primary-description { margin-top: 0.75rem; }
+}
+
+@media (max-width: 360px) {
+  .home-page { padding-inline: 18px; }
+  .home-page .home-primary-card { padding-inline: 1rem; }
+  .home-page .home-primary-title { font-size: 1.8rem; }
+  .home-page .home-primary-arrow { font-size: 2.25rem; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-page .home-primary-actions { grid-template-columns: minmax(0, 1fr); }
+  .home-page .home-primary-card { width: 100%; max-width: 100%; }
+}
+
+/* These selectors deliberately outrank legacy home variants without !important. */
+.home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-title,
+.home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-title,
+.home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-title,
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title {
+  font-family: "Inconsolata", "Courier New", monospace;
+  font-weight: 700;
+}
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-arrow,
+.home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-arrow,
+.home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-arrow,
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-arrow {
+  position: static;
+  color: #090d0d;
+  font-family: "Inconsolata", "Courier New", monospace;
+}
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] {
+  display: block;
+  grid-template-columns: none;
+  flex-direction: row;
+  width: min(36rem, 100%);
+  min-height: 0;
+}
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-row {
+  display: block;
+}
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title {
+  display: inline;
+}
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-mobile { display: none; }
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-desktop { display: inline; }
+
+.home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-arrow {
+  display: inline-block;
+  margin-left: 0.5rem;
+  vertical-align: baseline;
+}
+
+.home-page.home-journey-foyer .home-primary-card .home-primary-arrow {
+  display: inline-block;
+  transition: transform 180ms ease;
+}
+
+.home-page.home-journey-foyer .home-primary-card:hover .home-primary-arrow,
+.home-page.home-journey-foyer .home-primary-card:focus-visible .home-primary-arrow {
+  transform: translateX(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page.home-journey-foyer .home-primary-card .home-primary-arrow {
+    transition: none;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card:hover .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card:focus-visible .home-primary-arrow {
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-mobile { display: inline; }
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-desktop { display: none; }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title {
+    font-size: clamp(1.65rem, 7.2vw, 2rem);
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-arrow {
+    font-size: clamp(1.65rem, 7.2vw, 2rem);
+  }
+
+  .home-page.home-journey-foyer .home-primary-title-row { gap: 0.5rem; }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 3.6rem;
+    padding-block: 0.25rem;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] {
+    width: min(92%, 100%);
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-row {
+    white-space: nowrap;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-arrow {
+    vertical-align: baseline;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] {
+    width: min(45rem, 100%);
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-row,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-desktop {
+    white-space: nowrap;
+  }
+
+  .home-page.home-journey-foyer .home-primary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: none;
+    gap: 0.9rem 1rem;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] {
+    width: fit-content;
+    max-width: 100%;
+    justify-self: start;
+  }
+}

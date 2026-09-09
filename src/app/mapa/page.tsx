@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import { MapExperience } from "@/components/map/map-experience";
-import type { MapCategoryFilter } from "@/components/map/map-filters";
-import { getPublicMapPlaces, getPublicSearchPlaces } from "@/lib/places/public-data";
-import { interpretSearchQuery } from "@/lib/places/search-intent";
-import { filterPublicSearchPlaces } from "@/lib/places/search";
+import { redirect } from "next/navigation";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
@@ -12,93 +8,19 @@ export const metadata: Metadata = {
   alternates: canonicalAlternates("/mapa"),
 };
 
-type MapPageProps = {
-  searchParams: Promise<{
-    q?: string | string[];
-    zapytanie?: string | string[];
-    kategoria?: string | string[];
-    otwarte?: string | string[];
-    dzisiaj?: string | string[];
-    bezplatne?: string | string[];
-    bez_skierowania?: string | string[];
-    bez_dokumentow?: string | string[];
-    lokalizacja?: string | string[];
-    sort?: string | string[];
-  }>;
-};
-
-const validCategories = new Set<MapCategoryFilter>([
-  "all",
-  "food",
-  "accommodation",
-  "hygiene",
-  "medical",
-  "legal",
-  "psychological",
-  "social",
-  "clothing",
-  "other",
-]);
-
-const categoryAliases: Record<string, MapCategoryFilter> = {
-  jedzenie: "food",
-  nocleg: "accommodation",
-  higiena: "hygiene",
-  prysznic: "hygiene",
-  "pomoc-medyczna": "medical",
-  "pomoc-prawna": "legal",
-  "pomoc-psychologiczna": "psychological",
-  "pomoc-socjalna": "social",
-  odziez: "clothing",
-  inne: "other",
-};
+type MapPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 function firstValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 export default async function MapPage({ searchParams }: MapPageProps) {
-  const [params, places, searchPlaces] = await Promise.all([
-    searchParams,
-    getPublicMapPlaces(),
-    getPublicSearchPlaces(),
-  ]);
-
-  const rawQuery = firstValue(params.q).trim();
-  const savedIntentText = firstValue(params.zapytanie).trim();
-  const detectedIntent = rawQuery && !savedIntentText ? interpretSearchQuery(rawQuery) : undefined;
-  const intentFilters = detectedIntent?.recognized ? detectedIntent.filters : {};
-  const intentText = savedIntentText || (detectedIntent?.recognized ? rawQuery : "");
-
-  const requestedCategoryValue = firstValue(params.kategoria) || intentFilters.category || "";
-  const requestedCategory = categoryAliases[requestedCategoryValue] ?? requestedCategoryValue as MapCategoryFilter;
-  const initialCategory = validCategories.has(requestedCategory) ? requestedCategory : "all";
-
-  const todayEligibleIds = filterPublicSearchPlaces(searchPlaces, { today: true }).map((place) => place.id);
-  const noReferralEligibleIds = filterPublicSearchPlaces(searchPlaces, { noReferral: true }).map((place) => place.id);
-  const noDocumentsEligibleIds = filterPublicSearchPlaces(searchPlaces, { noDocuments: true }).map((place) => place.id);
-  const preservedParams = new URLSearchParams();
-  for (const key of ["q", "zapytanie", "kategoria", "otwarte", "dzisiaj", "bezplatne", "bez_skierowania", "bez_dokumentow", "lokalizacja", "sort"]) {
-    const value = firstValue(params[key as keyof typeof params]);
-    if (value) preservedParams.set(key, value);
+  const params = await searchParams;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    const first = firstValue(value);
+    if (first && key !== "view") query.set(key, first);
   }
-
-  return (
-    <MapExperience
-      places={places}
-      initialQuery={detectedIntent?.recognized ? "" : rawQuery}
-      initialIntentText={intentText}
-      initialCategory={initialCategory}
-      initialOpenNow={firstValue(params.otwarte) === "1" || intentFilters.openNow === true}
-      initialToday={firstValue(params.dzisiaj) === "1" || intentFilters.today === true}
-      initialFree={firstValue(params.bezplatne) === "1" || intentFilters.free === true}
-      initialNoReferral={firstValue(params.bez_skierowania) === "1" || intentFilters.noReferral === true}
-      initialNoDocuments={firstValue(params.bez_dokumentow) === "1" || intentFilters.noDocuments === true}
-      initialLocate={firstValue(params.lokalizacja) === "moja"}
-      initialResultQuery={preservedParams.toString()}
-      todayEligibleIds={todayEligibleIds}
-      noReferralEligibleIds={noReferralEligibleIds}
-      noDocumentsEligibleIds={noDocumentsEligibleIds}
-    />
-  );
+  query.set("view", "map");
+  redirect(`/szukaj?${query.toString()}`);
 }

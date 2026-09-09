@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { List, Map as MapIcon, Sparkles, X } from "lucide-react";
+import { List, MapPinned, Sparkles, X } from "lucide-react";
 import { NoResults } from "@/components/places/no-results";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchResultsFilterPanel } from "@/components/places/search-results-filter-panel";
@@ -101,6 +101,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (sort !== "best") current.set("sort", sort);
   const location = first(raw.lokalizacja);
   if (location) current.set("lokalizacja", location);
+  const mapViewParams = new URLSearchParams(current);
+  mapViewParams.set("view", "map");
+  const locationHrefParams = new URLSearchParams(mapViewParams);
+  locationHrefParams.set("lokalizacja", "moja");
   const categories = Array.from(
     new Map(
       allPlaces.flatMap((place) =>
@@ -143,8 +147,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       : "miejsc";
 
   return (
-    <div className={["search-results-page journey-search mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8", resultsMode ? "search-results-results-mode" : ""].join(" ")}>
-      <SearchResultsInteractive places={mapPlaces}>
+    <div className={["search-results-page journey-search mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8", resultsMode ? "search-results-results-mode" : "", first(raw.view) === "map" ? "search-results-map-mode" : ""].join(" ")}>
+      <SearchResultsInteractive places={mapPlaces} mapView={first(raw.view) === "map"} listHref={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"}>
         <section className="min-w-0 space-y-3 sm:space-y-4">
           <div className="search-results-query-area w-full min-w-0 max-w-full">
             <div className="min-w-0 space-y-3 sm:space-y-4">
@@ -156,7 +160,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 <div className="search-results-meta-toolbar hidden lg:flex">
                   <span className="search-results-meta-count">{visiblePlaces.length} {resultCountLabel}</span>
                   <SearchResultsMapToggle />
-                  <LocationControl />
+                  <LocationControl changeHref={`/szukaj?${locationHrefParams.toString()}`} />
                 </div>
               </div>
 
@@ -164,7 +168,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 <LocationControl />
                 <div aria-label="Widok wyników" className="search-results-mobile-view-toggle">
                   <span aria-current="page"><List aria-hidden="true" size={15} />Lista</span>
-                  <Link href={current.toString() ? `/mapa?${current.toString()}` : "/mapa"}><MapIcon aria-hidden="true" size={15} />Mapa</Link>
+                  <Link href={`/szukaj?${mapViewParams.toString()}`}><MapPinned aria-hidden="true" size={15} strokeWidth={2.25} />Mapa</Link>
                 </div>
               </div>
 
@@ -177,7 +181,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   placeholder="np. ciepły posiłek dzisiaj bez skierowania"
                   categories={categories.map(([slug, label]) => ({ slug, label }))}
                   places={allPlaces.map(({ id, name, categorySlug, slug, searchText }) => ({ id, name, categorySlug, slug, searchText }))}
-                  hiddenFields={<>{preserveFiltersOnSubmit && category ? <input type="hidden" name="kategoria" value={category} /> : null}{preserveFiltersOnSubmit && filters.openNow ? <input type="hidden" name="otwarte" value="1" /> : null}{preserveFiltersOnSubmit && filters.today ? <input type="hidden" name="dzisiaj" value="1" /> : null}{preserveFiltersOnSubmit && filters.free ? <input type="hidden" name="bezplatne" value="1" /> : null}{preserveFiltersOnSubmit && filters.noReferral ? <input type="hidden" name="bez_skierowania" value="1" /> : null}{preserveFiltersOnSubmit && filters.noDocuments ? <input type="hidden" name="bez_dokumentow" value="1" /> : null}{preserveFiltersOnSubmit && sort !== "best" ? <input type="hidden" name="sort" value={sort} /> : null}</>}
+                  hiddenFields={<>{preserveFiltersOnSubmit && category ? <input key="kategoria" type="hidden" name="kategoria" value={category} /> : null}{preserveFiltersOnSubmit && filters.openNow ? <input key="otwarte" type="hidden" name="otwarte" value="1" /> : null}{preserveFiltersOnSubmit && filters.today ? <input key="dzisiaj" type="hidden" name="dzisiaj" value="1" /> : null}{preserveFiltersOnSubmit && filters.free ? <input key="bezplatne" type="hidden" name="bezplatne" value="1" /> : null}{preserveFiltersOnSubmit && filters.noReferral ? <input key="bez_skierowania" type="hidden" name="bez_skierowania" value="1" /> : null}{preserveFiltersOnSubmit && filters.noDocuments ? <input key="bez_dokumentow" type="hidden" name="bez_dokumentow" value="1" /> : null}{preserveFiltersOnSubmit && sort !== "best" ? <input key="sort" type="hidden" name="sort" value={sort} /> : null}</>}
                   trailing={<SearchResultsFilterPanel activeFilterCount={activeFilterCount} practicalFilters={practicalFilterOptions} categories={categoryOptions} sortOptions={sortOptions} baseParams={Object.fromEntries(current.entries())} baseFilters={filters} places={filterablePlaces.map(({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }) => ({ id, name, categorySlug, slug, categorySlugs, searchText, status, openNow, todayHours, free, referralRequired, documentRequired, distanceKm }))} />}
                 />
                 <span className="search-results-mobile-count">{visiblePlaces.length} {resultCountLabel}</span>

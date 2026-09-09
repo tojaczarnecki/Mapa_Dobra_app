@@ -4,11 +4,14 @@ import { getRequestAddress, consumeSubmissionRateLimit } from "@/lib/submissions
 import { readSubmissionBody } from "@/lib/submissions/http";
 import { validateVolunteerResponse, remainingPeople } from "@/lib/needs/validation";
 import { hasDuplicateVolunteerResponse, isResponseFormTooFast, TURNSTILE_ERROR_MESSAGE, verifyTurnstileToken } from "@/lib/needs/anti-spam";
+import { publicWriteBlockedResponse } from "@/lib/system/public-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const blockedResponse = await publicWriteBlockedResponse();
+  if (blockedResponse) return blockedResponse;
   const address = getRequestAddress(request);
   const limit = await consumeSubmissionRateLimit(`volunteer-need:${address}`);
   if (!limit.allowed) return NextResponse.json({ ok: false, message: "Spróbuj ponownie za chwilę." }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });

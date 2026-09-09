@@ -63,6 +63,11 @@ function MapResizeSync({ resizeKey }: { resizeKey?: string | number }) {
     const resizeObserver = typeof ResizeObserver === "undefined"
       ? null
       : new ResizeObserver(refresh);
+    const intersectionObserver = typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) refresh();
+        });
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") refresh();
     };
@@ -71,6 +76,7 @@ function MapResizeSync({ resizeKey }: { resizeKey?: string | number }) {
     };
 
     layoutContainers.forEach((element) => resizeObserver?.observe(element));
+    intersectionObserver?.observe(mapContainer);
     window.addEventListener("resize", refresh);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pageshow", onPageShow);
@@ -79,6 +85,7 @@ function MapResizeSync({ resizeKey }: { resizeKey?: string | number }) {
 
     return () => {
       resizeObserver?.disconnect();
+      intersectionObserver?.disconnect();
       window.removeEventListener("resize", refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onPageShow);

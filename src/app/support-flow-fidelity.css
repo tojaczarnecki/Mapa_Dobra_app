@@ -1,0 +1,410 @@
+.guided-flow-page {
+  max-width: 1120px;
+  padding: 1rem 0 5rem;
+  background: #fff;
+  color: #090d0d;
+  font-family: "Jost", Arial, Helvetica, sans-serif;
+}
+
+.guided-flow-page.uncertain-flow-page {
+  background-color: #fff;
+}
+
+.guided-flow-page.mobile-nav-safe-content {
+  padding-bottom: 1rem !important;
+}
+
+.page-shell > #main-content > .guided-flow-page {
+  background-color: #fff !important;
+}
+
+html:has(.guided-flow-page),
+body:has(.guided-flow-page),
+.page-shell:has(.guided-flow-page) {
+  background: #fff !important;
+}
+
+body:has(.guided-flow-page) .site-header,
+body:has(.guided-flow-page) .site-footer,
+body:has(.guided-flow-page) .mobile-bottom-nav {
+  display: none !important;
+}
+
+body:has(.guided-flow-page) #main-content {
+  min-height: 100dvh;
+}
+
+.guided-flow-page .uncertain-flow-progress {
+  display: grid;
+  gap: 0.55rem;
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  color: #090d0d;
+  font-family: "Jost", Arial, Helvetica, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.guided-flow-page .uncertain-flow-progress-track {
+  height: 1px;
+  border-radius: 0;
+  background: #090d0d;
+}
+
+.guided-flow-page .uncertain-flow-progress-track span {
+  border-radius: 0;
+  background: #090d0d;
+}
+
+.guided-flow-page .uncertain-flow-canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.8fr);
+  column-gap: 2rem;
+  width: min(100%, 42rem);
+  min-height: 0;
+  margin: 2.75rem auto 0;
+  padding: 0;
+  justify-items: stretch;
+  text-align: left;
+}
+
+.guided-flow-page .uncertain-flow-eyebrow {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.guided-flow-page .uncertain-flow-question,
+.guided-flow-page .uncertain-flow-result {
+  display: contents;
+}
+
+.guided-flow-page .uncertain-flow-question h1,
+.guided-flow-page .uncertain-flow-result h1 {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.guided-flow-page .uncertain-flow-question > p,
+.guided-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker) {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.guided-flow-page .uncertain-flow-art {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  justify-self: end;
+  align-self: start;
+}
+
+.guided-flow-page .uncertain-flow-choices {
+  grid-column: 1 / -1;
+  grid-row: 5;
+}
+
+.guided-flow-page .uncertain-flow-primary,
+.guided-flow-page .uncertain-flow-secondary {
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
+
+.guided-flow-page .uncertain-flow-eyebrow {
+  margin: 0;
+  color: #c05b94;
+  font-family: "Jost", Arial, Helvetica, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.guided-flow-page .uncertain-flow-art {
+  width: min(18rem, 60vw);
+  margin: 1rem 0 1.75rem auto;
+}
+
+.guided-flow-page .uncertain-flow-question,
+.guided-flow-page .uncertain-flow-result {
+  width: 100%;
+}
+
+.guided-flow-page .uncertain-flow-question h1,
+.guided-flow-page .uncertain-flow-result h1 {
+  margin: 0;
+  color: #090d0d;
+  font-family: "Inconsolata", "Courier New", monospace;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: 0;
+}
+
+.guided-flow-page .uncertain-flow-question p,
+.guided-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker) {
+  max-width: 38rem;
+  margin: 1rem 0 0;
+  color: #52605b;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.guided-flow-page .uncertain-flow-choices {
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.guided-flow-page .uncertain-flow-choice {
+  min-height: 4rem;
+  border: 1px solid #d7dfdb;
+  border-radius: 0;
+  background: #fff;
+  padding: 0.65rem 1.25rem;
+  color: #090d0d;
+  font-family: "Jost", Arial, Helvetica, sans-serif;
+  transition: none;
+}
+
+.guided-flow-page .uncertain-flow-choice:hover,
+.guided-flow-page .uncertain-flow-choice:focus-visible {
+  border-color: #090d0d;
+  background: #f8f8f6;
+  transform: none;
+}
+
+.guided-flow-page .uncertain-flow-choice-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.guided-flow-page .uncertain-flow-choice-copy strong {
+  font-family: "Inconsolata", "Courier New", monospace;
+  font-size: clamp(1.25rem, 3vw, 1.8rem);
+  font-weight: 700;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.guided-flow-page .uncertain-flow-choice-copy small {
+  color: #52605b;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.guided-flow-page .uncertain-flow-choice > svg,
+.guided-flow-page .uncertain-flow-secondary svg,
+.guided-flow-page .uncertain-flow-primary svg {
+  flex: 0 0 auto;
+  color: #090d0d;
+}
+
+.guided-flow-page .uncertain-flow-choice > svg {
+  width: 1.65rem;
+  height: 1.65rem;
+  transition: transform 180ms ease;
+}
+
+.guided-flow-page .uncertain-flow-primary > svg {
+  width: 1.65rem;
+  height: 1.65rem;
+  transition: transform 180ms ease;
+}
+
+.guided-flow-page .uncertain-flow-choice:hover > svg,
+.guided-flow-page .uncertain-flow-choice:focus-visible > svg,
+.guided-flow-page .uncertain-flow-primary:hover > svg,
+.guided-flow-page .uncertain-flow-primary:focus-visible > svg {
+  transform: translateX(8px);
+}
+
+.guided-flow-page .uncertain-flow-primary {
+  min-height: 4.75rem;
+  width: fit-content;
+  margin-top: 1.75rem;
+  border-radius: 0;
+  background: #e99bd3;
+  padding: 0.9rem 1.25rem;
+  color: #090d0d;
+  font-family: "Inconsolata", "Courier New", monospace;
+  font-size: clamp(1.25rem, 3vw, 1.8rem);
+  font-weight: 700;
+  line-height: 1.05;
+  text-transform: uppercase;
+  transition: background-color 160ms ease;
+}
+
+.guided-flow-page .uncertain-flow-primary:hover,
+.guided-flow-page .uncertain-flow-primary:focus-visible {
+  background: #e28bc9;
+}
+
+.guided-flow-page .uncertain-flow-secondary,
+.guided-flow-page .uncertain-flow-back {
+  color: #090d0d;
+  font-family: "Jost", Arial, Helvetica, sans-serif;
+}
+
+.guided-flow-page .uncertain-flow-secondary {
+  margin-top: 1rem;
+}
+
+.guided-flow-page .uncertain-flow-footer {
+  width: min(100%, 42rem);
+  margin: 3rem auto 0;
+}
+
+.guided-flow-page .uncertain-flow-emergency {
+  justify-content: flex-start;
+  margin-top: 1.5rem;
+  color: #7e2b0f;
+}
+
+@media (max-width: 767px) {
+  .guided-flow-page {
+    padding: 0.75rem 22px 2rem;
+  }
+
+  .guided-flow-page .uncertain-flow-progress,
+  .guided-flow-page .uncertain-flow-canvas,
+  .guided-flow-page .uncertain-flow-footer {
+    width: 100%;
+  }
+
+  .guided-flow-page .uncertain-flow-canvas {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    margin-top: 2rem;
+  }
+
+  .guided-flow-page .uncertain-flow-eyebrow,
+  .guided-flow-page .uncertain-flow-question h1,
+  .guided-flow-page .uncertain-flow-question > p,
+  .guided-flow-page .uncertain-flow-result h1,
+  .guided-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker),
+  .guided-flow-page .uncertain-flow-art,
+  .guided-flow-page .uncertain-flow-choices,
+  .guided-flow-page .uncertain-flow-primary,
+  .guided-flow-page .uncertain-flow-secondary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .guided-flow-page .uncertain-flow-eyebrow { order: 1; }
+  .guided-flow-page .uncertain-flow-question h1,
+  .guided-flow-page .uncertain-flow-result h1 { order: 2; }
+  .guided-flow-page .uncertain-flow-question > p,
+  .guided-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker) { order: 3; }
+  .guided-flow-page .uncertain-flow-art { order: 4; }
+  .guided-flow-page .uncertain-flow-choices { order: 5; }
+  .guided-flow-page .uncertain-flow-primary,
+  .guided-flow-page .uncertain-flow-secondary { order: 6; }
+
+  .guided-flow-page .uncertain-flow-art {
+    width: min(14rem, 66vw);
+    margin-top: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .guided-flow-page .uncertain-flow-question h1,
+  .guided-flow-page .uncertain-flow-result h1 {
+    max-width: 24ch;
+    font-size: clamp(2rem, 8.5vw, 2.6rem);
+    line-height: 1.08;
+  }
+
+  .guided-flow-page .uncertain-flow-question p,
+  .guided-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker) {
+    font-size: 1rem;
+  }
+
+  .guided-flow-page .uncertain-flow-choice {
+    min-height: 4.25rem;
+    padding-inline: 1rem;
+  }
+
+  .guided-flow-page .uncertain-flow-footer {
+    position: static;
+    margin-top: 2.5rem;
+    padding: 0;
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guided-flow-page .uncertain-flow-choice,
+  .guided-flow-page .uncertain-flow-primary {
+    transition: none;
+  }
+
+  .guided-flow-page .uncertain-flow-choice:hover,
+  .guided-flow-page .uncertain-flow-choice:focus-visible {
+    transform: none;
+  }
+
+  .guided-flow-page .uncertain-flow-choice > svg,
+  .guided-flow-page .uncertain-flow-primary > svg {
+    transition: none;
+  }
+
+  .guided-flow-page .uncertain-flow-choice:hover > svg,
+  .guided-flow-page .uncertain-flow-choice:focus-visible > svg,
+  .guided-flow-page .uncertain-flow-primary:hover > svg,
+  .guided-flow-page .uncertain-flow-primary:focus-visible > svg {
+    transform: none;
+  }
+}
+
+/* Mobile intro keeps the decision path compact and follows the home rhythm. */
+@media (max-width: 767px) {
+  .uncertain-flow-page {
+    padding-inline: clamp(20px, 6.15vw, 24px) !important;
+    background: var(--background) !important;
+  }
+
+  .uncertain-flow-page .uncertain-flow-canvas {
+    min-height: 0;
+    margin-top: 1.5rem;
+    padding-top: 0;
+  }
+
+  .uncertain-flow-page .uncertain-flow-art {
+    width: min(70vw, 14rem);
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .uncertain-flow-page .uncertain-flow-question h1,
+  .uncertain-flow-page .uncertain-flow-result h1 {
+    max-width: 20ch;
+    font-size: clamp(1.9rem, 8vw, 2.4rem);
+  }
+
+  .uncertain-flow-page .uncertain-flow-question p,
+  .uncertain-flow-page .uncertain-flow-result > p:not(.uncertain-flow-result-kicker) {
+    margin-top: 0.75rem;
+  }
+
+  .uncertain-flow-page .uncertain-flow-intro .uncertain-flow-primary {
+    width: min(78%, 20rem);
+    min-height: 3.25rem;
+    margin-top: 1.5rem;
+    background: var(--journey-guide) !important;
+    padding-inline: 1rem;
+  }
+
+  .uncertain-flow-page .uncertain-flow-secondary,
+  .uncertain-flow-page .uncertain-flow-back {
+    min-height: 2.75rem;
+    border: 0;
+    background: transparent;
+    padding-inline: 0;
+  }
+
+  .uncertain-flow-page .uncertain-flow-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--journey-guide) 22%, transparent);
+  }
+
+  .uncertain-flow-page .uncertain-flow-emergency {
+    margin-top: 0.75rem;
+  }
+}

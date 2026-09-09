@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { ArrowLeft, Flag } from "lucide-react";
+import { Accessibility, ArrowLeft, ArrowRight, Clock3, Dog, Flag, Globe, HandHeart, HeartHandshake, HeartPulse, Mail, MapPin, Navigation, Phone, Shirt, ShowerHead, Toilet, Utensils, WashingMachine } from "lucide-react";
 import type { DetailListItem, PlaceDetail } from "@/data/demo-place-details";
-import { AccessibilityList } from "./accessibility-list";
 import { AccommodationAvailability } from "./accommodation-availability";
 import { DetailSection } from "./detail-section";
 import { MapPreview } from "./map-preview";
 import { OpeningHours } from "./opening-hours";
-import { PlaceContact } from "./place-contact";
 import { PlaceFitCheck } from "./place-fit-check";
 import { PlaceHero } from "./place-hero";
+import { PlaceContact } from "./place-contact";
 import { RequirementList } from "./requirement-list";
 import { VerificationInfo } from "./verification-info";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { PublicActionLink } from "@/components/places/public-action-link";
+import { directionsHref, telephoneHref } from "@/lib/places/actions";
 
 type PlaceDetailViewProps = {
   place: PlaceDetail;
@@ -32,6 +33,51 @@ function TagList({ items }: { items: string[] }) {
       ))}
     </div>
   );
+}
+
+const onSiteIcons = [
+  { match: /prysznic/iu, icon: ShowerHead },
+  { match: /toalet/iu, icon: Toilet },
+  { match: /prani/iu, icon: WashingMachine },
+  { match: /wózk|bez stopni|dostęp/iu, icon: Accessibility },
+  { match: /pies/iu, icon: Dog },
+  { match: /opiekuń|asystent/iu, icon: HeartHandshake },
+  { match: /posił|jedzeni/iu, icon: Utensils },
+  { match: /odzież/iu, icon: Shirt },
+  { match: /zdrow/iu, icon: HeartPulse },
+] as const;
+
+function onSiteIcon(label: string) {
+  return onSiteIcons.find((entry) => entry.match.test(label))?.icon ?? HandHeart;
+}
+
+function OnSiteSection({ services, accessibility }: { services: string[]; accessibility: DetailListItem[] }) {
+  const confirmedAccessibility = accessibility.filter((item) => item.status === "positive").map((item) => item.label);
+  const items = Array.from(new Set([...services, ...confirmedAccessibility])).filter(Boolean);
+  if (!items.length) return null;
+
+  return <DetailSection title="Na miejscu" className="place-detail-zone-support">
+    <ul className="place-detail-benefit-grid grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {items.map((item) => {
+        const Icon = onSiteIcon(item);
+        return <li key={item} className="place-detail-benefit flex min-w-0 items-center gap-3 rounded-lg bg-surface-muted px-3 py-3 text-sm font-semibold text-foreground"><span className="place-detail-benefit-icon grid shrink-0 place-items-center rounded-lg" aria-hidden="true"><Icon size={22} /></span><span className="min-w-0 break-words">{item}</span></li>;
+      })}
+    </ul>
+  </DetailSection>;
+}
+
+function HowToReach({ place }: { place: PlaceDetail }) {
+  const routeHref = place.profileKind === "MOBILE_SERVICE" ? undefined : directionsHref(place);
+  return <DetailSection title="Jak dotrzeć" className="place-detail-reach-section place-detail-zone-navigation">
+    <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:items-center">
+      <div className="min-w-0">
+        <p className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground"><MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} /><span className="min-w-0 break-words">{place.name}<br />{place.profileKind === "MOBILE_SERVICE" ? "Baza / organizator: " : ""}{place.address}</span></p>
+        {place.profileKind === "MOBILE_SERVICE" ? <p className="mt-3 text-sm font-semibold leading-6 text-muted-foreground">To adres organizacyjny, nie miejsce postoju autobusu.</p> : null}
+        {routeHref ? <PublicActionLink href={routeHref} variant="secondary" journey="search" system external icon={<Navigation aria-hidden="true" size={17} />} className="mt-4">Wyznacz trasę</PublicActionLink> : null}
+      </div>
+      <MapPreview place={place} />
+    </div>
+  </DetailSection>;
 }
 
 function Description({ paragraphs }: { paragraphs: string[] }) {
@@ -142,22 +188,17 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
   }
   return (
     <>
-      {place.requirements.length ? <DetailSection title="Czy mogę skorzystać z pomocy?">
+      {place.requirements.length ? <DetailSection title="Czy mogę skorzystać z pomocy?" className="place-detail-zone-availability">
         <RequirementList items={place.requirements} maxVisible={3} />
         <PlaceFitCheck requirements={place.requirements} phone={place.contact.phone} />
       </DetailSection> : null}
 
-      <DetailSection id="godziny-otwarcia" title="Godziny otwarcia">
+      <DetailSection id="godziny-otwarcia" title="Godziny otwarcia" className="place-detail-zone-availability">
         <OpeningHours days={place.openingHours} status={place.status} />
       </DetailSection>
 
-      {place.audience.length || place.services.length || place.accessibility.length ? <DetailSection title="Informacje praktyczne">
-        <div className="divide-y divide-border">
-          {place.audience.length ? <div className="pb-4"><h3 className="text-sm font-extrabold text-foreground">Dla kogo</h3><p className="mt-2 text-sm font-semibold text-muted-foreground">Pomoc jest przeznaczona dla:</p><div className="mt-2"><TagList items={place.audience} /></div></div> : null}
-          {place.services.length ? <div className="py-4"><h3 className="text-sm font-extrabold text-foreground">Na miejscu</h3><div className="mt-2"><TagList items={place.services.filter((service) => !place.helpTypes.some((type) => type.toLocaleLowerCase("pl-PL") === service.toLocaleLowerCase("pl-PL")))} /></div></div> : null}
-          {place.accessibility.length ? <div className="pt-4"><h3 className="text-sm font-extrabold text-foreground">Dostępność</h3><div className="mt-2"><AccessibilityList items={place.accessibility} /></div></div> : null}
-        </div>
-      </DetailSection> : null}
+      {place.audience.length ? <DetailSection title="Dla kogo"><p className="text-sm font-semibold text-muted-foreground">Pomoc jest przeznaczona dla:</p><div className="mt-2"><TagList items={place.audience} /></div></DetailSection> : null}
+      <OnSiteSection services={place.services.filter((service) => !place.helpTypes.some((type) => type.toLocaleLowerCase("pl-PL") === service.toLocaleLowerCase("pl-PL")))} accessibility={place.accessibility} />
 
       {place.description.length ? <DetailSection title="O miejscu">
         <Description paragraphs={place.description} />
@@ -208,16 +249,12 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
       </DetailSection>
 
       {hasUsefulHours ? (
-        <DetailSection title="Godziny otwarcia">
+        <DetailSection title="Godziny otwarcia" className="place-detail-zone-availability">
           <OpeningHours days={place.openingHours} status={place.status} />
         </DetailSection>
       ) : null}
 
-      {hasConfirmedAccessibility ? (
-        <DetailSection title="Dostępność">
-          <AccessibilityList items={accommodation.accessibility} />
-        </DetailSection>
-      ) : null}
+      {practicalServices.length || hasConfirmedAccessibility ? <OnSiteSection services={practicalServices} accessibility={accommodation.accessibility} /> : null}
 
       {accommodation.overnightInfo.length > 0 ? (
         <DetailSection title="Dodatkowe informacje noclegowe">
@@ -225,11 +262,6 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
         </DetailSection>
       ) : null}
 
-      {practicalServices.length ? (
-        <DetailSection title="Na miejscu">
-          <TagList items={practicalServices} />
-        </DetailSection>
-      ) : null}
 
       {place.description.length ? <DetailSection title="O miejscu">
         <Description paragraphs={place.description} />
@@ -238,40 +270,37 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
   );
 }
 
-function SideColumn({ place }: { place: PlaceDetail }) {
-  const hasContact = Boolean(
-    place.contact.phone ||
-      place.contact.email ||
-      place.contact.website ||
-      place.contact.social,
-  );
+function ActionRail({ place, className = "" }: { place: PlaceDetail; className?: string }) {
+  const callHref = telephoneHref(place.contact.phone);
+  const routeHref = place.profileKind === "MOBILE_SERVICE" ? undefined : directionsHref(place);
+  const needsConfirmation = place.status.tone === "unknown" || place.verification.tone !== "verified" || /brak potwierdzonych|wymagają potwierdzenia/iu.test(place.status.todayHours);
+  const closed = place.status.tone === "closed";
+  const primary = place.profileKind === "MOBILE_SERVICE"
+    ? { href: "#mobilna-trasa", label: "Zobacz postoje", icon: <Navigation aria-hidden="true" size={17} /> }
+    : closed
+      ? { href: "/szukaj?otwarte=1", label: "Zobacz miejsca otwarte teraz", icon: <ArrowRight aria-hidden="true" size={17} /> }
+      : needsConfirmation && callHref
+        ? { href: callHref, label: "Zadzwoń i potwierdź", icon: <Phone aria-hidden="true" size={17} /> }
+        : routeHref
+          ? { href: routeHref, label: "Wyznacz trasę", icon: <Navigation aria-hidden="true" size={17} /> }
+          : callHref
+            ? { href: callHref, label: "Zadzwoń", icon: <Phone aria-hidden="true" size={17} /> }
+            : null;
 
-  return (
-    <aside className="place-detail-utility-rail min-w-0 lg:sticky lg:top-24">
-      {hasContact ? (
-        <section className="place-detail-utility-group">
-          <h2>Kontakt</h2>
-          <PlaceContact contact={place.contact} />
-        </section>
-      ) : null}
-
-      <section className="place-detail-utility-group place-detail-utility-map">
-        <MapPreview place={place} />
-        <div className="place-detail-utility-action">
-          <Link
-            className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground"
-            href={{
-              pathname: "/zglos-zmiane",
-              query: { place: place.id },
-            }}
-          >
-            <Flag aria-hidden="true" size={17} />
-            Zgłoś zmianę lub błąd
-          </Link>
-        </div>
-      </section>
-    </aside>
-  );
+  return <aside className={["place-detail-utility-rail min-w-0 lg:sticky lg:top-24", className].filter(Boolean).join(" ")}>
+    <section className="place-detail-utility-group place-detail-action-rail">
+      <h2 className="text-xl font-extrabold text-foreground">{closed ? "Teraz zamknięte" : needsConfirmation ? "Potwierdź przed przyjazdem" : "Otwarte teraz"}</h2>
+      {place.status.todayHours ? <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground"><Clock3 aria-hidden="true" className="mr-1 inline text-brand-strong" size={16} />{place.status.todayHours}</p> : null}
+      <div className="mt-3 grid min-w-0 gap-1.5">
+        {primary && primary.label !== "Zobacz miejsca otwarte teraz" ? <PublicActionLink className="place-detail-rail-primary" href={primary.href} variant="primary" journey="search" system external={primary.href.startsWith("http") || primary.href.startsWith("tel:")} icon={primary.icon}>{primary.label}</PublicActionLink> : null}
+        {callHref && primary?.href !== callHref ? <PublicActionLink href={callHref} variant="secondary" icon={<Phone aria-hidden="true" size={17} />}>Zadzwoń</PublicActionLink> : null}
+        {closed && routeHref ? <PublicActionLink href={routeHref} variant="secondary" external icon={<Navigation aria-hidden="true" size={17} />}>Wyznacz trasę</PublicActionLink> : null}
+        {place.profileKind !== "MOBILE_SERVICE" ? <PublicActionLink href="#godziny-otwarcia" variant="tertiary" icon={<Clock3 aria-hidden="true" size={17} />} className="place-detail-rail-tertiary">Zobacz godziny</PublicActionLink> : null}
+      </div>
+    </section>
+    {place.contact.email || place.contact.website || place.contact.social ? <section className="place-detail-utility-group place-detail-rail-contact"><h2>Kontakt</h2><div className="mt-2 grid gap-1">{place.contact.email ? <a className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-strong" href={`mailto:${place.contact.email}`}><Mail aria-hidden="true" size={16} /><span className="min-w-0 break-words">{place.contact.email}</span></a> : null}{place.contact.website ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.website}><Globe aria-hidden="true" size={16} />Strona internetowa</a> : null}{place.contact.social ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.social}><Globe aria-hidden="true" size={16} />Social media</a> : null}</div></section> : null}
+    <section className="place-detail-utility-group place-detail-rail-report"><Link className="place-detail-tertiary-action touch-target inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground" href={{ pathname: "/zglos-zmiane", query: { place: place.id } }}><Flag aria-hidden="true" size={17} />Zgłoś zmianę lub błąd</Link></section>
+  </aside>;
 }
 
 export function PlaceDetailView({
@@ -319,6 +348,13 @@ export function PlaceDetailView({
           ) : (
             <StandardPlaceSections place={place} />
           )}
+          {place.contact.phone || place.contact.email || place.contact.website || place.contact.social ? (
+            <section className="place-detail-mobile-contact lg:hidden" aria-labelledby="place-detail-mobile-contact-title">
+              <h2 id="place-detail-mobile-contact-title">Kontakt</h2>
+              <PlaceContact contact={place.contact} className="place-detail-mobile-contact-list" />
+            </section>
+          ) : null}
+          {place.profileKind !== "MOBILE_SERVICE" ? <HowToReach place={place} /> : null}
 
           <VerificationInfo
             verification={place.verification}
@@ -327,7 +363,7 @@ export function PlaceDetailView({
           />
         </div>
 
-        <SideColumn place={place} />
+        <ActionRail place={place} className="hidden lg:grid" />
       </div>
     </div>
   );

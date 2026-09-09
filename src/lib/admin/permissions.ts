@@ -33,12 +33,14 @@ export const allAdminPermissions: AdminPermission[] = [
   "VIEW_HELP_REQUESTS",
   "MANAGE_HELP_REQUESTS",
   "MANAGE_VOLUNTEER_NEEDS",
+  "VIEW_SYSTEM_SETTINGS",
+  "MANAGE_SYSTEM_SETTINGS",
 ];
 
 export const roleDefaultPermissions: Record<AdminRole, readonly AdminPermission[]> = {
   SUPER_ADMIN: allAdminPermissions,
   ADMIN: allAdminPermissions.filter(
-    (permission) => permission !== "MANAGE_USERS" && permission !== "MANAGE_USER_PERMISSIONS",
+    (permission) => permission !== "MANAGE_USERS" && permission !== "MANAGE_USER_PERMISSIONS" && permission !== "VIEW_SYSTEM_SETTINGS" && permission !== "MANAGE_SYSTEM_SETTINGS",
   ),
   MODERATOR: [
     "VIEW_DASHBOARD",
@@ -112,6 +114,8 @@ export const permissionLabels: Record<AdminPermission, string> = {
   VIEW_HELP_REQUESTS: "Podgląd zgłoszeń pomocy",
   MANAGE_HELP_REQUESTS: "Obsługa zgłoszeń pomocy",
   MANAGE_VOLUNTEER_NEEDS: "Zarządzanie aktualnymi potrzebami",
+  VIEW_SYSTEM_SETTINGS: "Podgląd ustawień systemu",
+  MANAGE_SYSTEM_SETTINGS: "Zarządzanie dostępnością systemu",
 };
 
 export type PermissionOverride = {

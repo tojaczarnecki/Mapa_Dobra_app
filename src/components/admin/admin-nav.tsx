@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Building2, ChevronDown, ClipboardList, FileInput, HeartHandshake, LayoutDashboard, ListTodo, LogOut, MapPinned, Menu, SearchCheck, Tags, Users, X } from "lucide-react";
+import { Building2, ChevronDown, ClipboardList, FileInput, HeartHandshake, LayoutDashboard, ListTodo, LogOut, MapPinned, Menu, SearchCheck, Settings, Tags, Users, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { AdminPermission } from "@/generated/prisma/enums";
@@ -29,6 +29,7 @@ const groups: NavGroup[] = [
   ] },
   { label: "Administracja", items: [
     { href: "/admin/uzytkownicy", label: "Użytkownicy i dostęp", permission: "MANAGE_USERS", icon: Users },
+    { href: "/admin/system", label: "System", permission: "VIEW_SYSTEM_SETTINGS", icon: Settings },
   ] },
 ];
 

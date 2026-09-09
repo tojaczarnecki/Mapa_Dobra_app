@@ -4,9 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Phone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-const guidedHealth = "/branding/guided/guided-health.png";
-const guidedShelter = "/branding/guided/guided-shelter.png";
-
 type MainNeed = "basic" | "shelter" | "health" | "advice";
 type Screen = "intro" | "main" | "branch" | "shelter" | "unknown";
 
@@ -74,13 +71,7 @@ export function UncertainSupportFlow() {
   }, [screen]);
 
   const progress = screen === "main" ? 1 : screen === "branch" || screen === "shelter" || screen === "unknown" ? 2 : null;
-  const illustration = screen === "shelter"
-    ? guidedShelter
-    : screen === "branch" && need === "health"
-      ? guidedHealth
-      : screen === "branch"
-        ? null
-        : "/brand/journeys/journey-guide.png";
+  const illustration = screen === "intro" ? "/brand/journeys/journey-guide.png" : null;
 
   function navigateTo(nextScreen: Screen, nextNeed: MainNeed | null = need) {
     const url = new URL(window.location.href);
@@ -136,15 +127,19 @@ export function UncertainSupportFlow() {
       {screen === "shelter" ? <div className="uncertain-flow-result">
         <h1 ref={headingRef} id="uncertain-flow-title" tabIndex={-1}>Poszukajmy miejsca, w którym możesz zostać.</h1>
         <p>Sprawdzimy miejsca, które mogą przyjąć dziś.</p>
-        <Link href="/znajdz-nocleg" className="uncertain-flow-primary">Znajdź nocleg na dzisiaj <ArrowRight aria-hidden="true" size={20} /></Link>
-        <Link href="/szukaj?kategoria=nocleg" className="uncertain-flow-secondary">Pokaż wszystkie miejsca noclegowe <ArrowRight aria-hidden="true" size={17} /></Link>
+        <div className="uncertain-flow-result-actions">
+          <Link href="/znajdz-nocleg" className="uncertain-flow-primary">Znajdź nocleg na dzisiaj <ArrowRight aria-hidden="true" size={20} /></Link>
+          <Link href="/szukaj?kategoria=nocleg" className="uncertain-flow-secondary">Pokaż wszystkie miejsca noclegowe <ArrowRight aria-hidden="true" size={17} /></Link>
+        </div>
       </div> : null}
 
       {screen === "unknown" ? <div className="uncertain-flow-result">
         <h1 ref={headingRef} id="uncertain-flow-title" tabIndex={-1}>Możesz zacząć od miejsc, które pomagają teraz.</h1>
         <p>Nie musisz od razu wiedzieć, czego dokładnie potrzebujesz. Zobacz dostępne możliwości i wybierz pierwszy krok.</p>
-        <Link href="/mapa?otwarte=1" className="uncertain-flow-primary">Pokaż pomoc dostępną teraz <ArrowRight aria-hidden="true" size={20} /></Link>
-        <Link href="/szukaj" className="uncertain-flow-secondary">Pokaż wszystkie miejsca <ArrowRight aria-hidden="true" size={17} /></Link>
+        <div className="uncertain-flow-result-actions">
+          <Link href="/mapa?otwarte=1" className="uncertain-flow-primary">Pokaż pomoc dostępną teraz <ArrowRight aria-hidden="true" size={20} /></Link>
+          <Link href="/szukaj" className="uncertain-flow-secondary">Pokaż wszystkie miejsca <ArrowRight aria-hidden="true" size={17} /></Link>
+        </div>
       </div> : null}
     </section>
 

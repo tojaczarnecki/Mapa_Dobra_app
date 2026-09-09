@@ -78,6 +78,10 @@ export function remainingPeople(peopleNeeded: number, responseCount: number) {
   return Math.max(0, peopleNeeded - Math.max(0, responseCount));
 }
 
+export function experienceRequirementLabel(experienceRequired: boolean) {
+  return experienceRequired ? "Wymagane doświadczenie" : "Bez doświadczenia";
+}
+
 export function needHasAvailableCapacity(peopleNeeded: number, confirmedCount: number) {
   return confirmedCount < peopleNeeded;
 }

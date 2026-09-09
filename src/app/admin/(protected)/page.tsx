@@ -9,6 +9,7 @@ import { requirePermission } from "@/lib/admin/session";
 import { prisma } from "@/lib/prisma";
 import { classifyPlaceVerificationFreshness, type PlaceVerificationFreshness } from "@/lib/places/verification-freshness";
 import { AdminPageHeader, AdminSection } from "@/components/admin/admin-ui";
+import { getSystemState, systemModeLabel } from "@/lib/system/settings";
 
 const metricDescriptions = {
   PENDING: "Do weryfikacji",
@@ -66,12 +67,18 @@ export default async function AdminDashboardPage() {
     ]),
   ]);
   const [placesToReview, stalePlaces, pendingUpdates, pendingNewPlaces, activeNeeds, newNeedResponses, urgentHelpRequests] = attention;
+  const systemState = await getSystemState();
 
   return (
     <div className="space-y-7">
       <AdminPageHeader eyebrow="Panel administratora" title="Dashboard" description="Najważniejsze zadania i stan kolejki publicznych zgłoszeń Mapy Dobra." action={<Link href="/admin/zgloszenia?status=pending" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-bold text-[#10231e] transition hover:bg-brand-strong hover:text-white"><ClipboardCheck aria-hidden="true" size={19} />Otwórz kolejkę</Link>} />
 
       <AdminPushSettings />
+
+      <section className="flex flex-wrap items-center justify-between gap-3 border border-border bg-white px-4 py-3" aria-labelledby="public-system-status-heading">
+        <div><h2 id="public-system-status-heading" className="text-sm font-extrabold uppercase tracking-wide text-muted-foreground">Status publicznej aplikacji</h2><p className="mt-1 font-bold">{systemModeLabel(systemState.mode)}</p></div>
+        {session.user.permissions.includes("VIEW_SYSTEM_SETTINGS") ? <Link href="/admin/system" className="text-sm font-bold text-brand-strong underline underline-offset-2">Otwórz system</Link> : null}
+      </section>
 
       <AdminSection title="Wymaga uwagi" description="Zadania, które mogą zmienić lub uzupełnić informacje widoczne publicznie.">
         <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3 xl:grid-cols-5">

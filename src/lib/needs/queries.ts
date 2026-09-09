@@ -18,7 +18,7 @@ export async function getPublicNeeds() {
 export async function getPublicNeed(id: string) {
   const need = await prisma.organizationNeed.findFirst({
     where: { id, ...activeNeedWhere() },
-    include: { organization: { select: { name: true } }, place: { select: { name: true, addressLine: true, city: true } }, responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
+    include: { organization: { select: { name: true } }, place: { select: { name: true, addressLine: true, city: true, latitude: true, longitude: true } }, responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
   });
   if (!need) return null;
   const { responses, ...result } = need;

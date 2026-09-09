@@ -26,11 +26,11 @@ export function GuideArticleHero({ guide }: { guide: HelpGuide }) {
 
 export function GuideOpening({ guide }: { guide: HelpGuide }) {
   const text = guide.situation ?? guide.intro;
-  return <section className="guide-opening" aria-labelledby="guide-opening-title"><p className="guide-article-eyebrow">ZACZNIJ TUTAJ</p><h2 id="guide-opening-title">Najważniejsze na początek</h2><p>{text}</p></section>;
+  return <section id="guide-opening" className="guide-opening guide-callout guide-callout-important" aria-labelledby="guide-opening-title"><p className="guide-article-eyebrow">ZACZNIJ TUTAJ</p><h2 id="guide-opening-title">Najważniejsze na początek</h2><p>{text}</p></section>;
 }
 
 export function GuideStepList({ steps }: { steps: string[] }) {
-  return <section className="guide-steps-section" aria-labelledby="guide-steps-title"><div className="guide-section-heading"><p className="guide-article-eyebrow">KROK PO KROKU</p><h2 id="guide-steps-title">Co możesz zrobić</h2></div><ol className="guide-step-list">{steps.map((step, index) => <li key={step}><span className="guide-step-number">{String(index + 1).padStart(2, "0")}</span><h3>{step}</h3></li>)}</ol></section>;
+  return <section id="guide-steps" className="guide-steps-section" aria-labelledby="guide-steps-title"><div className="guide-section-heading"><p className="guide-article-eyebrow">ZRÓB TO</p><h2 id="guide-steps-title">Co możesz zrobić</h2></div><ol className="guide-step-list">{steps.map((step, index) => <li key={step}><span className="guide-step-number">{String(index + 1).padStart(2, "0")}</span><h3>{step}</h3></li>)}</ol></section>;
 }
 
 export function GuideEditorialBreak({ text }: { text: string }) {
@@ -38,15 +38,15 @@ export function GuideEditorialBreak({ text }: { text: string }) {
 }
 
 export function GuideAvoidList({ items }: { items: string[] }) {
-  return <section className="guide-avoid-section" aria-labelledby="guide-avoid-title"><p className="guide-article-eyebrow">WARTO PAMIĘTAĆ</p><h2 id="guide-avoid-title">Czego lepiej unikać</h2><ul>{items.map((item) => <li key={item}><X aria-hidden="true" size={18} /><span>{item}</span></li>)}</ul></section>;
+  return <section id="guide-avoid" className="guide-avoid-section guide-callout guide-callout-action" aria-labelledby="guide-avoid-title"><p className="guide-article-eyebrow">WAŻNE</p><h2 id="guide-avoid-title">Czego lepiej unikać</h2><ul>{items.map((item) => <li key={item}><X aria-hidden="true" size={18} /><span>{item}</span></li>)}</ul></section>;
 }
 
 export function GuideEmergency({ emergency }: { emergency: NonNullable<HelpGuide["emergency"]> }) {
-  return <aside className="guide-emergency" aria-labelledby="guide-emergency-title"><AlertTriangle aria-hidden="true" size={20} /><div><p className="guide-article-eyebrow">WAŻNE</p><h2 id="guide-emergency-title">{emergency.title}</h2><p>{emergency.body}</p><a href="tel:112">Zadzwoń 112 <ArrowRight aria-hidden="true" size={17} /></a></div></aside>;
+  return <aside id="guide-emergency" className="guide-emergency guide-callout guide-callout-emergency" aria-labelledby="guide-emergency-title"><AlertTriangle aria-hidden="true" size={20} /><div><p className="guide-article-eyebrow">PILNE / 112</p><h2 id="guide-emergency-title">{emergency.title}</h2><p>{emergency.body}</p><a href="tel:112">Zadzwoń 112 <ArrowRight aria-hidden="true" size={17} /></a></div></aside>;
 }
 
 export function GuideNextStep({ guide }: { guide: HelpGuide }) {
-  return <section className="guide-next-step" aria-labelledby="guide-next-title"><p className="guide-article-eyebrow">CO MOŻESZ ZROBIĆ TERAZ?</p><h2 id="guide-next-title">Wybierz następny krok.</h2><p>Nie musisz robić wszystkiego naraz. Wybierz działanie, które pasuje do tej sytuacji.</p><Link href={guide.nextAction.href}>{guide.nextAction.label}<ArrowRight aria-hidden="true" size={18} /></Link></section>;
+  return <section id="guide-next" className="guide-next-step" aria-labelledby="guide-next-title"><p className="guide-article-eyebrow">CO MOŻESZ ZROBIĆ TERAZ?</p><h2 id="guide-next-title">Wybierz następny krok.</h2><p>Nie musisz robić wszystkiego naraz. Wybierz działanie, które pasuje do tej sytuacji.</p><Link href={guide.nextAction.href}>{guide.nextAction.label}<ArrowRight aria-hidden="true" size={18} /></Link></section>;
 }
 
 export function GuideIllustration({ guide }: { guide: HelpGuide }) {

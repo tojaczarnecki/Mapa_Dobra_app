@@ -112,12 +112,12 @@ export function FavoritesList({
 
   if (displayedFavorites.length === 0) {
     return (
-      <div className="editorial-empty-state editorial-empty-state-help rounded-xl border border-border bg-surface p-6 text-center">
+      <div className="favorites-empty editorial-empty-state editorial-empty-state-help border border-border bg-surface p-6 text-center">
         <JourneyMotif journey="help" />
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-strong">
           <Heart aria-hidden="true" size={24} />
         </span>
-        <strong className="mt-3 block text-lg font-extrabold text-foreground">Nie masz jeszcze zapisanych miejsc</strong>
+        <strong className="favorites-empty-title mt-3 block text-lg font-extrabold text-foreground">Nie masz jeszcze zapisanych miejsc</strong>
         <p className="mx-auto mt-1 max-w-md text-sm font-semibold leading-6 text-muted-foreground">
           Zapisane miejsca są przechowywane tylko na tym urządzeniu i nie wymagają konta.
         </p>
@@ -132,14 +132,14 @@ export function FavoritesList({
   }
 
   return (
-    <div className="grid min-w-0 gap-3">
+    <div className="favorites-list grid min-w-0 gap-3">
       {offlineMode ? (
         <div className="flex items-start gap-2 rounded-lg border border-urgent-border bg-urgent-soft px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground" role="note">
           <WifiOff aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-urgent" />
           <span>Pokazujemy ostatnio zapisane informacje. Po odzyskaniu internetu sprawdź godziny i dostępność przed wyjazdem.</span>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground" role="note">
+        <div className="favorites-refresh rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm font-semibold leading-5 text-muted-foreground" role="note">
           Godziny i statusy zostały odświeżone z aktualnych danych Mapy Dobra.
         </div>
       )}
@@ -147,7 +147,7 @@ export function FavoritesList({
       {displayedFavorites.map((place) => {
         const tone = statusClasses(place);
         return (
-          <article key={place.id} className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
+          <article key={place.id} className="favorites-card overflow-hidden rounded-xl border border-border bg-surface shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
             <Link href={place.href} className="block min-w-0 p-4 transition hover:bg-surface-muted/70">
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="min-w-0">

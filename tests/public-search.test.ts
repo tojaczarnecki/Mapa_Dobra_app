@@ -4,6 +4,7 @@ import { getHomeSuggestions } from "../src/lib/home/autosuggest.ts";
 import { getCategoryAccentMap } from "../src/lib/home/category-accent.ts";
 import { getSmartSearchSuggestions, interpretSearchQuery, searchIntentHref, searchIntentSuggestions } from "../src/lib/places/search-intent.ts";
 import { filterPublicSearchPlaces, type PublicSearchPlace } from "../src/lib/places/search.ts";
+import { resetSearchFilterParams } from "../src/lib/places/search-filter-params.ts";
 
 const places: PublicSearchPlace[] = [
   { id: "food", name: "Łódzki Punkt Posiłków", categorySlug: "jedzenie", slug: "lodzki-punkt-posilkow", categorySlugs: ["jedzenie"], searchText: "Łódzki Punkt Posiłków Caritas jedzenie ciepły posiłek", status: "open", openNow: true, todayHours: "Dzisiaj 12:00-15:00", free: "YES", referralRequired: "NO", documentRequired: "NO", distanceKm: 2 },
@@ -27,6 +28,19 @@ const socialFridge: PublicSearchPlace = {
   distanceKm: 0.1,
   profileKind: "FOOD_SHARING",
 };
+
+test("resetting search filters preserves the query and location context", () => {
+  const params = resetSearchFilterParams({
+    q: "ciepły posiłek",
+    lokalizacja: "Łódź",
+    kategoria: "jedzenie",
+    otwarte: "1",
+    bezplatne: "1",
+    sort: "distance",
+  });
+
+  assert.deepEqual(Array.from(params.entries()), [["q", "ciepły posiłek"], ["lokalizacja", "Łódź"]]);
+});
 
 test("search is case and diacritic insensitive across name and category", () => {
   assert.deepEqual(filterPublicSearchPlaces(places, { query: "LODZKI" }).map((place) => place.id), ["food"]);

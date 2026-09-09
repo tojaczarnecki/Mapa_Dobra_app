@@ -1,42 +1,24 @@
-import { Map } from "lucide-react";
 import type { PlaceDetail } from "@/data/demo-place-details";
-import { mapPreviewLocationLabel } from "@/lib/places/address-display";
+import { Navigation } from "lucide-react";
+import { directionsHref } from "@/lib/places/actions";
+import { PlaceDetailMap } from "./place-detail-map";
 
 type MapPreviewProps = {
   place: PlaceDetail;
 };
 
 export function MapPreview({ place }: MapPreviewProps) {
-  const locationLabel = mapPreviewLocationLabel(place.address, place.coordinatesLabel);
-  const isMobileService = place.profileKind === "MOBILE_SERVICE";
   return (
-    <div
-      id="mapa-dojazd"
-      className="place-detail-map-section p-4 sm:p-5"
-    >
-      <div className="flex min-w-0 items-start gap-3">
-        <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
-          aria-hidden="true"
-        >
-          <Map size={22} strokeWidth={2.2} />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-xl font-extrabold leading-tight text-foreground">
-            {isMobileService ? "Baza / organizator" : "Adres"}
-          </h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">
-            {place.address}
-          </p>
-          {locationLabel ? (
-            <p className="text-sm font-semibold leading-6 text-muted-foreground">
-              {locationLabel}
-            </p>
-          ) : null}
+    <div id="mapa-dojazd" className="place-detail-map-section min-w-0">
+      {place.latitude !== undefined && place.longitude !== undefined ? <PlaceDetailMap latitude={place.latitude} longitude={place.longitude} label={place.name} /> : (
+        <div className="grid gap-2 rounded-lg border border-border bg-surface-muted p-4 text-sm font-semibold text-muted-foreground">
+          <p>Nie mamy jeszcze potwierdzonej lokalizacji na mapie.</p>
+          <a className="inline-flex min-h-11 items-center gap-2 font-extrabold text-brand-strong" href={directionsHref(place)} target="_blank" rel="noreferrer">
+            <Navigation aria-hidden="true" size={17} />
+            Otwórz mapę
+          </a>
         </div>
-      </div>
-
-      <p className="mt-4 text-sm font-semibold leading-6 text-muted-foreground">{isMobileService ? "To adres organizacyjny, nie miejsce postoju autobusu." : "Dojazd do miejsca sprawdzisz po otwarciu trasy."}</p>
+      )}
     </div>
   );
 }

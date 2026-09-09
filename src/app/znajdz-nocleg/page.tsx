@@ -20,7 +20,7 @@ export default async function FindAccommodationPage() {
       <div className="guided-flow-page">
       <div className="mx-auto flex w-full max-w-[1200px] justify-end px-4 pt-3 sm:px-6 sm:pt-5 lg:px-8">
         <Link
-          className="touch-target inline-flex items-center gap-2 rounded-lg px-2.5 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground"
+          className="accommodation-map-link touch-target inline-flex min-h-11 w-full items-center justify-center gap-2 border border-brand px-4 py-2 text-sm font-extrabold text-brand-strong transition hover:bg-brand-soft hover:text-foreground sm:w-auto"
           href="/mapa?kategoria=nocleg&lokalizacja=moja"
         >
           <Map aria-hidden="true" size={17} />

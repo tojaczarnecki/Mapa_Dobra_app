@@ -4,12 +4,13 @@ import { telephoneHref } from "@/lib/places/actions";
 
 type PlaceContactProps = {
   contact: ContactDetails;
+  className?: string;
 };
 
-export function PlaceContact({ contact }: PlaceContactProps) {
+export function PlaceContact({ contact, className = "" }: PlaceContactProps) {
   const callHref = telephoneHref(contact.phone);
   return (
-    <div className="grid min-w-0 gap-2 text-sm font-semibold">
+    <div className={["grid min-w-0 gap-2 text-sm font-semibold", className].filter(Boolean).join(" ")}>
       {callHref ? (
         <a
           className="touch-target inline-flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-foreground transition hover:bg-brand-soft"

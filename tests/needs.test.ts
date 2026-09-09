@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canDecideVolunteerResponse, confirmedCountAfterTransition, confirmedResponseCount, needHasAvailableCapacity, remainingPeople, shouldReopenFilledNeed, statusAfterConfirmedResponse, validateNeedInput, validateVolunteerResponse } from "../src/lib/needs/validation.ts";
+import { canDecideVolunteerResponse, confirmedCountAfterTransition, confirmedResponseCount, experienceRequirementLabel, needHasAvailableCapacity, remainingPeople, shouldReopenFilledNeed, statusAfterConfirmedResponse, validateNeedInput, validateVolunteerResponse } from "../src/lib/needs/validation.ts";
 import { hasDuplicateVolunteerResponse, isResponseFormTooFast, isTurnstileVerificationSuccessful, normalizeContact } from "../src/lib/needs/anti-spam.ts";
 
 const need = { title: "Pomoc przy kolacji", description: "Wydawanie ciepłego posiłku.", peopleNeeded: 3, startsAt: "2026-09-05T17:30", endsAt: "2026-09-05T20:00", experienceRequired: false };
@@ -9,6 +9,11 @@ test("need validation keeps the pilot focused and rejects invalid counts", () =>
   assert.equal(validateNeedInput(need).ok, true);
   assert.equal(validateNeedInput({ ...need, peopleNeeded: 0 }).ok, false);
   assert.equal(validateNeedInput({ ...need, endsAt: "2026-09-05T17:00" }).ok, false);
+});
+
+test("need experience label follows the stored boolean", () => {
+  assert.equal(experienceRequirementLabel(true), "Wymagane doświadczenie");
+  assert.equal(experienceRequirementLabel(false), "Bez doświadczenia");
 });
 
 test("volunteer response requires one contact method", () => {

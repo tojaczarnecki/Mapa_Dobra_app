@@ -48,7 +48,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
     <>
       <button
         type="button"
-        className="touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-extrabold text-foreground transition hover:border-brand hover:bg-brand-soft"
+        className="place-detail-show-help-trigger touch-target inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-extrabold text-foreground transition hover:border-brand hover:bg-brand-soft"
         onClick={() => setOpen(true)}
       >
         <Eye aria-hidden="true" size={17} />
@@ -56,9 +56,9 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#102a3b]/55 p-0 sm:items-center sm:p-5" role="presentation">
+        <div className="place-detail-show-help-overlay fixed inset-0 z-[1200] flex items-end justify-center bg-[#102a3b]/55 p-0 sm:items-center sm:p-5" role="presentation">
           <section
-            className="relative max-h-[100dvh] w-full max-w-[34rem] overflow-y-auto rounded-t-2xl bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl sm:p-6"
+            className="place-detail-show-help-dialog relative max-h-[100dvh] w-full max-w-[34rem] overflow-y-auto rounded-t-2xl bg-white px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl sm:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="show-help-title"
@@ -66,14 +66,14 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
             <button
               ref={closeRef}
               type="button"
-              className="touch-target absolute right-3 top-3 inline-flex min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+              className="place-detail-show-help-close touch-target absolute right-3 top-3 inline-flex min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-muted hover:text-foreground"
               aria-label="Zamknij"
               onClick={() => setOpen(false)}
             >
               <X aria-hidden="true" size={23} />
             </button>
 
-            <p className="pr-12 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-strong">Dobra Mapa</p>
+            <p className="place-detail-show-help-eyebrow pr-12 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-strong">Dobra Mapa</p>
             <h2 id="show-help-title" className="mt-2 pr-10 text-[1.65rem] font-extrabold leading-[1.08] text-foreground">
               Tu możesz otrzymać pomoc
             </h2>
@@ -82,7 +82,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
               <h3 className="text-[1.45rem] font-extrabold leading-tight text-foreground">{place.name}</h3>
               <p className="mt-1 text-base font-bold text-muted-foreground">{place.helpTypes.join(" • ")}</p>
 
-              <div className="mt-4 rounded-lg border border-brand/45 bg-brand-soft px-3.5 py-3">
+              <div className="place-detail-show-help-status mt-4 rounded-lg border border-brand/45 bg-brand-soft px-3.5 py-3">
                 <p className="text-sm font-extrabold text-foreground">{place.status.label}</p>
                 <p className="mt-0.5 text-base font-bold leading-6 text-foreground">{place.status.todayHours}</p>
               </div>
@@ -118,7 +118,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
                   href={routeHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="touch-target inline-flex min-h-14 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-base font-extrabold text-foreground"
+                  className="place-detail-show-help-action place-detail-show-help-action-primary touch-target inline-flex min-h-14 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 text-base font-extrabold text-foreground"
                 >
                   <Navigation aria-hidden="true" size={19} />
                   Jak dojść
@@ -127,7 +127,7 @@ export function ShowHelpCardButton({ place }: { place: PlaceDetail }) {
               {callHref ? (
                 <a
                   href={callHref}
-                  className="touch-target inline-flex min-h-14 items-center justify-center gap-2 rounded-lg border border-brand bg-white px-4 py-3 text-base font-extrabold text-foreground"
+                  className="place-detail-show-help-action touch-target inline-flex min-h-14 items-center justify-center gap-2 rounded-lg border border-brand bg-white px-4 py-3 text-base font-extrabold text-foreground"
                 >
                   <Phone aria-hidden="true" size={19} />
                   Zadzwoń

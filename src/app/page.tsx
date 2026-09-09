@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { HomeGuideModule } from "@/components/home/home-guide-module";
+import Image from "next/image";
 import { PrimaryActionCard } from "@/components/home/primary-action-card";
 import { canonicalAlternates } from "@/lib/site-url";
 
@@ -11,14 +11,30 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="home-page home-journey-foyer mobile-nav-safe-content mx-auto w-full max-w-[1000px] px-5 pb-28 pt-16 sm:px-6 sm:pt-20 lg:px-8 lg:pb-20 lg:pt-24">
+    <div className="home-page home-journey-foyer mobile-nav-safe-content">
       <header className="home-intro">
-        <p className="home-eyebrow">DOBRA MAPA</p>
-        <h1 className="home-motto">Jak możemy Ci dziś pomóc?</h1>
-        <p className="home-subheadline">Znajdź właściwe wsparcie blisko siebie.</p>
+        <p className="home-wordmark">DOBRA MAPA</p>
+        <div className="home-wordmark-line" aria-hidden="true" />
+        <div className="home-hero-grid">
+          <div className="home-hero-copy">
+            <h1 className="home-motto">
+              <span className="home-motto-mobile">JAK MOŻEMY<br />CI DZIŚ POMÓC?</span>
+              <span className="home-motto-desktop">JAK MOŻEMY<br />CI DZIŚ POMÓC?</span>
+            </h1>
+            <p className="home-subheadline">Znajdź właściwe wsparcie blisko siebie.</p>
+          </div>
+          <div className="home-art-stage">
+            <Image src="/brand/journeys/journey-guide.png" alt="" width={640} height={640} className="home-hero-illustration" priority aria-hidden="true" />
+          </div>
+        </div>
       </header>
 
-      <section className="home-primary-actions" aria-label="Główne ścieżki">
+      <section className="home-paths" aria-labelledby="home-paths-title">
+        <div className="home-paths-heading">
+          <h2 id="home-paths-title">WYBIERZ DROGĘ</h2>
+          <div className="home-rule" aria-hidden="true" />
+        </div>
+        <div className="home-primary-actions">
         <PrimaryActionCard
           href="/szukam?tryb=guided"
           title="Szukam pomocy"
@@ -40,12 +56,11 @@ export default function Home() {
         <PrimaryActionCard
           href="/szukam"
           title="Nie wiem, czego potrzebuję"
-          description="Pomóż mi znaleźć właściwe rozwiązanie."
+          description=""
           variant="unknown"
         />
+        </div>
       </section>
-
-      <HomeGuideModule />
     </div>
   );
 }

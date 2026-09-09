@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, MapPinned, Navigation } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowLeft, MapPinned } from "lucide-react";
 import { PlaceCard } from "@/components/places/place-card";
 import { SearchResultsFilterPanel } from "@/components/places/search-results-filter-panel";
 import { SearchResultsInteractive } from "@/components/places/search-results-interactive";
@@ -57,7 +57,7 @@ export default async function FoodSharingPage({ searchParams }: FoodSharingPageP
 
   return (
     <div className="food-sharing-page search-results-page journey-search mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8">
-      <Link href="/szukaj?kategoria=jedzenie" className="touch-target mb-4 inline-flex items-center gap-2 rounded-lg px-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft">
+      <Link href="/szukaj?kategoria=jedzenie" className="food-sharing-back-link touch-target mb-4 inline-flex items-center gap-2 rounded-lg px-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft">
         <ArrowLeft aria-hidden="true" size={17} /> Wróć do Jedzenia
       </Link>
       <header className="food-sharing-page-header">
@@ -78,7 +78,7 @@ export default async function FoodSharingPage({ searchParams }: FoodSharingPageP
         <div className="food-sharing-toolbar">
           <LocationControl />
           <span className="food-sharing-result-count">{fridges.length} {fridges.length === 1 ? "lodówka" : "lodówek"}</span>
-          <Link href={sortHref} className="food-sharing-sort"><Navigation aria-hidden="true" size={16} />{sort === "distance" ? "Sortuj: polecane" : "Sortuj: najbliżej"}</Link>
+          <Link href={sortHref} className="food-sharing-sort"><ArrowDownWideNarrow aria-hidden="true" size={16} />{sort === "distance" ? "Sortuj: polecane" : "Sortuj: najbliżej"}</Link>
           <span className="food-sharing-map-hint"><MapPinned aria-hidden="true" size={16} /> Lista + mapa</span>
         </div>
       </header>

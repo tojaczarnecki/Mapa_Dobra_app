@@ -3,12 +3,12 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { MobileBottomNav } from "@/components/app/mobile-bottom-nav";
 import { PwaClient } from "@/components/app/pwa-client";
-import { LaunchSplash } from "@/components/app/launch-splash";
 import { SiteHeader } from "@/components/app/site-header";
 import { SiteFooter } from "@/components/app/site-footer";
 import { PrivacyConsent } from "@/components/app/privacy-consent";
 import { PublicPageShell } from "@/components/app/public-page-shell";
 import { getSiteBaseUrl } from "@/lib/site-url";
+import { getSystemState } from "@/lib/system/settings";
 import { isConsentChoice, PRIVACY_CONSENT_COOKIE, type ConsentChoice } from "@/lib/privacy/consent";
 import "./globals.css";
 import "./compact-institutional.css";
@@ -17,6 +17,10 @@ import "./public-page-shell.css";
 import "./search-list-polish.css";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "./home-pdf-fidelity.css";
+import "./support-flow-fidelity.css";
+import "./support-search-fidelity.css";
+import "./search-results-fidelity.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
@@ -48,14 +52,14 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const initialConsentValue = cookieStore.get(PRIVACY_CONSENT_COOKIE)?.value;
   const initialConsent: ConsentChoice | null = isConsentChoice(initialConsentValue) ? initialConsentValue : null;
+  const systemState = await getSystemState();
 
   return (
     <html lang="pl" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: `(() => { try { const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; document.documentElement.dataset.displayMode = standalone ? "standalone" : "browser"; } catch (_) {} })();` }} />
-        <LaunchSplash />
         <PrivacyConsent initialConsent={initialConsent}>
-          <PublicPageShell>
+          <PublicPageShell systemState={systemState}>
             <a className="skip-link" href="#main-content">
               Przejdź do treści
             </a>

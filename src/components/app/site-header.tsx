@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -41,14 +40,7 @@ export function SiteHeader() {
           className="site-header-logo-link"
           aria-label="Dobra Mapa - strona główna"
         >
-          <Image
-            src="/brand/dobra-mapa-logo-header.svg"
-            alt="Dobra Mapa"
-            width={1926}
-            height={378}
-            priority
-            className="site-header-logo-asset"
-          />
+          <span className="site-header-wordmark" aria-hidden="true">DOBRA MAPA</span>
         </Link>
         <nav aria-label="Główne menu" className="site-header-nav site-header-desktop-nav">
           {links.map((link) => (
@@ -70,9 +62,9 @@ export function SiteHeader() {
           ))}
         </nav>
         <details className="site-header-mobile-menu">
-          <summary className="site-header-mobile-menu-toggle">
+          <summary className="site-header-mobile-menu-toggle" aria-label="Otwórz menu">
             <Menu aria-hidden="true" size={20} />
-            <span>Menu</span>
+            <span className="site-header-mobile-menu-label">Menu</span>
           </summary>
           <div className="site-header-mobile-menu-panel">
             {links.map((link) => (

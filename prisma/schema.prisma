@@ -101,6 +101,20 @@ enum AdminPermission {
   VIEW_HELP_REQUESTS
   MANAGE_HELP_REQUESTS
   MANAGE_VOLUNTEER_NEEDS
+  VIEW_SYSTEM_SETTINGS
+  MANAGE_SYSTEM_SETTINGS
+}
+
+enum SystemMode {
+  NORMAL
+  READ_ONLY
+  MAINTENANCE
+}
+
+enum PublicNoticeLevel {
+  INFO
+  WARNING
+  CRITICAL
 }
 
 enum OrganizationNeedType {
@@ -185,6 +199,9 @@ enum AuditAction {
   PLACE_CONTACT_UPDATED
   HELP_REQUEST_STATUS_CHANGED
   HELP_REQUEST_NOTE_ADDED
+  SYSTEM_MODE_CHANGED
+  SYSTEM_SETTINGS_UPDATED
+  PUBLIC_NOTICE_UPDATED
 }
 
 enum AuditEntityType {
@@ -199,6 +216,7 @@ enum AuditEntityType {
   IMPORT_CANDIDATE
   USER_PLACE_ACCESS
   HELP_REQUEST
+  SYSTEM_SETTINGS
 }
 
 enum HelpRequestStatus {
@@ -468,6 +486,22 @@ model AdminUser {
 
   @@index([active])
   @@map("admin_users")
+}
+
+model SystemSettings {
+  id                  String            @id @default("singleton") @db.VarChar(32)
+  mode                SystemMode        @default(NORMAL)
+  maintenanceTitle   String?           @db.VarChar(200)
+  maintenanceMessage String?           @db.VarChar(2000)
+  noticeEnabled      Boolean           @default(false)
+  noticeText         String?           @db.VarChar(1000)
+  noticeLevel        PublicNoticeLevel @default(INFO)
+  noticeDismissible  Boolean           @default(true)
+  version             Int               @default(1)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
+  updatedByAdminId    String?           @db.Uuid
+
+  @@map("system_settings")
 }
 
 model AdminPushSubscription {

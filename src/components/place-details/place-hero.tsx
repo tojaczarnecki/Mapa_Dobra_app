@@ -58,7 +58,7 @@ export function PlaceHero({
               <div className="space-y-1 text-sm font-extrabold text-foreground">
                 <p>Sezonowo · {place.mobile.season.start} – {place.mobile.season.end}</p>
                 {place.mobile.season.isActiveNow ? <p className="text-brand-strong">Kursuje w sezonie</p> : null}
-                {!place.mobile.season.isActiveNow ? <><p className="text-urgent">Poza sezonem</p><p className="font-semibold text-muted-foreground">Autobus kursuje od {place.mobile.season.start} do {place.mobile.season.end}.</p></> : null}
+                {!place.mobile.season.isActiveNow ? <p className="text-urgent">Poza sezonem</p> : null}
               </div>
             ) : null}
             {isMobileService && place.mobile?.season?.isActiveNow && place.mobile.todayStops.length ? (
@@ -112,19 +112,11 @@ export function PlaceHero({
           </p>
         </div>
 
-        <div className="place-detail-actions grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="place-detail-actions grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
           {primaryHref ? (
-            <PublicActionLink href={primaryHref} variant="primary" external={Boolean(primaryKind === "route" || (!primaryKind && !primaryIsCall && !primaryIsOpenSearch && routeHref))} icon={primaryKind === "search" || (!primaryKind && primaryIsOpenSearch) ? <Search aria-hidden="true" size={17} /> : primaryKind === "call" || (!primaryKind && primaryIsCall) ? <Phone aria-hidden="true" size={17} /> : <Navigation aria-hidden="true" size={17} />}>
+            <PublicActionLink href={primaryHref} variant="primary" journey="search" system external={Boolean(primaryKind === "route" || (!primaryKind && !primaryIsCall && !primaryIsOpenSearch && routeHref))} icon={primaryKind === "search" || (!primaryKind && primaryIsOpenSearch) ? <Search aria-hidden="true" size={17} /> : primaryKind === "call" || (!primaryKind && primaryIsCall) ? <Phone aria-hidden="true" size={17} /> : <Navigation aria-hidden="true" size={17} />}>
               {primaryLabel}
             </PublicActionLink>
-          ) : null}
-          {closedNow ? <PublicActionLink href="#godziny-otwarcia" variant="secondary" icon={<Clock3 aria-hidden="true" size={17} />}>Zobacz godziny</PublicActionLink> : null}
-          {routeHref && (primaryIsCall || primaryIsOpenSearch) ? (
-            <PublicActionLink href={routeHref} variant="tertiary" external icon={<Navigation aria-hidden="true" size={17} />}>Wyznacz trasę</PublicActionLink>
-          ) : null}
-          {isMobileService && callHref ? <PublicActionLink href={callHref} variant="secondary" icon={<Phone aria-hidden="true" size={17} />}>Zadzwoń</PublicActionLink> : null}
-          {callHref && !primaryIsCall && !primaryIsOpenSearch && routeHref ? (
-            <PublicActionLink href={callHref} variant="secondary" icon={<Phone aria-hidden="true" size={17} />}>Zadzwoń</PublicActionLink>
           ) : null}
           <ShowHelpCardButton place={place} />
           <SharePlaceButton className="justify-center" title={place.name} />

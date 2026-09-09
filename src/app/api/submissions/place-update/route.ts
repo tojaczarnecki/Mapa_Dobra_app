@@ -10,11 +10,14 @@ import {
   getRequestAddress,
 } from "@/lib/submissions/rate-limit";
 import { validatePlaceUpdateSubmission } from "@/lib/submissions/validation";
+import { publicWriteBlockedResponse } from "@/lib/system/public-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const blockedResponse = await publicWriteBlockedResponse();
+  if (blockedResponse) return blockedResponse;
   const rateLimit = await consumeSubmissionRateLimit(
     `place-update:${getRequestAddress(request)}`,
   );

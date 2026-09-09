@@ -2,8 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getRequestAddress, consumeSubmissionRateLimit } from "@/lib/submissions/rate-limit";
 import { readSubmissionBody, submissionErrorResponse } from "@/lib/submissions/http";
 import { validateHelpRequest } from "@/lib/help-requests/validation";
+import { publicWriteBlockedResponse } from "@/lib/system/public-guard";
 
 export async function POST(request: Request) {
+  const blockedResponse = await publicWriteBlockedResponse();
+  if (blockedResponse) return blockedResponse;
   const address = getRequestAddress(request);
   const limit = await consumeSubmissionRateLimit(`help-request:${address}`);
   if (!limit.allowed) {

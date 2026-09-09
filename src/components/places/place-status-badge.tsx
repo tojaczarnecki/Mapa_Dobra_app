@@ -68,6 +68,7 @@ export function PlaceStatusBadge({ status, compact = false, freshnessWarning = f
     <span
       className={[
         "inline-flex min-h-8 max-w-full min-w-0 flex-wrap items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-extrabold leading-tight",
+        `place-status-badge-${status}`,
         uncertainCurrent ? "border-urgent-border bg-urgent-soft text-foreground" : config.className,
       ].join(" ")}
     >
