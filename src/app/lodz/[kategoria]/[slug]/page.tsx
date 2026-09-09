@@ -15,6 +15,28 @@ type PlaceDetailPageProps = {
   }>;
 };
 
+function safeReturnTarget(value?: string) {
+  if (!value) return undefined;
+  try {
+    const parsed = new URL(value, "https://dobra-mapa.local");
+    if (parsed.origin !== "https://dobra-mapa.local") return undefined;
+    if (parsed.pathname !== "/szukaj" && parsed.pathname !== "/mapa") return undefined;
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function isMapReturnTarget(value?: string) {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value, "https://dobra-mapa.local");
+    return parsed.pathname === "/mapa" || (parsed.pathname === "/szukaj" && parsed.searchParams.get("view") === "map");
+  } catch {
+    return false;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: PlaceDetailPageProps): Promise<Metadata> {
@@ -44,9 +66,10 @@ export default async function PlaceDetailPage({ params, searchParams }: PlaceDet
 
   const query = searchParams ? await searchParams : undefined;
   const fromMap = query?.from === "mapa";
-  const returnTo = Array.isArray(query?.returnTo) ? query?.returnTo[0] : query?.returnTo;
-  const mapReturnTo = returnTo?.startsWith("/mapa") ? returnTo : undefined;
-  const backHref = mapReturnTo ?? (fromMap ? "/mapa" : returnTo?.startsWith("/szukaj") ? returnTo : undefined);
+  const rawReturnTo = Array.isArray(query?.returnTo) ? query?.returnTo[0] : query?.returnTo;
+  const returnTo = safeReturnTarget(rawReturnTo);
+  const returningToMap = fromMap || isMapReturnTarget(returnTo);
+  const backHref = returnTo ?? (fromMap ? "/szukaj?view=map" : undefined);
 
-  return <PlaceDetailView place={place} backHref={backHref} backLabel={fromMap ? "Wróć do mapy" : backHref ? "Wróć do wyników" : undefined} />;
+  return <PlaceDetailView place={place} backHref={backHref} backLabel={returningToMap ? "Wróć do mapy" : backHref ? "Wróć do wyników" : undefined} />;
 }
