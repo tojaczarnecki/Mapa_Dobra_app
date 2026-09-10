@@ -22,9 +22,7 @@ import "./support-flow-fidelity.css";
 import "./support-search-fidelity.css";
 import "./search-results-fidelity.css";
 import "./redesign-system.css";
-import "./home-reference-system.css";
-import "./search-home-language.css";
-import "./help-home-language.css";
+import "./journey-visual-system.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
