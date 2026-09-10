@@ -46,7 +46,7 @@ jobs:
           DEPLOYMENT_ENV: staging
           PUBLIC_DATA_MODE: production
           RATE_LIMIT_MODE: memory
-          APP_BASE_URL: https://staging.host11515.iqhs.pl
+          APP_BASE_URL: https://host11515.iqhs.pl
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           GEOCODER_USER_AGENT: MapaDobraCI/1.0
           GEOCODER_CONTACT_EMAIL: ci@example.invalid

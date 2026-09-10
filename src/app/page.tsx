@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 
 export default function Home() {
   return (
-    <div className={`${roboto.className} home-xd-page`}>
+    <div className={`${roboto.className} home-xd-page`} data-home-design="xd-screen-1">
       <section className="home-xd-hero" aria-labelledby="home-xd-title">
         <div className="home-xd-hero-inner">
           <h1 id="home-xd-title" className="home-xd-title">
