@@ -1,119 +1,204 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { AlertTriangle, ArrowRight, ChevronUp, HeartHandshake, Search, ShieldQuestion } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
-import { helpCategoryHref, helpDecisionScenarioDetails, helpDecisionScenarios, type HelpDecisionCategory, type HelpDecisionScenarioId } from "@/lib/help-requests/help-decision";
+import Link from "next/link";
+import { AlertTriangle, ArrowLeft, ArrowRight, HeartHandshake, Search, ShieldQuestion, UsersRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  helpCategoryHref,
+  helpDecisionScenarioDetails,
+  helpDecisionScenarios,
+  type HelpDecisionCategory,
+  type HelpDecisionScenarioId,
+} from "@/lib/help-requests/help-decision";
 
 function CategoryPanel({ categories }: { categories: HelpDecisionCategory[] }) {
-  return <nav id="help-category-panel" className="mt-3 grid gap-2 border-t border-border pt-3" aria-label="Kategorie pomocy">
-    {categories.map((category) => <Link key={category.slug} href={helpCategoryHref(category.slug)} className="inline-flex min-h-11 items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-bold hover:border-brand hover:bg-brand-soft"><span className="min-w-0 break-words">{category.label}</span><ArrowRight aria-hidden="true" className="shrink-0" size={16} /></Link>)}
-  </nav>;
+  return (
+    <nav id="help-category-panel" className="help-decision-options" aria-label="Kategorie pomocy">
+      {categories.map((category) => (
+        <Link key={category.slug} href={helpCategoryHref(category.slug)} className="help-decision-option">
+          <span>{category.label}</span>
+          <ArrowRight aria-hidden="true" size={18} />
+        </Link>
+      ))}
+    </nav>
+  );
 }
 
 function EmergencyAction() {
-  return <div className="mt-4 flex items-center gap-3 border-t border-border pt-3">
-    <Image src="/brand/help-scenarios/help-emergency.png" alt="" width={72} height={72} className="help-situation-emergency-art" aria-hidden="true" />
-    <p className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-[#7e2b0f]">Bezpośrednie zagrożenie? <a href="tel:112" className="font-extrabold text-[#b42318] underline underline-offset-2">Zadzwoń 112</a></p>
-  </div>;
+  return (
+    <div className="help-decision-inline-emergency">
+      <Image src="/brand/help-scenarios/help-emergency.png" alt="" width={64} height={64} aria-hidden="true" />
+      <p>Bezpośrednie zagrożenie życia lub zdrowia? <a href="tel:112">Zadzwoń 112</a></p>
+    </div>
+  );
 }
 
-function ScenarioPanel({ id, onChooseCategories, panelRef, unsureSafety, onUnsureSafetyChange }: { id: HelpDecisionScenarioId; onChooseCategories: () => void; panelRef: RefObject<HTMLDivElement | null>; unsureSafety: "yes" | "no" | null; onUnsureSafetyChange: (value: "yes" | "no") => void }) {
+function ScenarioPanel({
+  id,
+  onChooseCategories,
+  unsureSafety,
+  onUnsureSafetyChange,
+}: {
+  id: HelpDecisionScenarioId;
+  onChooseCategories: () => void;
+  unsureSafety: "yes" | "no" | null;
+  onUnsureSafetyChange: (value: "yes" | "no") => void;
+}) {
   const detail = helpDecisionScenarioDetails[id];
   const isUnsure = id === "unsure";
-  return <div ref={panelRef} tabIndex={-1} className="mt-3 border-t border-border pt-4 outline-none" aria-label={`Prowadzenie: ${detail.question}`}>
-    {id === "public-place" ? <Image src="/brand/help-scenarios/help-sleeping.png" alt="" width={150} height={150} className="help-context-art" aria-hidden="true" /> : null}
-    <p className="text-sm leading-6 text-muted-foreground">{detail.intro}</p>
-    <p className="mt-4 text-sm font-extrabold">{detail.question}</p>
-    {isUnsure ? <div className="mt-3 grid gap-3">
-      <fieldset className="grid gap-2 sm:grid-cols-2"><legend className="sr-only">Wybierz, czy czujesz się bezpiecznie, aby nawiązać kontakt</legend>{(["yes", "no"] as const).map((value) => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm font-extrabold hover:border-brand"><input type="radio" name="unsure-contact-safety" value={value} checked={unsureSafety === value} onChange={() => onUnsureSafetyChange(value)} className="h-5 w-5 accent-[#0b7768]" />{value === "yes" ? "Tak" : "Nie / nie jestem pewien"}</label>)}</fieldset>
-      {unsureSafety === "yes" ? <div className="grid gap-2"><p className="rounded-lg bg-brand-soft px-3 py-3 text-sm leading-6">Jeśli chcesz nawiązać kontakt, zapytaj spokojnie, czy osoba potrzebuje pomocy i czego najbardziej potrzebuje teraz.</p><button type="button" onClick={onChooseCategories} className="inline-flex min-h-11 items-center justify-between rounded-lg border border-brand px-3 py-2 text-left text-sm font-extrabold text-brand-strong hover:bg-brand-soft">Wiem już, czego potrzebuje <ArrowRight aria-hidden="true" size={16} /></button><Link href="/uruchom-pomoc" className="inline-flex min-h-11 items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-extrabold hover:border-brand hover:bg-brand-soft">Nadal nie wiem lub nadal się martwię <ArrowRight aria-hidden="true" size={16} /></Link></div> : null}
-      {unsureSafety === "no" ? <div className="grid gap-2"><p className="rounded-lg bg-surface-muted px-3 py-3 text-sm leading-6">Nie musisz podchodzić. Jeśli sytuacja nadal budzi Twój niepokój, możesz przekazać lokalizację i krótki opis.</p><Link href="/uruchom-pomoc" className="inline-flex min-h-11 items-center justify-between rounded-lg border border-brand px-3 py-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft">Przekaż informację <ArrowRight aria-hidden="true" size={16} /></Link></div> : null}
-    </div> : <div className="mt-3 grid gap-2 sm:grid-cols-2">
-      <button type="button" onClick={onChooseCategories} className="inline-flex min-h-11 items-center justify-between rounded-lg border border-brand px-3 py-2 text-left text-sm font-extrabold text-brand-strong hover:bg-brand-soft">Tak — znajdź konkretną pomoc <ArrowRight aria-hidden="true" size={16} /></button>
-      <Link href="/uruchom-pomoc" className="inline-flex min-h-11 items-center justify-between rounded-lg border border-border px-3 py-2 text-sm font-extrabold hover:border-brand hover:bg-brand-soft">Nie / nie wiem — przekaż informację <ArrowRight aria-hidden="true" size={16} /></Link>
-    </div>}
-    <EmergencyAction />
-  </div>;
+
+  return (
+    <div className="help-decision-scenario" aria-label={`Prowadzenie: ${detail.question}`}>
+      {id === "public-place" ? <Image src="/brand/help-scenarios/help-sleeping.png" alt="" width={150} height={150} className="help-context-art" aria-hidden="true" /> : null}
+      <p className="help-decision-scenario-intro">{detail.intro}</p>
+      <h2>{detail.question}</h2>
+      {isUnsure ? (
+        <div className="help-decision-scenario-actions">
+          <fieldset className="help-decision-radio-grid">
+            <legend className="sr-only">Wybierz, czy czujesz się bezpiecznie, aby nawiązać kontakt</legend>
+            {(["yes", "no"] as const).map((value) => (
+              <label key={value} className="help-decision-radio">
+                <input type="radio" name="unsure-contact-safety" value={value} checked={unsureSafety === value} onChange={() => onUnsureSafetyChange(value)} />
+                <span>{value === "yes" ? "Tak, czuję się bezpiecznie" : "Nie / nie jestem pewien"}</span>
+              </label>
+            ))}
+          </fieldset>
+          {unsureSafety === "yes" ? (
+            <div className="help-decision-answer">
+              <p>Zapytaj spokojnie, czy osoba potrzebuje pomocy i czego najbardziej potrzebuje teraz.</p>
+              <button type="button" onClick={onChooseCategories} className="help-decision-primary">Wiem już, czego potrzebuje <ArrowRight aria-hidden="true" size={18} /></button>
+              <Link href="/uruchom-pomoc" className="help-decision-secondary">Nadal nie wiem lub nadal się martwię <ArrowRight aria-hidden="true" size={18} /></Link>
+            </div>
+          ) : null}
+          {unsureSafety === "no" ? (
+            <div className="help-decision-answer">
+              <p>Nie musisz podchodzić. Jeśli sytuacja nadal budzi niepokój, możesz przekazać lokalizację i krótki opis.</p>
+              <Link href="/uruchom-pomoc" className="help-decision-primary">Przekaż informację <ArrowRight aria-hidden="true" size={18} /></Link>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="help-decision-two-actions">
+          <button type="button" onClick={onChooseCategories} className="help-decision-primary">Tak — znajdź konkretną pomoc <ArrowRight aria-hidden="true" size={18} /></button>
+          <Link href="/uruchom-pomoc" className="help-decision-secondary">Nie / nie wiem — przekaż informację <ArrowRight aria-hidden="true" size={18} /></Link>
+        </div>
+      )}
+      <EmergencyAction />
+    </div>
+  );
 }
 
 export function HelpDecisionEntry({ categories }: { categories: HelpDecisionCategory[] }) {
   const [activePanel, setActivePanel] = useState<"categories" | "scenario-picker" | HelpDecisionScenarioId | null>(null);
   const [unsureSafety, setUnsureSafety] = useState<"yes" | "no" | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const focusRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (activePanel) panelRef.current?.focus();
+    if (activePanel) focusRef.current?.focus({ preventScroll: true });
   }, [activePanel]);
 
-  const showCategories = activePanel === "categories";
-
-  function togglePanel(panel: "categories" | "scenario-picker" | HelpDecisionScenarioId) {
-    setActivePanel((current) => current === panel ? null : panel);
+  function choosePanel(panel: "categories" | "scenario-picker" | HelpDecisionScenarioId) {
+    setActivePanel(panel);
     if (panel !== "unsure") setUnsureSafety(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goBack() {
+    if (activePanel && activePanel !== "categories" && activePanel !== "scenario-picker") {
+      setActivePanel("scenario-picker");
+    } else {
+      setActivePanel(null);
+    }
+    setUnsureSafety(null);
+  }
+
+  if (activePanel) {
+    const scenario = activePanel !== "categories" && activePanel !== "scenario-picker"
+      ? helpDecisionScenarios.find((item) => item.id === activePanel)
+      : undefined;
+
+    return (
+      <div className="journey-help help-decision-page help-decision-page-focus mx-auto w-full max-w-[900px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
+        <button type="button" className="help-decision-back" onClick={goBack}><ArrowLeft aria-hidden="true" size={18} />Wstecz</button>
+        <section ref={focusRef} tabIndex={-1} className="help-decision-focus" aria-live="polite">
+          {activePanel === "categories" ? (
+            <>
+              <p className="help-decision-eyebrow">KONKRETNA POMOC</p>
+              <h1>Czego ta osoba potrzebuje?</h1>
+              <p className="help-decision-lead">Wybierz jedną kategorię. Potem pokażemy miejsca, które mogą pomóc.</p>
+              <CategoryPanel categories={categories} />
+            </>
+          ) : null}
+
+          {activePanel === "scenario-picker" ? (
+            <>
+              <p className="help-decision-eyebrow">NIE WIEM, CO ZROBIĆ</p>
+              <h1>Która sytuacja jest najbliższa temu, co widzisz?</h1>
+              <p className="help-decision-lead">Nie musisz mieć pewności. Wybierz najbliższy opis, a podpowiemy następny krok.</p>
+              <div className="help-decision-options" aria-label="Możliwe sytuacje">
+                {helpDecisionScenarios.map((item) => (
+                  <button key={item.id} type="button" onClick={() => choosePanel(item.id)} className="help-decision-option">
+                    <span>{item.label}</span><ArrowRight aria-hidden="true" size={18} />
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {scenario ? (
+            <>
+              <p className="help-decision-eyebrow">{scenario.label}</p>
+              <ScenarioPanel id={activePanel as HelpDecisionScenarioId} onChooseCategories={() => choosePanel("categories")} unsureSafety={unsureSafety} onUnsureSafetyChange={setUnsureSafety} />
+            </>
+          ) : null}
+        </section>
+      </div>
+    );
   }
 
   return (
-    <div className="journey-help mx-auto w-full max-w-[1040px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
-      <header className="max-w-3xl">
-        <p className="text-sm font-bold uppercase tracking-wide text-brand-strong">Chcę komuś pomóc</p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-tight text-foreground sm:text-5xl">Chcesz komuś pomóc?</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">Wybierz sytuację, a podpowiemy Ci, co możesz zrobić teraz.</p>
+    <div className="journey-help help-decision-page mx-auto w-full max-w-[1040px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
+      <header className="help-decision-hero">
+        <div>
+          <p className="help-decision-eyebrow">CHCĘ KOMUŚ POMÓC</p>
+          <h1>Co dzieje się teraz?</h1>
+          <p className="help-decision-lead">Wybierz jedną drogę. Nie musisz od razu wiedzieć, jak rozwiązać całą sytuację.</p>
+        </div>
+        <Image src="/brand/journeys/journey-help.png" alt="" width={420} height={340} className="help-decision-hero-art" aria-hidden="true" priority />
       </header>
 
-      <aside className="mt-5 flex items-center justify-between gap-3 rounded-lg border border-[#e9521a]/35 bg-[#fff8f3] p-3 sm:mt-6 sm:flex-row sm:gap-3 sm:p-4" aria-label="Informacja o bezpieczeństwie">
-        <p className="flex min-w-0 items-center gap-2 text-sm font-semibold leading-5 text-[#7e2b0f] sm:items-start sm:gap-3 sm:leading-6"><AlertTriangle aria-hidden="true" className="shrink-0" size={18} />Bezpośrednie zagrożenie życia lub zdrowia?</p>
-        <a href="tel:112" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#b42318] px-3 py-2 text-sm font-bold text-white hover:bg-[#8f1d14] sm:min-h-11 sm:px-4">Zadzwoń 112</a>
+      <aside className="help-decision-emergency" aria-label="Informacja o bezpieczeństwie">
+        <p><AlertTriangle aria-hidden="true" size={18} />Bezpośrednie zagrożenie życia lub zdrowia?</p>
+        <a href="tel:112">Zadzwoń 112</a>
       </aside>
 
-      <Link href="/potrzeby" className="mt-5 flex items-center justify-between gap-4 rounded-lg border border-brand/30 bg-brand-soft px-4 py-4 hover:border-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-        <span><span className="block text-base font-extrabold">Chcę pomóc jako wolontariusz</span><span className="mt-1 block text-sm text-muted-foreground">Zobacz, gdzie organizacje potrzebują ludzi teraz lub w najbliższych dniach.</span></span><ArrowRight aria-hidden="true" className="shrink-0 text-brand-strong" size={19} />
-      </Link>
+      <section className="help-decision-foyer" aria-labelledby="help-decision-title">
+        <h2 id="help-decision-title" className="sr-only">Wybierz sposób pomocy</h2>
+        <button type="button" onClick={() => choosePanel("categories")} className="help-decision-entry">
+          <span className="help-decision-entry-icon"><Search aria-hidden="true" size={24} /></span>
+          <span className="help-decision-entry-copy"><strong>Wiem, czego ta osoba potrzebuje</strong><small>Znajdź konkretną usługę lub miejsce pomocy.</small></span>
+          <ArrowRight aria-hidden="true" size={21} />
+        </button>
 
-      <section className="mt-8 grid items-start gap-4 lg:grid-cols-2" aria-labelledby="help-decision-title">
-        <h2 id="help-decision-title" className="sr-only">Wybierz, co możesz zrobić</h2>
-        <article className="help-situation-card flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
-          <div className="help-situation-copy">
-            <Search aria-hidden="true" className="text-brand-strong" size={27} />
-            <h3 className="mt-4 text-xl font-extrabold">Chcę znaleźć konkretną pomoc</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Wiesz mniej więcej, czego ta osoba potrzebuje? Wybierz kategorię i znajdź miejsce.</p>
-            <button type="button" onClick={() => togglePanel("categories")} aria-expanded={showCategories} aria-controls="help-category-panel" className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-extrabold text-foreground hover:bg-brand-strong hover:text-white">{showCategories ? "Ukryj kategorie" : "Wybierz kategorię"}{showCategories ? <ChevronUp aria-hidden="true" size={17} /> : <ArrowRight aria-hidden="true" size={17} />}</button>
-          </div>
-          <Image src="/brand/help-scenarios/help-general.png" alt="" width={220} height={220} className="help-situation-art" aria-hidden="true" />
-          {showCategories ? <CategoryPanel categories={categories} /> : null}
-        </article>
+        <Link href="/uruchom-pomoc" className="help-decision-entry">
+          <span className="help-decision-entry-icon"><HeartHandshake aria-hidden="true" size={24} /></span>
+          <span className="help-decision-entry-copy"><strong>Martwię się o tę osobę</strong><small>Przekaż lokalizację i krótki opis sytuacji.</small></span>
+          <ArrowRight aria-hidden="true" size={21} />
+        </Link>
 
-        <article className="help-situation-card flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)]">
-          <div className="help-situation-copy">
-            <HeartHandshake aria-hidden="true" className="text-brand-strong" size={27} />
-            <h3 className="mt-4 text-xl font-extrabold">Martwię się o tę osobę</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Przekaż lokalizację i opisz sytuację. Nie musisz znać dokładnej potrzeby.</p>
-            <Link href="/uruchom-pomoc" className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand px-4 py-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft">Chcę przekazać informację <ArrowRight aria-hidden="true" size={17} /></Link>
-          </div>
-          <Image src="/brand/help-scenarios/help-concern.png" alt="" width={220} height={220} className="help-situation-art" aria-hidden="true" />
-        </article>
+        <button type="button" onClick={() => choosePanel("scenario-picker")} className="help-decision-entry">
+          <span className="help-decision-entry-icon"><ShieldQuestion aria-hidden="true" size={24} /></span>
+          <span className="help-decision-entry-copy"><strong>Nie wiem, co najlepiej zrobić</strong><small>Przejdź przez kilka prostych możliwości.</small></span>
+          <ArrowRight aria-hidden="true" size={21} />
+        </button>
 
-        <article className="help-situation-card help-situation-card-feature flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5 shadow-[0_10px_26px_rgb(17_24_39_/_6%)] lg:col-span-2">
-          <div className="help-situation-copy">
-            <ShieldQuestion aria-hidden="true" className="text-brand-strong" size={27} />
-            <h3 className="mt-4 text-xl font-extrabold">Nie wiem, co najlepiej zrobić</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Przejdź przez kilka prostych możliwości i wybierz następny krok.</p>
-            <button type="button" onClick={() => setActivePanel((current) => current === "scenario-picker" ? null : "scenario-picker")} aria-expanded={activePanel === "scenario-picker"} aria-controls="help-scenario-flow-panel" className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand px-4 py-2 text-sm font-extrabold text-brand-strong hover:bg-brand-soft">{activePanel === "scenario-picker" ? "Ukryj możliwości" : activePanel && activePanel !== "categories" ? "Zmień sytuację" : "Sprawdź możliwości"}{activePanel === "scenario-picker" ? <ChevronUp aria-hidden="true" size={17} /> : <ArrowRight aria-hidden="true" size={17} />}</button>
-          </div>
-          {activePanel !== null && activePanel !== "categories" ? <div id="help-scenario-flow-panel">{activePanel === "scenario-picker" ? <div className="mt-3 grid gap-2 border-t border-border pt-3" aria-label="Możliwe sytuacje">{helpDecisionScenarios.map((scenario) => <button key={scenario.id} type="button" onClick={() => togglePanel(scenario.id)} className="inline-flex min-h-11 items-center justify-between rounded-lg border border-border px-3 py-2 text-left text-sm font-bold hover:border-brand hover:bg-brand-soft"><span className="min-w-0 break-words">{scenario.label}</span><ArrowRight aria-hidden="true" className="shrink-0" size={16} /></button>)}</div> : <><p className="mt-3 border-t border-border pt-4 text-xs font-bold uppercase tracking-wide text-brand-strong">{helpDecisionScenarios.find((scenario) => scenario.id === activePanel)?.label}</p><ScenarioPanel id={activePanel} onChooseCategories={() => setActivePanel("categories")} panelRef={panelRef} unsureSafety={unsureSafety} onUnsureSafetyChange={setUnsureSafety} /></>}</div> : null}
-        </article>
+        <Link href="/potrzeby" className="help-decision-entry help-decision-entry-volunteer">
+          <span className="help-decision-entry-icon"><UsersRound aria-hidden="true" size={24} /></span>
+          <span className="help-decision-entry-copy"><strong>Chcę pomóc jako wolontariusz</strong><small>Zobacz aktualne potrzeby organizacji w Łodzi.</small></span>
+          <ArrowRight aria-hidden="true" size={21} />
+        </Link>
       </section>
-
-      {activePanel === null ? <section className="mt-9 border-t border-border pt-7" aria-labelledby="practical-help-title">
-        <h2 id="practical-help-title" className="text-xl font-extrabold">Co możesz zrobić teraz?</h2>
-        <ul className="mt-3 grid gap-2 text-sm leading-6 text-muted-foreground sm:grid-cols-2">
-          <li>Jeśli jest bezpiecznie, zapytaj tę osobę, czego potrzebuje.</li>
-          <li>Możesz wskazać jej konkretne miejsce pomocy.</li>
-          <li>Jeśli nie wiesz, wybierz krótką ścieżkę decyzji powyżej.</li>
-          <li>Przekaż informację dopiero wtedy, gdy jest to potrzebne.</li>
-        </ul>
-      </section> : null}
     </div>
   );
 }
