@@ -44,18 +44,24 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
   return (
     <div className="support-search-page journey-search mobile-nav-safe-content mx-auto w-full max-w-[1120px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
       <header className="support-search-hero max-w-3xl">
-        <p className="text-sm font-bold uppercase tracking-wide text-brand-strong">Szukam wsparcia</p>
+        <div className="support-search-route-label" aria-hidden="true">
+          <span>SZUKAM POMOCY</span>
+          <i />
+        </div>
         <h1 className="mt-2 text-3xl font-extrabold leading-tight text-foreground sm:text-5xl">Czego potrzebujesz?</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">Opisz krótko, czego potrzebujesz, albo wybierz najbliższą kategorię.</p>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">Napisz po swojemu, czego potrzebujesz, albo wybierz jedną z prostych kategorii poniżej.</p>
       </header>
 
       <section className="support-search-section mt-7 max-w-3xl sm:mt-9" aria-labelledby="support-search-title">
-        <h2 id="support-search-title" className="sr-only">Wyszukaj pomoc</h2>
+        <div className="support-search-section-heading">
+          <p>WPISZ POTRZEBĘ</p>
+          <h2 id="support-search-title">Znajdź konkretne miejsce</h2>
+        </div>
         <SearchControl
           action="/szukaj"
           id="support-search"
           label="Wyszukiwarka pomocy"
-          placeholder="Znajdź pomoc…"
+          placeholder="np. ciepły posiłek, prysznic, pomoc prawna…"
           variant="landing"
           categories={categories.map(([slug, label]) => ({ slug, label }))}
           places={places.map(({ id, name, categorySlug, slug, searchText }) => ({ id, name, categorySlug, slug, searchText }))}
@@ -63,14 +69,12 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
         />
       </section>
 
-      <section className="mt-9" aria-labelledby="support-needs-title">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="support-needs-title" className="text-2xl font-extrabold text-foreground">Wybierz kategorię</h2>
-            <p className="mt-1 text-sm font-semibold text-muted-foreground">Wybierz prostą drogę do wyników.</p>
-          </div>
+      <section className="support-search-categories" aria-labelledby="support-needs-title">
+        <div className="support-search-section-heading">
+          <p>WYBIERZ DROGĘ</p>
+          <h2 id="support-needs-title">Wybierz kategorię</h2>
         </div>
-        <div className="support-category-grid mt-4">
+        <div className="support-category-grid">
           {featuredCategories.map(([label, slug, Icon]) => (
             <CategoryTile key={slug} href={slug === "nocleg" ? "/znajdz-nocleg" : `/szukaj?kategoria=${encodeURIComponent(slug)}`} label={label} slug={slug} icon={Icon} accent={accents.get(slug) ?? "#0B4F48"} />
           ))}
@@ -79,18 +83,21 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
         <Link href="/szukam?tryb=guided&krok=1" className="support-uncertain-entry">
           <span className="support-uncertain-copy">
             <strong>Nie wiem, czego potrzebuję</strong>
-            <small>Odpowiedz na dwa proste pytania.</small>
+            <small>Odpowiedz na dwa proste pytania — podpowiemy, od czego zacząć.</small>
           </span>
-          <ArrowRight className="support-uncertain-arrow" aria-hidden="true" size={20} />
+          <ArrowRight className="support-uncertain-arrow" aria-hidden="true" size={22} />
         </Link>
       </section>
 
-      <section className="mt-9 border-t border-border pt-7" aria-labelledby="support-shortcuts-title">
-        <h2 id="support-shortcuts-title" className="text-xl font-extrabold text-foreground">Szybkie ścieżki</h2>
-        <div className="support-quick-paths mt-3 flex min-w-0 flex-wrap gap-2">
-          <Link className="inline-action" href="/mapa?otwarte=1"><LocateFixed aria-hidden="true" size={17} />Pomoc dostępna teraz</Link>
-          <Link className="inline-action" href="/znajdz-nocleg"><Clock3 aria-hidden="true" size={17} />Nocleg na dzisiaj</Link>
-          <Link className="inline-action" href="/szukaj"><BookOpen aria-hidden="true" size={17} />Wszystkie miejsca</Link>
+      <section className="support-search-shortcuts" aria-labelledby="support-shortcuts-title">
+        <div className="support-search-section-heading support-search-section-heading-compact">
+          <p>NA SKRÓTY</p>
+          <h2 id="support-shortcuts-title">Szybkie ścieżki</h2>
+        </div>
+        <div className="support-quick-paths">
+          <Link className="inline-action support-quick-now" href="/mapa?otwarte=1"><LocateFixed aria-hidden="true" size={18} />Pomoc dostępna teraz<ArrowRight aria-hidden="true" size={18} /></Link>
+          <Link className="inline-action" href="/znajdz-nocleg"><Clock3 aria-hidden="true" size={18} />Nocleg na dzisiaj<ArrowRight aria-hidden="true" size={18} /></Link>
+          <Link className="inline-action" href="/szukaj"><BookOpen aria-hidden="true" size={18} />Wszystkie miejsca<ArrowRight aria-hidden="true" size={18} /></Link>
         </div>
       </section>
     </div>
