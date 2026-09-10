@@ -1,28 +1,59 @@
 import type { Metadata } from "next";
 import { FavoritesList, type FavoriteLivePlace } from "@/components/favorites/favorites-list";
 import { getPublicSearchPlaces } from "@/lib/places/public-data";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 import { canonicalAlternates } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Ulubione | Dobra Mapa",
-  description: "Zapisane miejsca pomocy w Mapie Dobra.",
+  description: "Zapisane miejsca pomocy w Dobrej Mapie.",
   alternates: canonicalAlternates("/ulubione"),
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function FavoritesPage() {
-  const livePlaces: FavoriteLivePlace[] = (await getPublicSearchPlaces()).map((place) => ({
-    id: place.id,
-    href: `/lodz/${place.categorySlug}/${place.slug}`,
-    name: place.name,
-    categoryLabel: place.helpTypes[0] ?? "Pomoc",
-    status: place.status,
-    todayHours: place.todayHours,
-    distanceLabel: place.distance,
-    address: place.address,
-    phone: place.phone,
-  }));
+  const livePlaces: FavoriteLivePlace[] = (await getPublicSearchPlaces()).map((place) => {
+    const presentation = resolvePublicPlaceStatus({
+      status: place.status,
+      compact: true,
+      freshnessWarning: place.freshnessWarning,
+      profileKind: place.profileKind,
+      mobileSeasonLabel: place.mobileSeasonLabel,
+      mobileSeasonActive: place.mobileSeasonActive,
+    });
+
+    const statusTone: FavoriteLivePlace["statusTone"] = presentation.publicStatus === "unknown"
+      ? "unknown"
+      : presentation.publicStatus === "absent"
+        ? "closed"
+        : place.status === "openToday"
+          ? "openToday"
+          : "open";
+
+    const todayHours = presentation.showStandardHours
+      ? place.todayHours
+      : presentation.publicStatus === "unknown"
+        ? "Godziny lub dostępność wymagają potwierdzenia."
+        : place.profileKind === "FOOD_SHARING"
+          ? "Dostęp niezależny od godzin placówki; zawartość może się zmieniać."
+          : place.profileKind === "MOBILE_SERVICE"
+            ? "Sprawdź aktualny rozkład postojów."
+            : place.todayHours;
+
+    return {
+      id: place.id,
+      href: `/lodz/${place.categorySlug}/${place.slug}`,
+      name: place.name,
+      categoryLabel: place.helpTypes[0] ?? "Pomoc",
+      statusLabel: presentation.label,
+      statusTone,
+      todayHours,
+      distanceLabel: place.distance,
+      address: place.address,
+      phone: place.phone,
+    };
+  });
 
   return (
     <div className="favorites-page utility-flow-page mx-auto w-full max-w-[920px] px-4 pb-28 pt-5 sm:px-6 sm:pt-8 md:pb-16 lg:px-8">
@@ -33,7 +64,7 @@ export default async function FavoritesPage() {
           Miejsca zapisane na tym urządzeniu. Bez logowania i bez zakładania konta.
         </p>
       </header>
-      <FavoritesList livePlaces={livePlaces} />
+      <FavoritesList livePlaces={livePlaces} liveDataAvailable />
     </div>
   );
 }

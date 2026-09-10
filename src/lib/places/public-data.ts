@@ -25,6 +25,10 @@ import {
 import { resolveAvailabilityFreshness, resolveAvailabilityState, staleAvailabilityNote } from "@/lib/accommodations/freshness";
 import { getAccommodationPetPresentation, getAccommodationSobrietyLabel } from "@/lib/accommodations/presentation";
 import { evaluateCurrentOpening, getWarsawWeekday } from "@/lib/places/current-opening";
+import {
+  formatMobileSchedule,
+  isMobileSeasonActive,
+} from "@/lib/places/mobile-service";
 import type { PublicSearchPlace } from "@/lib/places/search";
 import { publicRecordKindsForEnvironment } from "@/lib/places/public-visibility";
 import { publicRequirementLabel } from "@/lib/places/requirement-label";
@@ -206,7 +210,7 @@ function openingDays(place: PublicPlaceRecord): OpeningDay[] {
 
 function statusDetails(place: PublicPlaceRecord): PlaceDetail["status"] {
   const status = placeStatus(place);
-  if (place.placeKind === "FOOD_SHARING") {
+  if (place.placeKind === "FOOD_SHARING" && status === "open") {
     return {
       label: "DOSTĘP 24/7",
       tone: "open",
@@ -289,13 +293,16 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     ].filter((row): row is [string, string] => Boolean(row[1])).map(([label, value]) => ({ label, value })),
     importantNote: accommodation.importantNote ?? "Informacja o wolnych miejscach nie jest gwarancją przyjęcia.",
   } : undefined;
+  const mobileSeasonActive = place.placeKind === "MOBILE_SERVICE"
+    ? isMobileSeasonActive(place.mobileSeason)
+    : false;
   const mobile = place.placeKind === "MOBILE_SERVICE" ? {
     season: place.mobileSeason ? {
       active: place.mobileSeason.active,
       label: place.mobileSeason.label ?? "",
       start: formatSeasonDate(place.mobileSeason.startDay, place.mobileSeason.startMonth),
       end: formatSeasonDate(place.mobileSeason.endDay, place.mobileSeason.endMonth),
-      isActiveNow: isAnnualDateInRange(new Date(), place.mobileSeason.startMonth, place.mobileSeason.startDay, place.mobileSeason.endMonth, place.mobileSeason.endDay),
+      isActiveNow: mobileSeasonActive,
     } : undefined,
     stops: place.mobileStops.map((stop) => ({
       name: stop.name,
@@ -303,14 +310,16 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
       latitude: stop.latitude === null ? undefined : Number(stop.latitude),
       longitude: stop.longitude === null ? undefined : Number(stop.longitude),
       note: stop.note ?? undefined,
-      schedules: stop.schedules.map((schedule) => schedule.allDay ? "Całodobowo" : `${schedule.opensAt ?? ""}${schedule.closesAt ? `–${schedule.closesAt}` : ""}`),
+      schedules: stop.schedules.map((schedule) => formatMobileSchedule(schedule)),
     })),
-    todayStops: place.mobileStops.flatMap((stop) => stop.schedules
-      .filter((schedule) => schedule.weekday === getWarsawWeekday())
-      .map((schedule) => ({
-        time: schedule.allDay ? "Całodobowo" : schedule.opensAt ?? "",
-        name: stop.name,
-      }))),
+    todayStops: mobileSeasonActive
+      ? place.mobileStops.flatMap((stop) => stop.schedules
+        .filter((schedule) => schedule.weekday === getWarsawWeekday())
+        .map((schedule) => ({
+          time: schedule.allDay ? "Całodobowo" : schedule.opensAt ?? "",
+          name: stop.name,
+        })))
+      : [],
   } : undefined;
 
   return {
@@ -325,7 +334,7 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
     typeLabel: place.typeLabel ?? place.primaryCategory.name,
     helpTypes: place.categories.map((item) => item.category.name),
     status: statusDetails(place),
-    distanceLabel: `${place.distanceLabel ?? "Odległość nieznana"}${place.distanceLabel ? " od Ciebie" : ""}`,
+    distanceLabel: "Odległość nieznana",
     address: place.addressLine,
     latitude: place.latitude === null ? undefined : Number(place.latitude),
     longitude: place.longitude === null ? undefined : Number(place.longitude),
@@ -343,13 +352,6 @@ function toPlaceDetail(place: PublicPlaceRecord): PlaceDetail {
   };
 }
 
-function isAnnualDateInRange(date: Date, startMonth: number, startDay: number, endMonth: number, endDay: number) {
-  const value = (date.getMonth() + 1) * 100 + date.getDate();
-  const start = startMonth * 100 + startDay;
-  const end = endMonth * 100 + endDay;
-  return start <= end ? value >= start && value <= end : value >= start || value <= end;
-}
-
 const monthNames = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
 
 function formatSeasonDate(day: number, month: number) {
@@ -364,11 +366,12 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
   const fee = place.requirements.find((item) => item.kind === "FEE");
   const free = fee?.state === "NO" ? "YES" : "UNKNOWN";
   const mobileSeason = place.placeKind === "MOBILE_SERVICE" ? place.mobileSeason : null;
-  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE"
+  const mobileSeasonActive = mobileSeason ? isMobileSeasonActive(mobileSeason) : undefined;
+  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE" && (mobileSeason ? mobileSeasonActive : true)
     ? place.mobileStops.flatMap((stop) => stop.schedules
       .filter((schedule) => schedule.weekday === getWarsawWeekday())
       .map((schedule) => schedule.allDay ? stop.name : `${schedule.opensAt ?? ""} ${stop.name}`.trim()))
-    : undefined;
+    : place.placeKind === "MOBILE_SERVICE" ? [] : undefined;
   return {
     id: place.legacyId ?? place.id,
     categorySlug: place.primaryCategory.slug,
@@ -395,7 +398,7 @@ function toDemoPlace(place: PublicPlaceRecord): DemoPlace & PublicSearchPlace {
     distanceKm: distanceNumber(place.distanceLabel),
     profileKind: place.placeKind,
     mobileSeasonLabel: mobileSeason ? `${formatSeasonDate(mobileSeason.startDay, mobileSeason.startMonth)} – ${formatSeasonDate(mobileSeason.endDay, mobileSeason.endMonth)}` : undefined,
-    mobileSeasonActive: mobileSeason ? isAnnualDateInRange(new Date(), mobileSeason.startMonth, mobileSeason.startDay, mobileSeason.endMonth, mobileSeason.endDay) : undefined,
+    mobileSeasonActive,
     mobileTodayStops,
   };
 }
@@ -465,11 +468,12 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
   const feeRequirement = place.requirements.find((item) => item.kind === "FEE");
   const free = feeRequirement?.state === "NO" ? true : null;
   const mobileSeason = place.placeKind === "MOBILE_SERVICE" ? place.mobileSeason : null;
-  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE"
+  const mobileSeasonActive = mobileSeason ? isMobileSeasonActive(mobileSeason) : undefined;
+  const mobileTodayStops = place.placeKind === "MOBILE_SERVICE" && (mobileSeason ? mobileSeasonActive : true)
     ? place.mobileStops.flatMap((stop) => stop.schedules
       .filter((schedule) => schedule.weekday === getWarsawWeekday())
       .map((schedule) => schedule.allDay ? stop.name : `${schedule.opensAt ?? ""} ${stop.name}`.trim()))
-    : undefined;
+    : place.placeKind === "MOBILE_SERVICE" ? [] : undefined;
   const base = {
     id: place.legacyId ?? place.id,
     name: place.name,
@@ -486,7 +490,7 @@ function toMapPlace(place: PublicPlaceRecord): MapPlace | null {
     searchTerms: [place.name, place.typeLabel ?? "", ...place.categories.map((item) => item.category.name), ...place.requirements.map((item) => item.label)],
     profileKind: place.placeKind,
     mobileSeasonLabel: mobileSeason ? `${formatSeasonDate(mobileSeason.startDay, mobileSeason.startMonth)} – ${formatSeasonDate(mobileSeason.endDay, mobileSeason.endMonth)}` : undefined,
-    mobileSeasonActive: mobileSeason ? isAnnualDateInRange(new Date(), mobileSeason.startMonth, mobileSeason.startDay, mobileSeason.endMonth, mobileSeason.endDay) : undefined,
+    mobileSeasonActive,
     mobileTodayStops,
   };
   if (!place.accommodation) return { ...base, status: { kind: "standard", status: placeStatus(place), todayHours: opening.label } };

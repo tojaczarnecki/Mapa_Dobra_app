@@ -84,7 +84,7 @@ export function MobileMapSheet({
             <li key={place.id}>
               <button type="button" className="mobile-map-sheet-place-button" onClick={() => onSelect(place)}>
               <span className="mobile-map-sheet-place-icon" aria-hidden="true"><MapPin size={18} /></span>
-              <span className="mobile-map-sheet-place-copy"><strong>{place.name}</strong><span>{place.helpTypes.join(" • ")} · {place.distanceLabel}</span></span>
+              <span className="mobile-map-sheet-place-copy"><strong>{place.name}</strong><span>{place.helpTypes.join(" • ")}</span></span>
               <Navigation aria-hidden="true" size={17} />
               </button>
             </li>

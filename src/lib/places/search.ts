@@ -26,7 +26,7 @@ export type PublicSearchFilters = {
   free?: boolean;
   noReferral?: boolean;
   noDocuments?: boolean;
-  sort?: "best" | "distance" | "open";
+  sort?: "best" | "open";
 };
 
 const categoryAliases: Record<string, string[]> = {
@@ -98,8 +98,11 @@ export function filterPublicSearchPlaces<T extends PublicSearchPlace>(
     if (foodJourney && left.profileKind !== right.profileKind) {
       return left.profileKind === "FOOD_SHARING" ? 1 : -1;
     }
-    if (filters.sort === "distance") return left.distanceKm - right.distanceKm;
-    if (filters.sort === "open") return Number(right.openNow === true) - Number(left.openNow === true) || left.distanceKm - right.distanceKm;
-    return relevance(right, query) - relevance(left, query) || left.distanceKm - right.distanceKm;
+    if (filters.sort === "open") {
+      return Number(right.openNow === true) - Number(left.openNow === true)
+        || left.name.localeCompare(right.name, "pl");
+    }
+    return relevance(right, query) - relevance(left, query)
+      || left.name.localeCompare(right.name, "pl");
   });
 }

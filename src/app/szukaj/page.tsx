@@ -65,9 +65,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const category = first(raw.kategoria);
   const sortValue = first(raw.sort);
-  const sort: PublicSearchFilters["sort"] = ["distance", "open"].includes(sortValue)
-    ? sortValue as "distance" | "open"
-    : "best";
+  const sort: PublicSearchFilters["sort"] = sortValue === "open" ? "open" : "best";
   const filters: PublicSearchFilters = {
     query: interpretedText ? undefined : query || undefined,
     category: category || undefined,
@@ -115,14 +113,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const quickFilters = [
     { label: "Otwarte teraz", key: "otwarte", value: "1", active: filters.openNow },
     { label: "Dzisiaj", key: "dzisiaj", value: "1", active: filters.today },
-    { label: "Najbliżej", key: "sort", value: "distance", active: sort === "distance" },
     { label: "Bezpłatne", key: "bezplatne", value: "1", active: filters.free },
     { label: "Bez skierowania", key: "bez_skierowania", value: "1", active: filters.noReferral },
     { label: "Bez dokumentów", key: "bez_dokumentow", value: "1", active: filters.noDocuments },
   ];
-  const activeFilterCount = Number(Boolean(category)) + quickFilters.filter((filter) => filter.active && filter.key !== "sort").length;
+  const activeFilterCount = Number(Boolean(category)) + quickFilters.filter((filter) => filter.active).length;
   const practicalFilterOptions = quickFilters
-    .filter((filter) => filter.key !== "sort")
     .map((filter) => ({ ...filter, active: Boolean(filter.active), href: searchHref(current, filter.key, filter.value) }));
   const categoryOptions = categories.map(([slug, label]) => ({
     label,
@@ -133,7 +129,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }));
   const sortOptions = [
     { label: "Najlepiej dopasowane", key: "sort", value: "best", href: searchHref(current, "sort"), active: sort === "best" },
-    { label: "Najbliżej", key: "sort", value: "distance", href: searchHref(current, "sort", "distance"), active: sort === "distance" },
+    { label: "Otwarte najpierw", key: "sort", value: "open", href: searchHref(current, "sort", "open"), active: sort === "open" },
   ];
   const originalIntent = interpretedText ? interpretSearchQuery(interpretedText) : undefined;
   const activeIntentTokens = originalIntent?.tokens.filter((token) => tokenIsActive(token, filters)) ?? [];

@@ -2,15 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowRight, Check, Crosshair, MapPin, Send } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Check, Crosshair, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { FormDraftResume } from "@/components/forms/form-draft-ui";
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import { useUnsavedChangesGuard } from "@/components/forms/use-unsaved-changes-guard";
 import { GuidedFlowShell } from "@/components/help-requests/guided-flow-shell";
 import { GuidedFlowOption as Choice } from "@/components/forms/guided-flow-primitives";
-import { helpRequestNeedLabels } from "@/lib/help-requests/validation";
+import { HelpRequestReview } from "@/components/help-requests/help-request-review";
+import { helpRequestNeedLabels, validateHelpRequestContact } from "@/lib/help-requests/validation";
 import { canContinueFromEmergency, isTerminalEmergency, restoreEmergencyAnswer, type EmergencyAnswer } from "@/lib/help-requests/emergency-gate";
 import { HELP_REQUEST_FORM_TYPE, restoreHelpRequestStep, stripHelpRequestContact, type HelpRequestStep } from "@/lib/help-requests/form-flow";
 import type { HelpRequestNeed } from "@/generated/prisma/enums";
@@ -31,36 +32,113 @@ function draftStepForScreen(screen: Screen): HelpRequestStep {
   return 4;
 }
 
+async function responseErrorMessage(response: Response) {
+  try {
+    const payload = await response.json() as { message?: unknown };
+    return typeof payload.message === "string" && payload.message.trim()
+      ? payload.message
+      : "Nie udało się przekazać informacji. Spróbuj ponownie.";
+  } catch {
+    return "Nie udało się przekazać informacji. Spróbuj ponownie.";
+  }
+}
+
 export function HelpRequestWizard() {
   const [screen, setScreen] = useState<Screen>(1); const [form, setForm] = useState<FormState>(initialState); const [error, setError] = useState<string>(); const [sending, setSending] = useState(false); const [sent, setSent] = useState(false); const [locationMessage, setLocationMessage] = useState<string>(); const [locationFallback, setLocationFallback] = useState(false); const [showContact, setShowContact] = useState(false); const [showMoreNeeds, setShowMoreNeeds] = useState(false); const manualMapSelectionRef = useRef(false); const headingRef = useRef<HTMLHeadingElement>(null);
   const draftData = { emergencyAnswer: form.emergencyAnswer, emergencyAnswerSelected: form.emergencyAnswerSelected, locationMode: form.locationMode, addressText: form.addressText, locationDescription: form.locationDescription, latitude: form.latitude, longitude: form.longitude, locationAccuracy: form.locationAccuracy, needs: form.needs, description: form.description };
   const formDraft = useFormDraft({ formType: HELP_REQUEST_FORM_TYPE, storage: "session", ttlMs: 2 * 60 * 60 * 1000, data: draftData, currentStep: draftStepForScreen(screen), enabled: !sent && form.emergencyAnswer !== "YES" });
   const previousFormDraft = useFormDraft<HelpRequestDraft>({ formType: "help-request-v2", storage: "session", ttlMs: 2 * 60 * 60 * 1000, data: draftData, currentStep: 1, enabled: false }); const legacyFormDraft = useFormDraft<HelpRequestDraft>({ formType: "help-request", storage: "session", ttlMs: 2 * 60 * 60 * 1000, data: draftData, currentStep: 1, enabled: false }); useUnsavedChangesGuard(!sent && formDraft.isDirty);
-  const availableDraft = formDraft.storedDraft ?? previousFormDraft.storedDraft ?? legacyFormDraft.storedDraft; const summaryNeeds = useMemo(() => form.needs.map((need) => helpRequestNeedLabels[need]), [form.needs]); const hasLocation = Boolean(form.addressText.trim() || form.locationDescription.trim() || form.latitude !== undefined);
+  const availableDraft = formDraft.storedDraft ?? previousFormDraft.storedDraft ?? legacyFormDraft.storedDraft; const hasLocation = Boolean(form.addressText.trim() || form.locationDescription.trim() || form.latitude !== undefined);
   useEffect(() => { headingRef.current?.focus(); }, [screen]);
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => { setForm((current) => ({ ...current, [key]: value })); setError(undefined); };
-  function restore(draft: { data: HelpRequestDraft; currentStep?: number | string }) { const emergency = restoreEmergencyAnswer(draft.data); const restoredData = stripHelpRequestContact(draft.data as Record<string, unknown>); setForm((current) => ({ ...current, ...restoredData, reporterName: "", reporterPhone: "", reporterEmail: "", emergencyAnswer: emergency.answer, emergencyAnswerSelected: emergency.selected })); setScreen(screenForStep[restoreHelpRequestStep(typeof draft.currentStep === "number" ? draft.currentStep : 1)]); }
+
+  function selectEmergencyAnswer(answer: Exclude<EmergencyAnswer, null>) {
+    setForm((current) => ({ ...current, emergencyAnswer: answer, emergencyAnswerSelected: true }));
+    setError(undefined);
+    if (answer === "YES") {
+      formDraft.clear();
+      previousFormDraft.clear();
+      legacyFormDraft.clear();
+    }
+  }
+
+  function resetEmergencyAnswer() {
+    setForm((current) => ({ ...current, emergencyAnswer: null, emergencyAnswerSelected: false }));
+    setError(undefined);
+  }
+
+  function restore(draft: { data: HelpRequestDraft; currentStep?: number | string }) {
+    const emergency = restoreEmergencyAnswer(draft.data);
+    const restoredData = stripHelpRequestContact(draft.data as Record<string, unknown>);
+    setForm((current) => ({ ...current, ...restoredData, reporterName: "", reporterPhone: "", reporterEmail: "", emergencyAnswer: emergency.answer, emergencyAnswerSelected: emergency.selected }));
+    const restoredStep = emergency.selected
+      ? restoreHelpRequestStep(typeof draft.currentStep === "number" ? draft.currentStep : 1)
+      : 1;
+    setScreen(screenForStep[restoredStep]);
+  }
+
+  function resumeAvailableDraft() {
+    if (formDraft.storedDraft) {
+      const draft = formDraft.resume();
+      if (draft) restore(draft);
+      return;
+    }
+    if (previousFormDraft.storedDraft) {
+      const draft = previousFormDraft.resume();
+      previousFormDraft.clear();
+      if (draft) restore(draft);
+      return;
+    }
+    if (legacyFormDraft.storedDraft) {
+      const draft = legacyFormDraft.resume();
+      legacyFormDraft.clear();
+      if (draft) restore(draft);
+    }
+  }
+
   function locate() { manualMapSelectionRef.current = false; setLocationFallback(false); setLocationMessage("Ustalam przybliżoną lokalizację…"); if (!navigator.geolocation) { setLocationMessage(undefined); setLocationFallback(true); return; } navigator.geolocation.getCurrentPosition((position) => { setForm((current) => ({ ...current, locationMode: "map", latitude: position.coords.latitude, longitude: position.coords.longitude, locationAccuracy: position.coords.accuracy })); setLocationMessage(undefined); setScreen(8); }, () => { if (!manualMapSelectionRef.current) { setLocationMessage(undefined); setLocationFallback(true); } }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }); }
   function next() { setError(undefined); if (screen === 1) { if (!canContinueFromEmergency(form.emergencyAnswer)) return setError("Wybierz odpowiedź, aby przejść dalej."); setScreen(2); return; } if (screen === 3) { if (!hasLocation) return setError("Wpisz adres lub opisz, gdzie znajduje się osoba."); setScreen(5); return; } if (screen === 4) { if (!hasLocation) return setError("Wskaż przybliżone miejsce na mapie."); setScreen(5); return; } if (screen === 5) { if (form.needs.length === 0) return setError("Wybierz co najmniej jedną rzecz, która budzi Twój niepokój."); setScreen(6); return; } if (screen === 6) { if (form.description.trim().length < 10) return setError("Opisz krótko sytuację (co najmniej 10 znaków)."); setScreen(7); } }
   function back() { setError(undefined); setScreen((current) => current === 8 ? 2 : current === 7 ? 6 : current === 6 ? 5 : current === 5 ? (form.locationMode === "address" ? 3 : 4) : current === 4 || current === 3 ? 2 : 1); }
-  async function submit() { if (sending) return; setSending(true); setError(undefined); try { const response = await fetch("/api/help-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emergencyAnswer: form.emergencyAnswer, urgency: form.emergencyAnswer === "YES" ? "IMMEDIATE" : "UNKNOWN", needs: form.needs, description: form.description, addressText: [form.addressText, form.locationDescription].filter(Boolean).join(" · ") || undefined, latitude: form.latitude, longitude: form.longitude, locationAccuracy: form.locationAccuracy, reporterName: form.reporterName, reporterPhone: form.reporterPhone, reporterEmail: form.reporterEmail, honeypot: "" }) }); if (!response.ok) throw new Error("SUBMIT_FAILED"); formDraft.clear(); previousFormDraft.clear(); legacyFormDraft.clear(); setSent(true); } catch { setError("Nie udało się przekazać informacji. Spróbuj ponownie."); } finally { setSending(false); } }
+  async function submit() {
+    if (sending) return;
+    const contactValidation = validateHelpRequestContact({ reporterName: form.reporterName, reporterPhone: form.reporterPhone, reporterEmail: form.reporterEmail });
+    if (!contactValidation.ok) {
+      setShowContact(true);
+      setError(contactValidation.reason);
+      return;
+    }
+    setSending(true);
+    setError(undefined);
+    try {
+      const response = await fetch("/api/help-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emergencyAnswer: form.emergencyAnswer, urgency: form.emergencyAnswer === "YES" ? "IMMEDIATE" : "UNKNOWN", needs: form.needs, description: form.description, addressText: [form.addressText, form.locationDescription].filter(Boolean).join(" · ") || undefined, latitude: form.latitude, longitude: form.longitude, locationAccuracy: form.locationAccuracy, reporterName: form.reporterName, reporterPhone: form.reporterPhone, reporterEmail: form.reporterEmail, honeypot: "" }) });
+      if (!response.ok) {
+        setError(await responseErrorMessage(response));
+        return;
+      }
+      formDraft.clear(); previousFormDraft.clear(); legacyFormDraft.clear(); setSent(true);
+    } catch {
+      setError("Nie udało się połączyć z Dobrą Mapą. Sprawdź połączenie z internetem i spróbuj ponownie.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   if (sent) return <GuidedFlowShell step={8} total={8} onBack={() => undefined} canGoBack={false}><section className="guided-flow-result" aria-live="polite"><div className="guided-flow-result-icon"><Check aria-hidden="true" size={26} /></div><h1>Informacja została przekazana</h1><p>Informacja została zapisana i trafiła do kolejki weryfikacji. Dobra Mapa nie powiadamia automatycznie służb i nie gwarantuje interwencji ani czasu reakcji.</p><p>Jeśli sytuacja stanie się nagła lub pojawi się bezpośrednie zagrożenie życia albo zdrowia, <a href="tel:112">zadzwoń pod 112</a>.</p><div className="guided-flow-result-actions"><Link href="/pomagam">Wróć do Pomagam</Link><Link href="/szukam">Znajdź pomoc dla tej osoby</Link></div></section></GuidedFlowShell>;
-  if (isTerminalEmergency(form.emergencyAnswer)) return <GuidedFlowShell step={1} total={8} onBack={() => { update("emergencyAnswer", null); update("emergencyAnswerSelected", false); }} canGoBack><section className="guided-flow-question" aria-live="assertive"><p className="guided-flow-eyebrow">Najpierw bezpieczeństwo</p><h1 ref={headingRef} tabIndex={-1}>Zadzwoń pod 112.</h1><p>Jeśli ktoś jest w bezpośrednim zagrożeniu życia lub zdrowia, zadzwoń teraz. Dobra Mapa nie zastępuje wezwania pomocy.</p><a className="guided-flow-primary guided-flow-emergency" href="tel:112">Zadzwoń 112</a><button type="button" className="guided-flow-secondary" onClick={() => { update("emergencyAnswer", null); update("emergencyAnswerSelected", false); }}>Kontynuuj przekazywanie informacji</button></section></GuidedFlowShell>;
+  if (isTerminalEmergency(form.emergencyAnswer)) return <GuidedFlowShell step={1} total={8} onBack={() => undefined} canGoBack><section className="guided-flow-question" aria-live="assertive"><p className="guided-flow-eyebrow">Najpierw bezpieczeństwo</p><h1 ref={headingRef} tabIndex={-1}>Zadzwoń pod 112.</h1><p>Jeśli ktoś jest w bezpośrednim zagrożeniu życia lub zdrowia, zadzwoń teraz. Dobra Mapa nie zastępuje wezwania pomocy.</p><a className="guided-flow-primary guided-flow-emergency" href="tel:112">Zadzwoń 112</a><button type="button" className="guided-flow-secondary" onClick={resetEmergencyAnswer}>Kontynuuj przekazywanie informacji</button></section></GuidedFlowShell>;
 
   let content: ReactNode;
-  if (screen === 1) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Bezpieczeństwo</p><h1 ref={headingRef} tabIndex={-1}>Czy ktoś jest teraz w bezpośrednim zagrożeniu życia lub zdrowia?</h1><p>Jeśli tak, najpierw zadzwoń pod 112. Ten formularz nie zastępuje pomocy ratunkowej.</p><div className="guided-flow-choices"><Choice tone="danger" selected={isTerminalEmergency(form.emergencyAnswer)} onClick={() => update("emergencyAnswer", "YES")}>Tak — ktoś jest w bezpośrednim zagrożeniu</Choice><Choice selected={form.emergencyAnswer === "NO"} onClick={() => { update("emergencyAnswer", "NO"); window.setTimeout(() => setScreen(2), 180); }}>Nie</Choice><Choice selected={form.emergencyAnswer === "UNKNOWN"} onClick={() => { update("emergencyAnswer", "UNKNOWN"); window.setTimeout(() => setScreen(2), 180); }}>Nie wiem</Choice></div></section>;
+  if (screen === 1) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Bezpieczeństwo</p><h1 ref={headingRef} tabIndex={-1}>Czy ktoś jest teraz w bezpośrednim zagrożeniu życia lub zdrowia?</h1><p>Jeśli tak, najpierw zadzwoń pod 112. Ten formularz nie zastępuje pomocy ratunkowej.</p><div className="guided-flow-choices"><Choice tone="danger" selected={isTerminalEmergency(form.emergencyAnswer)} onClick={() => selectEmergencyAnswer("YES")}>Tak — ktoś jest w bezpośrednim zagrożeniu</Choice><Choice selected={form.emergencyAnswer === "NO"} onClick={() => { selectEmergencyAnswer("NO"); window.setTimeout(() => setScreen(2), 180); }}>Nie</Choice><Choice selected={form.emergencyAnswer === "UNKNOWN"} onClick={() => { selectEmergencyAnswer("UNKNOWN"); window.setTimeout(() => setScreen(2), 180); }}>Nie wiem</Choice></div></section>;
   else if (screen === 2) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Lokalizacja</p><h1 ref={headingRef} tabIndex={-1}>Jak możesz wskazać miejsce?</h1><p>Wybierz najprostszy sposób. Nie musisz znać dokładnego adresu.</p>{locationFallback ? <div className="guided-flow-fallback"><p>Nie udało się pobrać lokalizacji.</p><Choice onClick={() => { setLocationFallback(false); update("locationMode", "address"); setScreen(3); }}>Wpiszę adres</Choice><Choice onClick={() => { setLocationFallback(false); update("locationMode", "map"); setScreen(4); }}>Wskażę miejsce na mapie</Choice></div> : <div className="guided-flow-choices"><Choice selected={form.locationMode === "address"} onClick={() => { setLocationMessage(undefined); update("locationMode", "address"); setScreen(3); }}>Wpiszę adres lub opis miejsca</Choice><Choice selected={form.locationMode === "map"} onClick={() => { setLocationMessage(undefined); update("locationMode", "map"); setScreen(4); }}>Wskażę przybliżone miejsce na mapie</Choice><button type="button" className="guided-flow-choice guided-flow-choice-action" onClick={locate}><Crosshair aria-hidden="true" size={20} /> Użyję mojej lokalizacji</button></div>}{locationMessage ? <p className="guided-flow-note" role="status">{locationMessage}</p> : null}</section>;
   else if (screen === 3) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Lokalizacja</p><h1 ref={headingRef} tabIndex={-1}>Gdzie to jest?</h1><p>Podaj adres albo punkt orientacyjny. Przybliżenie wystarczy.</p><label className="guided-flow-field"><span className="sr-only">Adres lub punkt orientacyjny</span><textarea value={form.addressText} onChange={(event) => update("addressText", event.target.value)} placeholder="Np. klatka schodowa przy ul. Piotrkowskiej 120, okolice dworca, park..." maxLength={500} /></label></section>;
   else if (screen === 4) content = <section className="guided-flow-question guided-flow-map-screen"><p className="guided-flow-eyebrow">LOKALIZACJA</p><h1 ref={headingRef} tabIndex={-1}>Wskaż miejsce na mapie</h1><p>Nie musisz znać dokładnego adresu. Zaznacz przybliżone miejsce.</p><div className="guided-flow-map-picker"><LocationMap position={form.latitude !== undefined && form.longitude !== undefined ? [form.latitude, form.longitude] : undefined} onPick={(position) => { manualMapSelectionRef.current = true; update("latitude", position[0]); update("longitude", position[1]); setLocationMessage("Wybrano przybliżone miejsce."); }} /></div>{locationMessage ? <p className="guided-flow-note" role="status">{locationMessage}</p> : null}</section>;
   else if (screen === 5) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Sytuacja</p><h1 ref={headingRef} tabIndex={-1}>Co budzi Twój niepokój?</h1><p>Zaznacz wszystko, co pasuje. Możesz wybrać więcej niż jedną odpowiedź.</p><fieldset className="guided-flow-choices guided-flow-checks"><legend className="sr-only">Wybierz, co pasuje do sytuacji</legend>{needOrder.slice(0, showMoreNeeds ? needOrder.length : 5).map((need) => <label key={need} className={`guided-flow-choice ${form.needs.includes(need) ? "is-selected" : ""}`}><input type="checkbox" checked={form.needs.includes(need)} onChange={() => update("needs", form.needs.includes(need) ? form.needs.filter((item) => item !== need) : [...form.needs, need])} />{helpRequestNeedLabels[need]}<span aria-hidden="true" className="guided-flow-choice-mark">{form.needs.includes(need) ? "✓" : "○"}</span></label>)}</fieldset>{needOrder.length > 5 ? <button type="button" className="guided-flow-inline-action" onClick={() => setShowMoreNeeds((visible) => !visible)}>{showMoreNeeds ? "Pokaż mniej możliwości" : "Pokaż więcej możliwości"}</button> : null}</section>;
   else if (screen === 6) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Opis</p><h1 ref={headingRef} tabIndex={-1}>Co warto wiedzieć o sytuacji?</h1><p>Napisz krótko tylko to, co pomoże ją zrozumieć i odnaleźć miejsce.</p><label className="guided-flow-field"><span className="sr-only">Opis sytuacji</span><textarea value={form.description} onChange={(event) => update("description", event.target.value)} maxLength={5000} placeholder="Opisz, co zauważyłeś." /><span className="guided-flow-counter">{form.description.length}/5000</span></label><p className="guided-flow-note">Nie podawaj imienia ani innych danych osoby, jeśli nie są potrzebne.</p></section>;
-  else if (screen === 7) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Gotowe do przekazania</p><h1 ref={headingRef} tabIndex={-1}>Sprawdź i przekaż informację</h1><div className="guided-flow-summary"><div><span>Miejsce</span><strong>{form.addressText || form.locationDescription || (form.latitude !== undefined ? "Wskazano przybliżone miejsce na mapie" : "Nie wskazano")}</strong></div><div><span>Sytuacja</span><strong>{summaryNeeds.join(" · ") || "Nie określono"}</strong></div></div><button type="button" className="guided-flow-inline-action" aria-expanded={showContact} onClick={() => setShowContact((visible) => !visible)}>{showContact ? "Ukryj możliwość kontaktu" : "Opcjonalnie: zostaw kontakt"}</button>{showContact ? <div className="guided-flow-contact"><p>Możesz przekazać informację anonimowo. Kontakt może pomóc, jeśli potrzebne będą dodatkowe informacje.</p><label className="guided-flow-field">Imię<input value={form.reporterName} onChange={(event) => update("reporterName", event.target.value)} maxLength={160} /></label><label className="guided-flow-field">Telefon<input type="tel" value={form.reporterPhone} onChange={(event) => update("reporterPhone", event.target.value)} maxLength={50} /></label><label className="guided-flow-field">E-mail<input type="email" value={form.reporterEmail} onChange={(event) => update("reporterEmail", event.target.value)} maxLength={320} /></label></div> : null}<p className="guided-flow-note"><MapPin aria-hidden="true" size={15} /> Prywatne zgłoszenie — nie publikujemy treści ani dokładnej lokalizacji.</p></section>;
+  else if (screen === 7) content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Gotowe do przekazania</p><h1 ref={headingRef} tabIndex={-1}>Sprawdź i przekaż informację</h1><HelpRequestReview emergencyAnswer={form.emergencyAnswer} addressText={form.addressText} locationDescription={form.locationDescription} latitude={form.latitude} needs={form.needs} description={form.description} reporterName={form.reporterName} reporterPhone={form.reporterPhone} reporterEmail={form.reporterEmail} /><button type="button" className="guided-flow-inline-action" aria-expanded={showContact} onClick={() => setShowContact((visible) => !visible)}>{showContact ? "Ukryj możliwość kontaktu" : "Opcjonalnie: zostaw kontakt"}</button>{showContact ? <div className="guided-flow-contact"><p>Możesz przekazać informację anonimowo. Jeśli zostawiasz kontakt, podaj telefon lub e-mail. Samo imię nie wystarczy do kontaktu.</p><label className="guided-flow-field">Imię<input value={form.reporterName} onChange={(event) => update("reporterName", event.target.value)} maxLength={160} autoComplete="name" /></label><label className="guided-flow-field">Telefon<input type="tel" value={form.reporterPhone} onChange={(event) => update("reporterPhone", event.target.value)} maxLength={50} autoComplete="tel" /></label><label className="guided-flow-field">E-mail<input type="email" value={form.reporterEmail} onChange={(event) => update("reporterEmail", event.target.value)} maxLength={320} autoComplete="email" /></label></div> : null}</section>;
   else content = <section className="guided-flow-question"><p className="guided-flow-eyebrow">Lokalizacja</p><h1 ref={headingRef} tabIndex={-1}>Czy to jest właściwa okolica?</h1><p>Sprawdź punkt na mapie. Możesz wskazać inne miejsce, jeśli trzeba.</p><div className="guided-flow-map-picker"><LocationMap position={form.latitude !== undefined && form.longitude !== undefined ? [form.latitude, form.longitude] : undefined} onPick={(position) => { update("latitude", position[0]); update("longitude", position[1]); }} /></div><div className="guided-flow-choice-actions"><button type="button" className="guided-flow-secondary" onClick={() => setScreen(4)}>Wskaż inne miejsce</button><button type="button" className="guided-flow-primary" onClick={() => setScreen(5)}>Tak, użyj tej lokalizacji <ArrowRight aria-hidden="true" size={18} /></button></div></section>;
 
   const showNext = screen === 1 || screen === 3 || screen === 4 || screen === 5 || screen === 6 || screen === 7;
-  const nextDisabled = (screen === 1 && !canContinueFromEmergency(form.emergencyAnswer)) || (screen === 4 && form.latitude === undefined);
-  const nextLabel = screen === 4 ? "Potwierdź miejsce" : screen === 7 ? "Przekaż informację" : "Dalej";
+  const nextDisabled = (screen === 1 && !canContinueFromEmergency(form.emergencyAnswer)) || (screen === 4 && form.latitude === undefined) || sending;
+  const nextLabel = screen === 4 ? "Potwierdź miejsce" : screen === 7 ? (sending ? "Przekazuję…" : "Przekaż informację") : "Dalej";
   const nextAction = screen === 7 ? submit : next;
-  return <GuidedFlowShell step={screen} total={8} onBack={back} canGoBack={screen > 1}><div className="guided-flow-draft"><FormDraftResume draft={availableDraft} label="Przekaż informację" onResume={() => { const draft = formDraft.storedDraft ?? previousFormDraft.storedDraft ?? legacyFormDraft.storedDraft; if (draft) restore(draft); }} onDiscard={() => { formDraft.discard(); previousFormDraft.discard(); legacyFormDraft.discard(); setForm(initialState); setScreen(1); }} /></div>{content}{error ? <p className="guided-flow-error" role="alert">{error}</p> : null}{showNext ? <div className="guided-flow-next"><button type="button" className="guided-flow-primary" onClick={nextAction} disabled={nextDisabled}>{screen === 7 ? <Send aria-hidden="true" size={17} /> : <ArrowRight aria-hidden="true" size={18} />} {nextLabel}</button></div> : null}</GuidedFlowShell>;
+  return <GuidedFlowShell step={screen} total={8} onBack={back} canGoBack={screen > 1}><div className="guided-flow-draft"><FormDraftResume draft={availableDraft} label="Przekaż informację" onResume={resumeAvailableDraft} onDiscard={() => { formDraft.discard(); previousFormDraft.discard(); legacyFormDraft.discard(); setForm(initialState); setScreen(1); }} /></div>{content}{error ? <p className="guided-flow-error" role="alert">{error}</p> : null}{showNext ? <div className="guided-flow-next"><button type="button" className="guided-flow-primary" onClick={nextAction} disabled={nextDisabled}>{screen === 7 ? <Send aria-hidden="true" size={17} /> : <ArrowRight aria-hidden="true" size={18} />} {nextLabel}</button></div> : null}</GuidedFlowShell>;
 }

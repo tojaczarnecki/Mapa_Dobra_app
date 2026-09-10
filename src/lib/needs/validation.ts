@@ -41,6 +41,7 @@ export function validateNeedInput(input: unknown): { ok: true; data: NeedInput }
   if (requirements === null || locationNote === null) return { ok: false, message: "Sprawdź długość dodatkowych informacji." };
   const signupDeadline = value.signupDeadline ? date(value.signupDeadline) : null;
   if (value.signupDeadline && !signupDeadline) return { ok: false, message: "Sprawdź termin zgłoszeń." };
+  if (signupDeadline && signupDeadline > endsAt) return { ok: false, message: "Termin zgłoszeń nie może przypadać po zakończeniu potrzeby." };
   return { ok: true, data: { title, description, peopleNeeded, startsAt, endsAt, signupDeadline, experienceRequired: value.experienceRequired === true || value.experienceRequired === "true", requirements: requirements ?? null, locationNote: locationNote ?? null } };
 }
 
@@ -70,6 +71,12 @@ export function shouldReopenFilledNeed(needStatus: string, previousResponseStatu
   return needStatus === "FILLED" && previousResponseStatus === "CONFIRMED" && nextResponseStatus === "NEW" && confirmedCount < peopleNeeded;
 }
 
+export function canTransitionVolunteerResponse(responseStatus: string, nextStatus: string) {
+  if (responseStatus === "NEW") return nextStatus === "CONFIRMED" || nextStatus === "DECLINED";
+  if (responseStatus === "CONFIRMED" || responseStatus === "DECLINED") return nextStatus === "NEW";
+  return false;
+}
+
 export function canDecideVolunteerResponse(needStatus: string, responseStatus: string, nextStatus: string) {
   return needStatus === "PUBLISHED" && responseStatus === "NEW" && (nextStatus === "CONFIRMED" || nextStatus === "DECLINED");
 }
@@ -88,4 +95,10 @@ export function needHasAvailableCapacity(peopleNeeded: number, confirmedCount: n
 
 export function statusAfterConfirmedResponse(needStatus: string, peopleNeeded: number, confirmedCount: number) {
   return needStatus === "PUBLISHED" && !needHasAvailableCapacity(peopleNeeded, confirmedCount) ? "FILLED" : needStatus;
+}
+
+export function statusAfterCapacityEdit(needStatus: string, peopleNeeded: number, confirmedCount: number) {
+  if (confirmedCount > peopleNeeded) return { ok: false as const, reason: "BELOW_CONFIRMED" as const };
+  if (needStatus === "PUBLISHED" && confirmedCount === peopleNeeded) return { ok: true as const, status: "FILLED" as const };
+  return { ok: true as const, status: needStatus };
 }

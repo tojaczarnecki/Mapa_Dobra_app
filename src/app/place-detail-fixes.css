@@ -1,0 +1,7 @@
+/* Final safeguard for the desktop place-detail action rail. The institutional stylesheet intentionally resets utility-group inline padding to zero, so this scoped rule must win regardless of stylesheet chunk order. */
+@media (min-width: 1024px) {
+  .place-detail-page .place-detail-utility-rail .place-detail-utility-group {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+}

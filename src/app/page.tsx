@@ -36,7 +36,7 @@ export default function Home() {
         </div>
         <div className="home-primary-actions">
         <PrimaryActionCard
-          href="/szukam?tryb=guided"
+          href="/szukam"
           title="Szukam pomocy"
           description="Jedzenie, nocleg, zdrowie…"
           variant="help"
@@ -48,13 +48,13 @@ export default function Home() {
           variant="activate"
         />
         <PrimaryActionCard
-          href="/mapa?otwarte=1&lokalizacja=moja"
+          href="/szukaj?otwarte=1&lokalizacja=moja&view=map"
           title="Pomoc dostępna teraz"
           description="Zobacz miejsca otwarte w tej chwili."
           variant="now"
         />
         <PrimaryActionCard
-          href="/szukam"
+          href="/szukam?tryb=guided"
           title="Nie wiem, czego potrzebuję"
           description=""
           variant="unknown"

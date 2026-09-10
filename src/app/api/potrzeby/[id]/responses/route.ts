@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getRequestAddress, consumeSubmissionRateLimit } from "@/lib/submissions/rate-limit";
 import { readSubmissionBody } from "@/lib/submissions/http";
 import { validateVolunteerResponse, remainingPeople } from "@/lib/needs/validation";
+import { resolveNeedSignupAvailability } from "@/lib/needs/availability";
 import { hasDuplicateVolunteerResponse, isResponseFormTooFast, TURNSTILE_ERROR_MESSAGE, verifyTurnstileToken } from "@/lib/needs/anti-spam";
 import { publicWriteBlockedResponse } from "@/lib/system/public-guard";
 
@@ -25,8 +26,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   try {
     await prisma.$transaction(async (transaction) => {
-      const need = await transaction.organizationNeed.findFirst({ where: { id, type: "VOLUNTEERS", status: "PUBLISHED", endsAt: { gte: new Date() } }, include: { responses: { where: { status: "CONFIRMED" }, select: { id: true } } } });
+      const now = new Date();
+      const need = await transaction.organizationNeed.findFirst({
+        where: { id, type: "VOLUNTEERS" },
+        include: { responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
+      });
       if (!need) throw new Error("NEED_NOT_ACTIVE");
+
+      // Server-side enforcement is authoritative: a stale page or a handcrafted
+      // request cannot bypass publication/end/deadline rules.
+      const signup = resolveNeedSignupAvailability(need, now);
+      if (!signup.open) {
+        if (signup.reason === "SIGNUP_DEADLINE_PASSED") throw new Error("SIGNUP_CLOSED");
+        throw new Error("NEED_NOT_ACTIVE");
+      }
+
       if (remainingPeople(need.peopleNeeded, need.responses.length) < 1) throw new Error("NEED_FULL");
       const activeResponses = await transaction.volunteerNeedResponse.findMany({ where: { needId: need.id, status: { in: ["NEW", "CONFIRMED"] } }, select: { phone: true, email: true } });
       if (hasDuplicateVolunteerResponse(activeResponses, validation.data)) throw new Error("DUPLICATE_RESPONSE");
@@ -34,6 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }, { isolationLevel: "Serializable" });
     return NextResponse.json({ ok: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof Error && error.message === "SIGNUP_CLOSED") return NextResponse.json({ ok: false, message: "Zapisy do tej potrzeby zostały zakończone." }, { status: 409 });
     if (error instanceof Error && error.message === "NEED_NOT_ACTIVE") return NextResponse.json({ ok: false, message: "Ta potrzeba nie jest już aktywna." }, { status: 404 });
     if (error instanceof Error && error.message === "NEED_FULL") return NextResponse.json({ ok: false, message: "Mamy już komplet osób." }, { status: 409 });
     if (error instanceof Error && error.message === "DUPLICATE_RESPONSE") return NextResponse.json({ ok: false, message: "Wygląda na to, że masz już zgłoszenie do tej potrzeby." }, { status: 409 });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Accessibility, ArrowLeft, ArrowRight, Clock3, Dog, Flag, Globe, HandHeart, HeartHandshake, HeartPulse, Mail, MapPin, Navigation, Phone, Shirt, ShowerHead, Toilet, Utensils, WashingMachine } from "lucide-react";
 import type { DetailListItem, PlaceDetail } from "@/data/demo-place-details";
+import type { PlaceStatus } from "@/data/demo-places";
 import { AccommodationAvailability } from "./accommodation-availability";
 import { DetailSection } from "./detail-section";
 import { MapPreview } from "./map-preview";
@@ -13,12 +14,20 @@ import { VerificationInfo } from "./verification-info";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { PublicActionLink } from "@/components/places/public-action-link";
 import { directionsHref, telephoneHref } from "@/lib/places/actions";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 
 type PlaceDetailViewProps = {
   place: PlaceDetail;
   backHref?: string;
   backLabel?: string;
 };
+
+function detailStatusToPlaceStatus(place: PlaceDetail): PlaceStatus {
+  if (place.status.tone === "open") return "open";
+  if (place.status.tone === "closed") return "closed";
+  if (place.status.tone === "openToday") return "openToday";
+  return place.verification.tone === "needsConfirmation" ? "needsConfirmation" : "unknownHours";
+}
 
 function TagList({ items }: { items: string[] }) {
   return (
@@ -67,15 +76,16 @@ function OnSiteSection({ services, accessibility }: { services: string[]; access
 }
 
 function HowToReach({ place }: { place: PlaceDetail }) {
-  const routeHref = place.profileKind === "MOBILE_SERVICE" ? undefined : directionsHref(place);
-  return <DetailSection title="Jak dotrzeć" className="place-detail-reach-section place-detail-zone-navigation">
-    <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:items-center">
+  const isMobileService = place.profileKind === "MOBILE_SERVICE";
+  const routeHref = isMobileService ? undefined : directionsHref(place);
+  return <DetailSection title={isMobileService ? "Baza organizatora" : "Jak dotrzeć"} className="place-detail-reach-section place-detail-zone-navigation">
+    <div className={isMobileService ? "min-w-0" : "grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:items-center"}>
       <div className="min-w-0">
-        <p className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground"><MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} /><span className="min-w-0 break-words">{place.name}<br />{place.profileKind === "MOBILE_SERVICE" ? "Baza / organizator: " : ""}{place.address}</span></p>
-        {place.profileKind === "MOBILE_SERVICE" ? <p className="mt-3 text-sm font-semibold leading-6 text-muted-foreground">To adres organizacyjny, nie miejsce postoju autobusu.</p> : null}
+        <p className="flex min-w-0 items-start gap-2 text-sm font-semibold leading-6 text-foreground"><MapPin aria-hidden="true" className="mt-0.5 shrink-0 text-brand-strong" size={18} /><span className="min-w-0 break-words">{isMobileService ? "Baza / organizator: " : `${place.name}\n`}{place.address}</span></p>
+        {isMobileService ? <p className="mt-3 text-sm font-semibold leading-6 text-muted-foreground">To adres organizacyjny, nie miejsce postoju. Aktualne lokalizacje znajdziesz w rozkładzie postojów powyżej.</p> : null}
         {routeHref ? <PublicActionLink href={routeHref} variant="secondary" journey="search" system external icon={<Navigation aria-hidden="true" size={17} />} className="mt-4">Wyznacz trasę</PublicActionLink> : null}
       </div>
-      <MapPreview place={place} />
+      {!isMobileService ? <MapPreview place={place} /> : null}
     </div>
   </DetailSection>;
 }
@@ -209,9 +219,27 @@ function StandardPlaceSections({ place }: { place: PlaceDetail }) {
 
 function MobilePlaceSections({ place }: { place: PlaceDetail }) {
   if (!place.mobile) return null;
-  return <>
-    <DetailSection title="Gdzie i o której spotkasz autobus?"><ul id="mobilna-trasa" className="divide-y divide-border">{place.mobile.stops.flatMap((stop) => stop.schedules.map((schedule, index) => <li key={`${stop.name}-${stop.address}-${schedule}-${index}`} className="py-3 first:pt-0 last:pb-0"><div className="flex items-baseline gap-4"><strong className="min-w-16 text-sm font-extrabold text-brand-strong">{schedule}</strong><span className="min-w-0 text-sm font-semibold text-foreground">{stop.name}</span></div>{stop.address && stop.address !== stop.name ? <p className="mt-1 pl-20 text-xs font-semibold text-muted-foreground">{stop.address}</p> : null}{stop.note ? <p className="mt-1 pl-20 text-xs text-muted-foreground">{stop.note}</p> : null}</li>))}</ul></DetailSection>
-  </>;
+  const schedules = place.mobile.stops.flatMap((stop) => stop.schedules.map((schedule, index) => ({ stop, schedule, index })));
+
+  return <DetailSection title="Rozkład postojów">
+    <p className="mb-3 text-sm font-semibold leading-6 text-muted-foreground">Rozkład pokazuje planowane dni i godziny. To nie jest śledzenie pojazdu na żywo.</p>
+    {schedules.length ? (
+      <ul id="mobilna-trasa" className="divide-y divide-border">
+        {schedules.map(({ stop, schedule, index }) => (
+          <li key={`${stop.name}-${stop.address}-${schedule}-${index}`} className="py-3 first:pt-0 last:pb-0">
+            <div className="grid min-w-0 gap-1 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:gap-4">
+              <strong className="min-w-0 text-sm font-extrabold text-brand-strong">{schedule}</strong>
+              <span className="min-w-0 text-sm font-semibold text-foreground">{stop.name}</span>
+            </div>
+            {stop.address && stop.address !== stop.name ? <p className="mt-1 text-xs font-semibold text-muted-foreground sm:pl-[13rem]">{stop.address}</p> : null}
+            {stop.note ? <p className="mt-1 text-xs text-muted-foreground sm:pl-[13rem]">{stop.note}</p> : null}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <StatusIndicator status="unknown">Brak opublikowanego rozkładu postojów. Potwierdź trasę u organizatora przed wyjściem.</StatusIndicator>
+    )}
+  </DetailSection>;
 }
 
 function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
@@ -262,7 +290,6 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
         </DetailSection>
       ) : null}
 
-
       {place.description.length ? <DetailSection title="O miejscu">
         <Description paragraphs={place.description} />
       </DetailSection> : null}
@@ -272,11 +299,33 @@ function AccommodationPlaceSections({ place }: { place: PlaceDetail }) {
 
 function ActionRail({ place, className = "" }: { place: PlaceDetail; className?: string }) {
   const callHref = telephoneHref(place.contact.phone);
-  const routeHref = place.profileKind === "MOBILE_SERVICE" ? undefined : directionsHref(place);
+  const isMobileService = place.profileKind === "MOBILE_SERVICE";
+  const routeHref = isMobileService ? undefined : directionsHref(place);
   const needsConfirmation = place.status.tone === "unknown" || place.verification.tone !== "verified" || /brak potwierdzonych|wymagają potwierdzenia/iu.test(place.status.todayHours);
   const closed = place.status.tone === "closed";
-  const primary = place.profileKind === "MOBILE_SERVICE"
-    ? { href: "#mobilna-trasa", label: "Zobacz postoje", icon: <Navigation aria-hidden="true" size={17} /> }
+  const mobileSeasonLabel = place.mobile?.season ? `${place.mobile.season.start} – ${place.mobile.season.end}` : undefined;
+  const mobileStatus = isMobileService
+    ? resolvePublicPlaceStatus({
+        status: detailStatusToPlaceStatus(place),
+        freshnessWarning: place.verification.tone !== "verified",
+        profileKind: place.profileKind,
+        mobileSeasonLabel,
+        mobileSeasonActive: place.mobile?.season?.isActiveNow,
+      })
+    : undefined;
+  const mobileUnavailable = isMobileService && mobileStatus?.publicStatus === "absent";
+  const mobileUnknown = isMobileService && mobileStatus?.publicStatus === "unknown";
+  const mobileCanUseSchedule = isMobileService && mobileStatus?.publicStatus === "confirmed";
+  const primary = isMobileService
+    ? closed || mobileUnavailable
+      ? { href: "/szukaj?otwarte=1", label: "Zobacz inne miejsca", icon: <ArrowRight aria-hidden="true" size={17} /> }
+      : mobileUnknown && callHref
+        ? { href: callHref, label: "Zadzwoń i potwierdź", icon: <Phone aria-hidden="true" size={17} /> }
+        : mobileUnknown
+          ? { href: "/szukaj", label: "Zobacz inne miejsca", icon: <ArrowRight aria-hidden="true" size={17} /> }
+          : mobileCanUseSchedule
+            ? { href: "#mobilna-trasa", label: "Zobacz rozkład postojów", icon: <Navigation aria-hidden="true" size={17} /> }
+            : null
     : closed
       ? { href: "/szukaj?otwarte=1", label: "Zobacz miejsca otwarte teraz", icon: <ArrowRight aria-hidden="true" size={17} /> }
       : needsConfirmation && callHref
@@ -286,20 +335,34 @@ function ActionRail({ place, className = "" }: { place: PlaceDetail; className?:
           : callHref
             ? { href: callHref, label: "Zadzwoń", icon: <Phone aria-hidden="true" size={17} /> }
             : null;
+  const heading = isMobileService
+    ? closed
+      ? "Teraz niedostępne"
+      : mobileUnavailable
+        ? "Poza sezonem"
+        : mobileUnknown
+          ? "Potwierdź przed wyjściem"
+          : "Sprawdź planowane postoje"
+    : closed
+      ? "Teraz zamknięte"
+      : needsConfirmation
+        ? "Potwierdź przed przyjazdem"
+        : "Otwarte teraz";
+  const statusLine = isMobileService ? mobileStatus?.label : place.status.todayHours;
 
   return <aside className={["place-detail-utility-rail min-w-0 lg:sticky lg:top-24", className].filter(Boolean).join(" ")}>
-    <section className="place-detail-utility-group place-detail-action-rail">
-      <h2 className="text-xl font-extrabold text-foreground">{closed ? "Teraz zamknięte" : needsConfirmation ? "Potwierdź przed przyjazdem" : "Otwarte teraz"}</h2>
-      {place.status.todayHours ? <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground"><Clock3 aria-hidden="true" className="mr-1 inline text-brand-strong" size={16} />{place.status.todayHours}</p> : null}
+    <section className="place-detail-utility-group place-detail-action-rail px-5">
+      <h2 className="text-xl font-extrabold text-foreground">{heading}</h2>
+      {statusLine ? <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground"><Clock3 aria-hidden="true" className="mr-1 inline text-brand-strong" size={16} />{statusLine}</p> : null}
       <div className="mt-3 grid min-w-0 gap-1.5">
-        {primary && primary.label !== "Zobacz miejsca otwarte teraz" ? <PublicActionLink className="place-detail-rail-primary" href={primary.href} variant="primary" journey="search" system external={primary.href.startsWith("http") || primary.href.startsWith("tel:")} icon={primary.icon}>{primary.label}</PublicActionLink> : null}
+        {primary ? <PublicActionLink className="place-detail-rail-primary" href={primary.href} variant="primary" journey="search" system external={primary.href.startsWith("http") || primary.href.startsWith("tel:")} icon={primary.icon}>{primary.label}</PublicActionLink> : null}
         {callHref && primary?.href !== callHref ? <PublicActionLink href={callHref} variant="secondary" icon={<Phone aria-hidden="true" size={17} />}>Zadzwoń</PublicActionLink> : null}
         {closed && routeHref ? <PublicActionLink href={routeHref} variant="secondary" external icon={<Navigation aria-hidden="true" size={17} />}>Wyznacz trasę</PublicActionLink> : null}
-        {place.profileKind !== "MOBILE_SERVICE" ? <PublicActionLink href="#godziny-otwarcia" variant="tertiary" icon={<Clock3 aria-hidden="true" size={17} />} className="place-detail-rail-tertiary">Zobacz godziny</PublicActionLink> : null}
+        {!isMobileService ? <PublicActionLink href="#godziny-otwarcia" variant="tertiary" icon={<Clock3 aria-hidden="true" size={17} />} className="place-detail-rail-tertiary">Zobacz godziny</PublicActionLink> : null}
       </div>
     </section>
-    {place.contact.email || place.contact.website || place.contact.social ? <section className="place-detail-utility-group place-detail-rail-contact"><h2>Kontakt</h2><div className="mt-2 grid gap-1">{place.contact.email ? <a className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-strong" href={`mailto:${place.contact.email}`}><Mail aria-hidden="true" size={16} /><span className="min-w-0 break-words">{place.contact.email}</span></a> : null}{place.contact.website ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.website}><Globe aria-hidden="true" size={16} />Strona internetowa</a> : null}{place.contact.social ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.social}><Globe aria-hidden="true" size={16} />Social media</a> : null}</div></section> : null}
-    <section className="place-detail-utility-group place-detail-rail-report"><Link className="place-detail-tertiary-action touch-target inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground" href={{ pathname: "/zglos-zmiane", query: { place: place.id } }}><Flag aria-hidden="true" size={17} />Zgłoś zmianę lub błąd</Link></section>
+    {place.contact.email || place.contact.website || place.contact.social ? <section className="place-detail-utility-group place-detail-rail-contact px-5"><h2>Kontakt</h2><div className="mt-2 grid gap-1">{place.contact.email ? <a className="touch-target inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-brand-strong" href={`mailto:${place.contact.email}`}><Mail aria-hidden="true" size={16} /><span className="min-w-0 break-words">{place.contact.email}</span></a> : null}{place.contact.website ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.website}><Globe aria-hidden="true" size={16} />Strona internetowa</a> : null}{place.contact.social ? <a className="touch-target inline-flex items-center gap-2 text-sm font-semibold text-brand-strong" href={place.contact.social}><Globe aria-hidden="true" size={16} />Social media</a> : null}</div></section> : null}
+    <section className="place-detail-utility-group place-detail-rail-report px-5"><Link className="place-detail-tertiary-action touch-target inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition hover:text-foreground" href={{ pathname: "/zglos-zmiane", query: { place: place.id } }}><Flag aria-hidden="true" size={17} />Zgłoś zmianę lub błąd</Link></section>
   </aside>;
 }
 
@@ -354,7 +417,7 @@ export function PlaceDetailView({
               <PlaceContact contact={place.contact} className="place-detail-mobile-contact-list" />
             </section>
           ) : null}
-          {place.profileKind !== "MOBILE_SERVICE" ? <HowToReach place={place} /> : null}
+          <HowToReach place={place} />
 
           <VerificationInfo
             verification={place.verification}

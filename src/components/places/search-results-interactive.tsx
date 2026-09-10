@@ -122,13 +122,14 @@ export function SearchResultsInteractive({ places, children, mapView = false, li
             selectedPlaceId={selectedPlaceId}
             onPlaceSelect={(place) => selectPlace(place.id, true)}
             onPlaceDeselect={(placeId) => setSelectedPlaceId((current) => current === placeId ? undefined : current)}
+            returnTo={listHref}
           />
           {mapView && selectedPlace ? (
             <section className="search-results-mobile-selected-place" aria-label="Wybrane miejsce">
               <button type="button" className="search-results-mobile-selected-place-close" aria-label="Zamknij szczegóły miejsca" onClick={() => setSelectedPlaceId(undefined)}>
                 <X aria-hidden="true" size={18} />
               </button>
-              <MapPlacePopup place={selectedPlace} />
+              <MapPlacePopup place={selectedPlace} returnTo={listHref} />
             </section>
           ) : null}
         </div>

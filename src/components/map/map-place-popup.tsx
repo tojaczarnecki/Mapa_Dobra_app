@@ -4,19 +4,24 @@ import Link from "next/link";
 import { ChevronRight, MapPin, Navigation } from "lucide-react";
 import type { MapPlace } from "@/data/demo-map-places";
 import { directionsHref } from "@/lib/places/actions";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 import { mapDetailsHref } from "./map-place-links";
 import styles from "./map.module.css";
 
-function hasDistanceLabel(label: string) {
-  return Boolean(label.trim()) && label !== "Odległość nieznana";
-}
-
 export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?: string }) {
   const detailsHref = mapDetailsHref(place.detailsHref, returnTo);
-  const routeHref = directionsHref(place);
-  const status = place.profileKind === "FOOD_SHARING"
-    ? "Dostęp 24/7 · zawartość zmienna"
-    : place.status.kind === "standard" ? place.status.todayHours : place.status.availabilityLabel;
+  const presentation = place.status.kind === "standard"
+    ? resolvePublicPlaceStatus({
+        status: place.status.status,
+        profileKind: place.profileKind,
+        mobileSeasonLabel: place.mobileSeasonLabel,
+        mobileSeasonActive: place.mobileSeasonActive,
+      })
+    : undefined;
+  const routeAllowed = place.profileKind !== "MOBILE_SERVICE" && !(place.profileKind === "FOOD_SHARING" && presentation?.publicStatus !== "confirmed");
+  const routeHref = routeAllowed ? directionsHref(place) : undefined;
+  const status = presentation?.label ?? (place.status.kind === "accommodation" ? place.status.availabilityLabel : undefined);
+  const mobileBase = place.profileKind === "MOBILE_SERVICE";
 
   return (
     <article className={styles.mapPopupContent}>
@@ -24,12 +29,9 @@ export function MapPlacePopup({ place, returnTo }: { place: MapPlace; returnTo?:
       <p className={styles.mapPopupTypes}>{place.profileKind === "FOOD_SHARING" ? "Lodówka społeczna" : place.helpTypes.join(" • ")}</p>
       <p className={styles.mapPopupAddress}>
         <MapPin aria-hidden="true" size={15} />
-        <span>{place.address}</span>
+        <span>{mobileBase ? "Baza / organizator: " : ""}{place.address}{mobileBase ? " · nie jest to miejsce postoju" : ""}</span>
       </p>
-      <div className={styles.mapPopupMeta}>
-        {hasDistanceLabel(place.distanceLabel) ? <span>{place.distanceLabel}</span> : null}
-        {status ? <span>{status}</span> : null}
-      </div>
+      {status ? <div className={styles.mapPopupMeta}><span>{status}</span></div> : null}
       <div className={styles.mapPopupActions}>
         {routeHref ? <a href={routeHref} target="_blank" rel="noreferrer"><Navigation aria-hidden="true" size={14} />Trasa</a> : null}
         <Link href={detailsHref}>Szczegóły<ChevronRight aria-hidden="true" size={14} /></Link>

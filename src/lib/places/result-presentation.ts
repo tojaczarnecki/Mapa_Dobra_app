@@ -1,4 +1,5 @@
 import type { DemoPlace } from "@/data/demo-places";
+import { resolvePublicPlaceStatus } from "../public/status-presentation.ts";
 import { directionsHref, telephoneHref } from "./actions.ts";
 
 export type ResultPrimaryAction = {
@@ -12,15 +13,27 @@ export function getResultPrimaryAction(place: DemoPlace, detailsHref?: string): 
   const phone = telephoneHref(place.phone);
   const route = directionsHref(place);
   const fallbackDetailsHref = detailsHref ?? `/lodz/${place.categorySlug}/${place.slug}`;
-  const needsConfirmation = place.freshnessWarning || place.status === "unknownHours" || place.status === "needsConfirmation";
-  if (place.profileKind === "FOOD_SHARING") return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
-  if (place.profileKind === "MOBILE_SERVICE") return { href: fallbackDetailsHref, label: "Zobacz postoje", kind: "details" };
+  const presentation = resolvePublicPlaceStatus({
+    status: place.status,
+    freshnessWarning: place.freshnessWarning,
+    profileKind: place.profileKind,
+    mobileSeasonLabel: place.mobileSeasonLabel,
+    mobileSeasonActive: place.mobileSeasonActive,
+  });
 
-  if (needsConfirmation && phone) return { href: phone, label: "Zadzwoń i potwierdź", kind: "call" };
-  if (needsConfirmation) return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
-  if (place.status === "closed") {
+  // Public availability always wins over profile-specific actions.
+  if (presentation.publicStatus === "absent") {
     return { href: "/szukaj?otwarte=1", label: "Zobacz miejsca otwarte teraz", kind: "search" };
   }
+  if (presentation.publicStatus === "unknown" && phone) {
+    return { href: phone, label: "Zadzwoń i potwierdź", kind: "call" };
+  }
+  if (presentation.publicStatus === "unknown") {
+    return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
+  }
+
+  if (place.profileKind === "FOOD_SHARING") return { href: fallbackDetailsHref, label: "Szczegóły", kind: "details" };
+  if (place.profileKind === "MOBILE_SERVICE") return { href: fallbackDetailsHref, label: "Zobacz postoje", kind: "details" };
   if (place.status === "openToday") {
     return { href: fallbackDetailsHref, label: "Zobacz godziny", kind: "details" };
   }

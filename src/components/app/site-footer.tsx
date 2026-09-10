@@ -9,10 +9,10 @@ import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-sta
 
 const findLinks = [
   { href: "/szukaj", label: "Szukaj pomocy" },
-  { href: "/mapa", label: "Mapa" },
+  { href: "/szukaj?view=map", label: "Mapa" },
   { href: "/znajdz-nocleg", label: "Nocleg" },
   { href: "/ulubione", label: "Ulubione" },
-  { href: "/uruchom-pomoc", label: "Uruchom pomoc" },
+  { href: "/uruchom-pomoc", label: "Przekaż informację o sytuacji" },
 ];
 
 const contributeLinks = [
@@ -22,11 +22,9 @@ const contributeLinks = [
 
 const informationLinks = [
   { href: "/polityka-prywatnosci", label: "Polityka prywatności" },
-  { href: "/regulamin", label: "Regulamin" },
   { href: "/dostepnosc", label: "Dostępność" },
-  { href: "/cookies", label: "Cookies" },
+  { href: "/cookies", label: "Cookies i dane urządzenia" },
   { href: "/o-projekcie", label: "O projekcie" },
-  { href: "/kontakt", label: "Kontakt" },
 ];
 
 const footerLinks = [...findLinks, ...contributeLinks, ...informationLinks];

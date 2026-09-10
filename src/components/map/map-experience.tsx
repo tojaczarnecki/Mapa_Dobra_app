@@ -403,8 +403,7 @@ export function MapExperience({
     setNoReferral(intent.filters.noReferral === true);
     setNoDocuments(intent.filters.noDocuments === true);
     setSelectedPlaceId(undefined);
-    if (intent.filters.sort === "distance") handleLocate();
-  }, [handleLocate, intentText, query, resetArea]);
+  }, [intentText, query, resetArea]);
 
   const clearFilters = useCallback(() => {
     resetArea();

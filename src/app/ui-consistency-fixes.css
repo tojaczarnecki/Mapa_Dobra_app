@@ -1,0 +1,254 @@
+/* Final public UI consistency layer.
+   Keep this file last in layout.tsx so route-specific legacy styles cannot
+   reintroduce a different mobile dock or legacy CTA geometry. */
+
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  .mobile-bottom-nav {
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+    width: min(calc(100vw - 1.5rem), 34rem) !important;
+    padding: 0.3rem !important;
+    transform: translateX(-50%) !important;
+    border: 1px solid rgb(255 255 255 / 10%) !important;
+    border-radius: 999px !important;
+    background: #0b2f2a !important;
+    box-shadow: 0 14px 34px rgb(16 42 38 / 20%) !important;
+    overflow: visible !important;
+  }
+
+  .mobile-bottom-nav-inner {
+    max-width: none !important;
+    gap: 0.15rem !important;
+  }
+
+  .mobile-bottom-nav-item,
+  .mobile-bottom-nav-item:hover,
+  .mobile-bottom-nav-item:focus-visible {
+    min-height: 3.35rem !important;
+    padding: 0.4rem 0.25rem !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    color: #f6f5f3 !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    line-height: 1.1 !important;
+    gap: 0.18rem !important;
+  }
+
+  .mobile-bottom-nav-item svg {
+    width: 1.45rem !important;
+    height: 1.45rem !important;
+    stroke-width: 1.8 !important;
+  }
+
+  .mobile-bottom-nav-item-active,
+  .mobile-bottom-nav-item-active:hover,
+  .mobile-bottom-nav-item-active:focus-visible {
+    background: #fff9ea !important;
+    color: #0b4f48 !important;
+  }
+
+  .mobile-bottom-nav-item-active::before {
+    display: none !important;
+  }
+
+  .map-mode-nav {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+  }
+
+  .mobile-nav-safe-content {
+    padding-bottom: calc(7.25rem + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(7.25rem + env(safe-area-inset-bottom));
+  }
+
+  /* Editorial guide cards: one clean stack, no rounded mobile cards. */
+  .guide-scenario-module {
+    display: grid !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+    border: 1px solid #17221f !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .guide-scenario-item {
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 1.5rem 1.25rem !important;
+    border: 0 !important;
+    border-top: 1px solid #d9d1d4 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .guide-scenario-item:first-child {
+    border-top: 0 !important;
+  }
+
+  .guide-scenario-copy {
+    gap: 0.6rem !important;
+  }
+
+  .guide-scenario-copy strong {
+    font-size: clamp(1.55rem, 7vw, 2.15rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  .guide-scenario-copy > span:last-child {
+    font-size: 1rem !important;
+    line-height: 1.55 !important;
+  }
+
+  .guide-scenario-action {
+    margin-top: 1rem !important;
+  }
+}
+
+/* Public CTA language follows the current Dobra Mapa editorial system:
+   rectangular controls, clear hierarchy, no isolated pills. The floating
+   mobile dock is the deliberate rounded exception. */
+.public-action-link-system,
+.place-detail-show-help-trigger,
+.place-detail-actions > button,
+.inline-disclosure-control,
+.inline-action,
+.editorial-empty-state-search .touch-target {
+  border-radius: 0 !important;
+}
+
+.public-action-link-system,
+.place-detail-show-help-trigger,
+.place-detail-actions > button,
+.inline-disclosure-control,
+.editorial-empty-state-search .touch-target,
+.editorial-empty-state-search .inline-action {
+  min-height: 3.25rem !important;
+  padding: 0.8rem 1rem !important;
+  font-weight: 700 !important;
+}
+
+.place-detail-show-help-trigger,
+.place-detail-actions > button {
+  border: 1px solid #0b4f48 !important;
+  background: #ffffff !important;
+  color: #0b4f48 !important;
+}
+
+.place-detail-show-help-trigger:hover,
+.place-detail-actions > button:hover {
+  background: #e8f4f2 !important;
+  border-color: #0b4f48 !important;
+}
+
+.inline-disclosure-control {
+  width: 100% !important;
+  justify-content: flex-start !important;
+  gap: 0.55rem !important;
+  border: 1px solid #d7e2df !important;
+  background: #f7faf9 !important;
+  color: #0b4f48 !important;
+  text-align: left !important;
+}
+
+.inline-disclosure-control:hover,
+.inline-disclosure-control:focus-visible {
+  border-color: #0b4f48 !important;
+  background: #eef6f4 !important;
+}
+
+/* Empty search state: one primary, one secondary and one tertiary action.
+   All three use the same rectangular geometry instead of pill-shaped legacy
+   styles visible on mobile. */
+.editorial-empty-state-search .touch-target {
+  display: inline-flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #13ad87 !important;
+  background: #13ad87 !important;
+  color: #10211e !important;
+}
+
+.editorial-empty-state-search .inline-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #0b4f48 !important;
+  background: #ffffff !important;
+  color: #0b4f48 !important;
+  text-decoration: none !important;
+}
+
+.editorial-empty-state-search .inline-action:last-child {
+  border-color: transparent !important;
+  background: transparent !important;
+  justify-content: flex-start !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.editorial-empty-state-search .touch-target:hover,
+.editorial-empty-state-search .touch-target:focus-visible {
+  border-color: #0b4f48 !important;
+  background: #0b4f48 !important;
+  color: #ffffff !important;
+}
+
+.editorial-empty-state-search .inline-action:hover,
+.editorial-empty-state-search .inline-action:focus-visible {
+  border-color: #0b4f48 !important;
+  background: #eef6f4 !important;
+  color: #0b4f48 !important;
+}
+
+.editorial-empty-state-search .inline-action:last-child:hover,
+.editorial-empty-state-search .inline-action:last-child:focus-visible {
+  background: transparent !important;
+  text-decoration: underline !important;
+}
+
+/* System links such as the empty "Aktualne potrzeby" CTA keep their journey
+   colour but use the same rectangular button construction as the rest of the
+   public UI. */
+.needs-empty .public-action-link-system,
+.public-action-link-system {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.place-detail-page .public-action-link-system.public-action-link-primary {
+  border-color: #0b4f48 !important;
+  background: #0b4f48 !important;
+  color: #ffffff !important;
+}
+
+.place-detail-page .public-action-link-system.public-action-link-secondary {
+  border-color: #0b4f48 !important;
+  background: #ffffff !important;
+  color: #0b4f48 !important;
+}
+
+.place-detail-page .public-action-link-system.public-action-link-primary:hover,
+.place-detail-page .public-action-link-system.public-action-link-secondary:hover {
+  border-color: #083b36 !important;
+  background: #083b36 !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 767px) {
+  .editorial-empty-state-search .flex.flex-wrap {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+
+  .editorial-empty-state-search .inline-action,
+  .editorial-empty-state-search .inline-action:last-child {
+    width: 100% !important;
+  }
+}

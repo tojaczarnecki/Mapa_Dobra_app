@@ -17,23 +17,19 @@ import { createElement, useEffect, useMemo, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Marker, Popup } from "react-leaflet";
 import type { MapCategory, MapPlace } from "@/data/demo-map-places";
+import { resolvePublicPlaceStatus } from "@/lib/public/status-presentation";
 import { MapPlacePopup } from "./map-place-popup";
 import styles from "./map.module.css";
 import { categoryIllustrationColor, categoryIllustrationPath, placeIllustrationSlug } from "@/lib/categories/category-illustrations";
 
 function markerStatusLabel(place: MapPlace) {
-  if (place.profileKind === "FOOD_SHARING") return "dostęp 24/7, zawartość zależna od darów";
   if (place.status.kind === "standard") {
-    switch (place.status.status) {
-      case "open":
-        return "otwarte teraz";
-      case "openToday":
-        return "otwarte później dzisiaj";
-      case "closed":
-        return "zamknięte";
-      default:
-        return "brak potwierdzonych informacji o dostępności";
-    }
+    return resolvePublicPlaceStatus({
+      status: place.status.status,
+      profileKind: place.profileKind,
+      mobileSeasonLabel: place.mobileSeasonLabel,
+      mobileSeasonActive: place.mobileSeasonActive,
+    }).label.toLocaleLowerCase("pl-PL");
   }
 
   return place.status.availabilityState === "available"
