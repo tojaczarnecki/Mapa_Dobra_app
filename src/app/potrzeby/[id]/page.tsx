@@ -28,7 +28,7 @@ export default async function NeedDetailPage({ params }: { params: Promise<{ id:
   const dateLabel = dateFormatter.format(need.startsAt);
   const timeLabel = `${timeFormatter.format(need.startsAt)}–${timeFormatter.format(need.endsAt)}`;
 
-  return <div className="needs-detail-page mx-auto w-full max-w-[1200px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
+  return <div className="journey-help needs-detail-page mobile-nav-safe-content mx-auto w-full max-w-[1200px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
     <Link href="/potrzeby" className="needs-back-link"><ArrowLeft aria-hidden="true" size={17} />Wróć do potrzeb</Link>
     <header className="needs-detail-hero">
       <p className="needs-eyebrow">{need.organization.name}</p>
