@@ -1,7 +1,6 @@
 /*
- * Home screen — Adobe XD implementation.
- * Written specification from the design handoff is authoritative.
- * SVG/PNG exports are used only for geometry and unspecified values.
+ * Home screen — exact implementation of the approved 393x852 / 1366x463 handoff.
+ * Written specification is authoritative for typography, spacing and geometry.
  */
 
 .page-shell:has(.home-xd-page),
@@ -146,6 +145,7 @@ body:has(.home-xd-page) .site-footer-home-micro {
   outline-offset: 3px;
 }
 
+/* Mobile reference: 393 x 852 px. */
 @media (max-width: 767px) {
   .home-xd-page {
     display: grid;
@@ -186,17 +186,13 @@ body:has(.home-xd-page) .site-footer-home-micro {
 
   .home-xd-primary,
   .home-xd-secondary {
-    width: min(324px, calc(100vw - 69px));
+    width: min(325px, calc(100vw - 68px));
+    height: 47px;
     font-size: 14px;
     line-height: 1;
   }
 
-  .home-xd-primary {
-    height: 47px;
-  }
-
   .home-xd-secondary {
-    height: 46px;
     margin-top: 9px;
   }
 
@@ -231,6 +227,7 @@ body:has(.home-xd-page) .site-footer-home-micro {
   }
 }
 
+/* Desktop reference: 1366 x 463 px. */
 @media (min-width: 768px) {
   .home-xd-page {
     display: grid;
@@ -264,7 +261,7 @@ body:has(.home-xd-page) .site-footer-home-micro {
   }
 
   .home-xd-actions-main {
-    width: 388px;
+    width: 325px;
     max-width: 100%;
   }
 
@@ -276,10 +273,10 @@ body:has(.home-xd-page) .site-footer-home-micro {
 
   .home-xd-primary,
   .home-xd-secondary {
-    width: 388px;
+    width: 325px;
     max-width: 100%;
     height: 56px;
-    font-size: 25px;
+    font-size: 16px;
     line-height: 1;
   }
 
