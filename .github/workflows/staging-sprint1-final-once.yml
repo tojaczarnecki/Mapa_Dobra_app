@@ -107,13 +107,24 @@ jobs:
           TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
           healthy=0
-          for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --max-time 12 "$BASE_URL/api/health" >/tmp/health.json && jq -e '.status == "ok" and .checks.application == "ok" and .checks.configuration == "ok" and .checks.database == "ok"' /tmp/health.json >/dev/null; then
-              healthy=1; break
+          for attempt in $(seq 1 18); do
+            rm -f /tmp/health.body /tmp/health.headers
+            code="$(curl --silent --show-error --max-time 12 --output /tmp/health.body --dump-header /tmp/health.headers --write-out '%{http_code}' "$BASE_URL/api/health" || true)"
+            echo "Health attempt $attempt: HTTP $code"
+            if [[ "$code" == "200" ]] && jq -e '.status == "ok" and .checks.application == "ok" and .checks.configuration == "ok" and .checks.database == "ok"' /tmp/health.body >/dev/null 2>&1; then
+              healthy=1
+              break
             fi
+            echo "Health response preview:"
+            head -c 500 /tmp/health.body 2>/dev/null || true
+            echo
             sleep 5
           done
           if [[ "$healthy" -ne 1 ]]; then
+            echo "Health check never returned expected JSON. Final headers:"
+            cat /tmp/health.headers 2>/dev/null || true
+            echo "Final body:"
+            cat /tmp/health.body 2>/dev/null || true
             "${SSH[@]}" "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' rollback '$STAGING_APP_ROOT' staging" || true
             exit 1
           fi
@@ -123,7 +134,7 @@ jobs:
           ! grep -Fq " km od Ciebie" /tmp/search.html
           ! grep -Fq ">Najbliżej<" /tmp/search.html
           "${SSH[@]}" "$TARGET" "test \"\$(cat '$STAGING_APP_ROOT/current/.next/BUILD_ID')\" = '${{ steps.release.outputs.build_id }}'"
-          cat /tmp/health.json
+          cat /tmp/health.body
           "${SSH[@]}" "$TARGET" "rm -f '$STAGING_APP_ROOT/incoming/${{ steps.release.outputs.archive }}'"
       - name: Report release
         run: echo "STAGING_BUILD_ID=${{ steps.release.outputs.build_id }}"
