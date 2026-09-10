@@ -4,6 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
+  iqhost-release.sh prepare <app-root> [staging|production]
   iqhost-release.sh activate <app-root> <release.tar.gz> [staging|production]
   iqhost-release.sh rollback <app-root> [staging|production]
   iqhost-release.sh status <app-root>
@@ -29,6 +30,48 @@ require_app_root() {
   mkdir -p "$app_root/releases" "$app_root/incoming" "$app_root/tmp"
 }
 
+prune_staging_storage() {
+  local app_root="$1"
+  local expected_env="$2"
+  local current_target=""
+  local previous_target=""
+  local candidate
+
+  require_app_root "$app_root" "$expected_env"
+
+  # Automatic pruning is intentionally restricted to the verified staging root.
+  # Production storage is never removed by this helper.
+  if [[ "$expected_env" != "staging" || "$app_root" != "/home/host11515/apps/mapa-dobra-git-staging" ]]; then
+    echo "Storage pruning skipped outside canonical staging root"
+    return 0
+  fi
+
+  if [[ -L "$app_root/current" ]]; then
+    current_target="$(realpath "$app_root/current")"
+  fi
+  if [[ -f "$app_root/.previous-release" ]]; then
+    previous_target="$(tr -d '\r\n' < "$app_root/.previous-release")"
+  fi
+
+  # Failed extractions and old upload archives are never needed for rollback.
+  find "$app_root/releases" -mindepth 1 -maxdepth 1 -type d -name '.extract-*' -exec rm -rf {} + 2>/dev/null || true
+  find "$app_root/incoming" -mindepth 1 -maxdepth 1 -type f -name 'release-*.tar.gz' -delete 2>/dev/null || true
+
+  # Keep only the active release and the recorded rollback release.
+  while IFS= read -r -d '' candidate; do
+    if [[ -n "$current_target" && "$(realpath "$candidate")" == "$current_target" ]]; then
+      continue
+    fi
+    if [[ -n "$previous_target" && -d "$previous_target" && "$(realpath "$candidate")" == "$(realpath "$previous_target")" ]]; then
+      continue
+    fi
+    rm -rf "$candidate"
+    echo "Pruned stale staging release: $(basename "$candidate")"
+  done < <(find "$app_root/releases" -mindepth 1 -maxdepth 1 -type d -print0)
+
+  echo "Staging storage prepared"
+}
+
 restart_passenger() {
   local app_root="$1"
   local expected_env="$2"
@@ -38,12 +81,6 @@ restart_passenger() {
   mkdir -p "$app_root/tmp"
   touch "$app_root/tmp/restart.txt"
 
-  # On IQHost staging, Passenger did not reliably react to restart.txt after an
-  # atomic current symlink switch. Terminate only the exact staging app process;
-  # Passenger will spawn it again on the next request. Avoid process substitution
-  # because this hosting environment does not expose /dev/fd reliably.
-  # Production remains on the non-disruptive restart.txt mechanism until
-  # separately validated.
   if [[ "$expected_env" == "staging" && "$app_root" == "/home/host11515/apps/mapa-dobra-git-staging" ]]; then
     pids="$(
       ps -u "$USER" -o pid=,cmd= 2>/dev/null \
@@ -113,7 +150,10 @@ activate_release() {
     extract_dir="$app_root/releases/.extract-$build_id-$$"
     rm -rf "$extract_dir"
     mkdir -p "$extract_dir"
-    tar -xzf "$archive" -C "$extract_dir"
+    if ! tar -xzf "$archive" -C "$extract_dir"; then
+      rm -rf "$extract_dir"
+      fail "release extraction failed"
+    fi
     [[ "$(tr -d '\r\n' < "$extract_dir/.next/BUILD_ID")" == "$build_id" ]] || fail "extracted BUILD_ID mismatch"
     mv "$extract_dir" "$release_dir"
   fi
@@ -186,6 +226,10 @@ show_status() {
 
 command="${1:-}"
 case "$command" in
+  prepare)
+    [[ $# -ge 2 && $# -le 3 ]] || { usage; exit 2; }
+    prune_staging_storage "$2" "${3:-staging}"
+    ;;
   activate)
     [[ $# -ge 3 && $# -le 4 ]] || { usage; exit 2; }
     activate_release "$2" "$3" "${4:-staging}"
