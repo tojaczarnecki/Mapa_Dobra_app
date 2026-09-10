@@ -37,7 +37,6 @@ export function PrivacyConsent({
     readConsent,
     () => initialConsent,
   );
-  const showPanel = consent === null || settingsOpen;
   const isInitialVisit = consent === null;
   const isPolicyView = privacyView === "policy";
 
@@ -51,10 +50,10 @@ export function PrivacyConsent({
   }, []);
 
   useEffect(() => {
-    if (!showPanel) return;
+    if (!settingsOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && consent !== null) setSettingsOpen(false);
+      if (event.key === "Escape") setSettingsOpen(false);
       if (event.key !== "Tab") return;
 
       const focusable = Array.from(
@@ -80,14 +79,14 @@ export function PrivacyConsent({
       document.removeEventListener("keydown", closeOnEscape);
       document.body.style.overflow = previousOverflow;
     };
-  }, [consent, showPanel]);
+  }, [settingsOpen]);
 
   useEffect(() => {
-    document.body.dataset.privacyScreenOpen = showPanel ? "true" : "false";
+    document.body.dataset.privacyScreenOpen = settingsOpen ? "true" : "false";
     return () => {
       delete document.body.dataset.privacyScreenOpen;
     };
-  }, [showPanel]);
+  }, [settingsOpen]);
 
   const saveConsent = (choice: ConsentChoice) => {
     window.localStorage.setItem(PRIVACY_CONSENT_KEY, choice);
@@ -96,66 +95,90 @@ export function PrivacyConsent({
     setSettingsOpen(false);
   };
 
-  if (!showPanel) return <>{children}</>;
+  const openPolicy = () => {
+    setPrivacyView("policy");
+    setSettingsOpen(true);
+  };
 
   return (
-    <div className="privacy-consent-layer">
-      <section className="privacy-consent-screen" aria-labelledby="privacy-consent-title">
-        <div ref={screenRef} className="privacy-consent-content" tabIndex={-1}>
-          <div className="privacy-consent-brand">
-            <Image src="/brand/dobra-mapa-logo-header.svg" alt="Dobra Mapa" width={1926} height={378} className="privacy-consent-logo-asset" />
+    <>
+      {children}
+
+      {isInitialVisit && !settingsOpen ? (
+        <aside className="privacy-compact-notice" aria-label="Informacja o plikach cookies">
+          <p className="privacy-compact-notice-copy">
+            Używamy tylko niezbędnych cookies i pamięci przeglądarki, żeby Dobra Mapa działała poprawnie.
+          </p>
+          <div className="privacy-compact-notice-actions">
+            <button type="button" className="privacy-compact-notice-link" onClick={openPolicy}>
+              Więcej informacji
+            </button>
+            <button type="button" className="privacy-compact-notice-confirm" onClick={() => saveConsent("necessary")}>
+              OK
+            </button>
           </div>
-          <div className="privacy-consent-panel">
-            {isPolicyView ? (
-              <>
-                <p className="privacy-consent-eyebrow">INFORMACJE I DOKUMENTY</p>
-                <h1 id="privacy-consent-title">Polityka prywatności</h1>
-                <PrivacyPolicyContent />
-                <div className="privacy-consent-actions">
-                  <button type="button" className="privacy-consent-text-button" onClick={() => setPrivacyView("consent")}>
-                    Wróć
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="privacy-consent-eyebrow">INFORMACJE O APLIKACJI</p>
-                <h1 id="privacy-consent-title">Prywatność</h1>
-                <p>
-                  Dobra Mapa korzysta z niezbędnych cookies oraz pamięci przeglądarki, żeby aplikacja działała, zapamiętywała ustawienia, zapisane miejsca i bezpieczne drafty formularzy. W tej wersji nie używamy reklamowych ani marketingowych technologii śledzących.
-                </p>
-                <ul className="privacy-consent-benefits">
-                  <li>Działanie aplikacji i PWA</li>
-                  <li>Zapamiętanie ustawień i zapisanych miejsc</li>
-                  <li>Tymczasowe zapisywanie niedokończonych formularzy</li>
-                </ul>
-                {!isInitialVisit ? (
-                  <div className="privacy-consent-category">
-                    <div>
-                      <h2>Niezbędne technologie</h2>
-                      <p>Są potrzebne do podstawowych funkcji Dobrej Mapy i nie służą reklamie.</p>
+        </aside>
+      ) : null}
+
+      {settingsOpen ? (
+        <div className="privacy-consent-layer">
+          <section className="privacy-consent-screen" aria-labelledby="privacy-consent-title">
+            <div ref={screenRef} className="privacy-consent-content" tabIndex={-1}>
+              <div className="privacy-consent-brand">
+                <Image src="/brand/dobra-mapa-logo-header.svg" alt="Dobra Mapa" width={1926} height={378} className="privacy-consent-logo-asset" />
+              </div>
+              <div className="privacy-consent-panel">
+                {isPolicyView ? (
+                  <>
+                    <p className="privacy-consent-eyebrow">INFORMACJE I DOKUMENTY</p>
+                    <h1 id="privacy-consent-title">Polityka prywatności</h1>
+                    <PrivacyPolicyContent />
+                    <div className="privacy-consent-actions">
+                      {isInitialVisit ? (
+                        <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>
+                          Rozumiem
+                        </button>
+                      ) : null}
+                      <button type="button" className="privacy-consent-text-button" onClick={() => setPrivacyView("consent")}>
+                        Wróć
+                      </button>
+                      <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>
+                        Wróć do aplikacji
+                      </button>
                     </div>
-                    <input type="checkbox" checked readOnly aria-label="Niezbędne technologie są aktywne" />
-                  </div>
-                ) : null}
-                <div className="privacy-consent-actions">
-                  <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>
-                    {isInitialVisit ? "Rozumiem" : "Zapisz ustawienia"}
-                  </button>
-                  <button type="button" className="privacy-consent-policy-link" onClick={() => setPrivacyView("policy")}>
-                    Polityka prywatności
-                  </button>
-                  {!isInitialVisit ? (
-                    <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>
-                      Wróć do aplikacji
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            )}
-          </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="privacy-consent-eyebrow">INFORMACJE O APLIKACJI</p>
+                    <h1 id="privacy-consent-title">Prywatność</h1>
+                    <p>
+                      Dobra Mapa korzysta z niezbędnych cookies oraz pamięci przeglądarki, żeby aplikacja działała, zapamiętywała ustawienia, zapisane miejsca i bezpieczne drafty formularzy. W tej wersji nie używamy reklamowych ani marketingowych technologii śledzących.
+                    </p>
+                    <div className="privacy-consent-category">
+                      <div>
+                        <h2>Niezbędne technologie</h2>
+                        <p>Są potrzebne do podstawowych funkcji Dobrej Mapy i nie służą reklamie.</p>
+                      </div>
+                      <input type="checkbox" checked readOnly aria-label="Niezbędne technologie są aktywne" />
+                    </div>
+                    <div className="privacy-consent-actions">
+                      <button type="button" className="privacy-consent-primary" onClick={() => saveConsent("necessary")}>
+                        {isInitialVisit ? "Rozumiem" : "Zapisz ustawienia"}
+                      </button>
+                      <button type="button" className="privacy-consent-policy-link" onClick={() => setPrivacyView("policy")}>
+                        Polityka prywatności
+                      </button>
+                      <button type="button" className="privacy-consent-text-button" onClick={() => setSettingsOpen(false)}>
+                        Wróć do aplikacji
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      ) : null}
+    </>
   );
 }
