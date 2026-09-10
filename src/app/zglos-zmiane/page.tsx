@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FocusFlowTopbar } from "@/components/forms/focus-flow-topbar";
 import { PlaceUpdateForm } from "@/components/submissions/place-update-form";
 import { getPublicPlaceContext } from "@/lib/places/public-data";
 import { canonicalAlternates } from "@/lib/site-url";
@@ -21,7 +22,8 @@ export default async function ReportUpdatePage({ searchParams }: UpdatePageProps
   const placeContext = requestedPlace ? await getPublicPlaceContext(requestedPlace) : undefined;
 
   return (
-    <div className="secondary-flow-page md-place-update-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-28 pt-4 sm:px-6 sm:pt-7 md:pb-16 lg:px-8">
+    <div className="secondary-flow-page md-place-update-page mx-auto w-full min-w-0 max-w-[800px] px-4 pb-16 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+      <FocusFlowTopbar closeHref="/szukaj" />
       <PlaceUpdateForm place={placeContext} requestedPlace={requestedPlace} />
     </div>
   );
