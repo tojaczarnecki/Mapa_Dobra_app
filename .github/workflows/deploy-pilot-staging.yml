@@ -34,7 +34,8 @@ jobs:
       STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
       STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       STAGING_APP_ROOT: ${{ secrets.STAGING_APP_ROOT }}
-      STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+      PUBLIC_STAGING_BASE_URL: https://host11515.iqhs.pl
+      EXPECTED_HOME_MARKER: 'data-home-design="xd-screen-1"'
 
     steps:
       - name: Checkout deployment tooling
@@ -44,13 +45,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in STAGING_SSH_HOST STAGING_SSH_USER STAGING_SSH_PORT STAGING_SSH_PRIVATE_KEY STAGING_SSH_KNOWN_HOSTS STAGING_APP_ROOT STAGING_BASE_URL; do
-            test -n "${!name:-}" || { echo "Missing GitHub Actions secret: $name" >&2; exit 1; }
+          for name in STAGING_SSH_HOST STAGING_SSH_USER STAGING_SSH_PORT STAGING_SSH_PRIVATE_KEY STAGING_SSH_KNOWN_HOSTS STAGING_APP_ROOT PUBLIC_STAGING_BASE_URL; do
+            test -n "${!name:-}" || { echo "Missing deployment configuration: $name" >&2; exit 1; }
           done
           [[ "$STAGING_SSH_PORT" =~ ^[0-9]+$ ]]
           [[ "$STAGING_APP_ROOT" == /* ]]
           [[ "$STAGING_APP_ROOT" != *" "* ]]
-          [[ "$STAGING_BASE_URL" == https://* ]]
+          [[ "$PUBLIC_STAGING_BASE_URL" == https://* ]]
+          echo "Public pilot host: $PUBLIC_STAGING_BASE_URL"
 
       - name: Resolve successful pilot artifact run
         id: release
@@ -81,6 +83,8 @@ jobs:
 
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+          echo "Selected build run: $RUN_ID"
+          echo "Selected artifact: $ARTIFACT_NAME"
 
       - name: Download reviewed release artifact
         shell: bash
@@ -95,6 +99,17 @@ jobs:
           mapfile -t archives < <(find /tmp/mapa-dobra-release -maxdepth 2 -type f -name 'release-*.tar.gz' -print)
           [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one release tar.gz, found ${#archives[@]}." >&2; exit 1; }
           printf '%s\n' "${archives[0]}" > /tmp/mapa-dobra-release/archive-path
+
+      - name: Verify artifact contains approved Home
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(cat /tmp/mapa-dobra-release/archive-path)"
+          if ! tar -xOzf "$ARCHIVE" .next/server/app/page.js 2>/dev/null | grep -Fq 'xd-screen-1'; then
+            echo "Selected artifact does not contain the approved Adobe XD Home marker." >&2
+            exit 1
+          fi
+          echo "Approved Adobe XD Home marker found in release artifact."
 
       - name: Configure SSH trust
         shell: bash
@@ -123,33 +138,53 @@ jobs:
           "${SSH[@]}" "$TARGET" "chmod 700 '$STAGING_APP_ROOT/deploy-release.sh' && bash '$STAGING_APP_ROOT/deploy-release.sh' activate '$STAGING_APP_ROOT' '$STAGING_APP_ROOT/incoming/$ARCHIVE_NAME' staging"
           echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke staging and rollback on failure
+      - name: Verify activated filesystem release
         shell: bash
         run: |
           set -euo pipefail
-          BASE_URL="${STAGING_BASE_URL%/}"
+          TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
+          SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          "${SSH[@]}" "$TARGET" "test -L '$STAGING_APP_ROOT/current' && grep -Fq 'xd-screen-1' '$STAGING_APP_ROOT/current/.next/server/app/page.js'"
+          echo "Activated Passenger release contains the approved Home marker."
+
+      - name: Smoke actual public pilot host and rollback on failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${PUBLIC_STAGING_BASE_URL%/}"
           TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
 
           healthy=0
+          marker_seen=0
           for attempt in $(seq 1 12); do
             if curl --fail --silent --show-error --max-time 12 "$BASE_URL/api/health" >/tmp/mapa-dobra-health.json \
-              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/" >/dev/null \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/" >/tmp/mapa-dobra-home.html \
               && curl --fail --silent --show-error --max-time 12 "$BASE_URL/mapa" >/dev/null \
               && curl --fail --silent --show-error --max-time 12 "$BASE_URL/znajdz-nocleg" >/dev/null; then
-              healthy=1
-              break
+              if grep -Fq "$EXPECTED_HOME_MARKER" /tmp/mapa-dobra-home.html; then
+                marker_seen=1
+                healthy=1
+                break
+              fi
             fi
             sleep 5
           done
 
           if [[ "$healthy" -ne 1 ]]; then
-            echo "Staging smoke failed. Rolling back the current symlink." >&2
+            if [[ "$marker_seen" -ne 1 ]]; then
+              echo "The actual public host $BASE_URL is NOT serving the activated Adobe XD Home release." >&2
+              echo "The artifact and server filesystem contain the new Home, so the public hostname/vhost is pointing at a different app root or Passenger instance." >&2
+            else
+              echo "Public host smoke failed for another route or health check." >&2
+            fi
+            echo "Rolling back the activated staging app root." >&2
             "${SSH[@]}" "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' rollback '$STAGING_APP_ROOT' staging" || true
             exit 1
           fi
 
           cat /tmp/mapa-dobra-health.json
+          echo "Verified Adobe XD Home on $BASE_URL"
           "${SSH[@]}" "$TARGET" "rm -f '$STAGING_APP_ROOT/incoming/${{ steps.activate.outputs.archive_name }}'"
 
       - name: Report active staging release
