@@ -21,15 +21,15 @@ export function HelpGuideView({ guide }: { guide: HelpGuide }) {
   return (
     <article className="journey-guide guide-article-page mobile-nav-safe-content">
       <div className="guide-article-wrap">
-      <Link href="/jak-pomagac" className="guide-article-back">
-        <ArrowLeft aria-hidden="true" size={17} /> Wróć do poradników
-      </Link>
-      <GuideArticleHero guide={guide} />
-      <div className="guide-article-layout">
-        <div className="guide-article-body"><GuideOpening guide={guide} /><GuideStepList steps={guide.steps} /><GuideEditorialBreak text={guideQuotes[guide.slug] ?? guide.intro} /><GuideAvoidList items={guide.avoid} />{guide.emergency ? <GuideEmergency emergency={guide.emergency} /> : null}<GuideNextStep guide={guide} /></div>
-        {toc.length >= 3 ? <aside className="guide-article-toc" aria-label="Spis treści"><p>W tym poradniku</p><nav><ol>{toc.map((item) => <li key={item.id}><a href={`#${item.id}`}>{item.label}</a></li>)}</ol></nav></aside> : null}
-      </div>
-      {relatedGuides.length ? <section className="guide-related" aria-labelledby="guide-related-title"><p className="guide-article-eyebrow">MOŻE PRZYDAĆ CI SIĘ TEŻ</p><h2 id="guide-related-title">Jeszcze jedna wskazówka</h2><div>{relatedGuides.map((item) => <Link key={item.slug} href={`/jak-pomagac/${item.slug}`}><span>{item.shortTitle ?? item.title}</span><ArrowRight aria-hidden="true" size={16} /></Link>)}</div></section> : null}
+        <Link href="/jak-pomagac" className="guide-article-back">
+          <ArrowLeft aria-hidden="true" size={17} /> Wróć do poradników
+        </Link>
+        <GuideArticleHero guide={guide} />
+        <div className="guide-article-layout">
+          {toc.length >= 3 ? <aside className="guide-article-toc" aria-label="Spis treści"><p>W tym poradniku</p><nav><ol>{toc.map((item) => <li key={item.id}><a href={`#${item.id}`}>{item.label}</a></li>)}</ol></nav></aside> : null}
+          <div className="guide-article-body"><GuideOpening guide={guide} /><GuideStepList steps={guide.steps} /><GuideEditorialBreak text={guideQuotes[guide.slug] ?? guide.intro} /><GuideAvoidList items={guide.avoid} />{guide.emergency ? <GuideEmergency emergency={guide.emergency} /> : null}<GuideNextStep guide={guide} /></div>
+        </div>
+        {relatedGuides.length ? <section className="guide-related" aria-labelledby="guide-related-title"><p className="guide-article-eyebrow">MOŻE PRZYDAĆ CI SIĘ TEŻ</p><h2 id="guide-related-title">Jeszcze jedna wskazówka</h2><div>{relatedGuides.map((item) => <Link key={item.slug} href={`/jak-pomagac/${item.slug}`}><span>{item.shortTitle ?? item.title}</span><ArrowRight aria-hidden="true" size={16} /></Link>)}</div></section> : null}
       </div>
     </article>
   );
