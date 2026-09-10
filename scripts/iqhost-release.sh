@@ -58,16 +58,18 @@ prune_staging_storage() {
   find "$app_root/incoming" -mindepth 1 -maxdepth 1 -type f -name 'release-*.tar.gz' -delete 2>/dev/null || true
 
   # Keep only the active release and the recorded rollback release.
-  while IFS= read -r -d '' candidate; do
-    if [[ -n "$current_target" && "$(realpath "$candidate")" == "$current_target" ]]; then
-      continue
-    fi
-    if [[ -n "$previous_target" && -d "$previous_target" && "$(realpath "$candidate")" == "$(realpath "$previous_target")" ]]; then
-      continue
-    fi
-    rm -rf "$candidate"
-    echo "Pruned stale staging release: $(basename "$candidate")"
-  done < <(find "$app_root/releases" -mindepth 1 -maxdepth 1 -type d -print0)
+  # Avoid Bash process substitution because IQHost does not expose /dev/fd.
+  find "$app_root/releases" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null \
+    | while IFS= read -r candidate; do
+        if [[ -n "$current_target" && "$(realpath "$candidate")" == "$current_target" ]]; then
+          continue
+        fi
+        if [[ -n "$previous_target" && -d "$previous_target" && "$(realpath "$candidate")" == "$(realpath "$previous_target")" ]]; then
+          continue
+        fi
+        rm -rf "$candidate"
+        echo "Pruned stale staging release: $(basename "$candidate")"
+      done
 
   echo "Staging storage prepared"
 }
