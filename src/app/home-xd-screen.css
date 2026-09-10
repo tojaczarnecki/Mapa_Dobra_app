@@ -1,0 +1,300 @@
+/*
+ * Home screen — Adobe XD implementation.
+ * Written specification from the design handoff is authoritative.
+ * SVG/PNG exports are used only for geometry and unspecified values.
+ */
+
+.page-shell:has(.home-xd-page),
+.page-shell:has(.home-xd-page) > #main-content {
+  min-height: 100dvh;
+  background: #ffffff !important;
+}
+
+body:has(.home-xd-page) .site-footer-home-micro {
+  display: none !important;
+}
+
+.home-xd-page,
+.home-xd-page * {
+  box-sizing: border-box;
+}
+
+.home-xd-page {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  color: #111111;
+  overflow-x: hidden;
+}
+
+.home-xd-hero,
+.home-xd-actions {
+  min-width: 0;
+}
+
+.home-xd-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6f4;
+  text-align: center;
+}
+
+.home-xd-hero-inner {
+  width: 100%;
+}
+
+.home-xd-title {
+  margin: 0;
+  color: #d97706;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.035em;
+}
+
+.home-xd-subtitle {
+  margin: 0;
+  color: #111111;
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: 0.035em;
+}
+
+.home-xd-actions {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #ffffff;
+  text-align: center;
+}
+
+.home-xd-actions-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.home-xd-kicker {
+  margin: 0;
+  color: #202020;
+  font-family: inherit;
+  font-weight: 100;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.home-xd-primary,
+.home-xd-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  text-decoration: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: 0.025em;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.home-xd-primary {
+  background: #d97706;
+}
+
+.home-xd-secondary {
+  background: #e07a5f;
+}
+
+.home-xd-unknown,
+.home-xd-about {
+  color: #161616;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.home-xd-unknown {
+  font-weight: 300;
+  letter-spacing: 0.025em;
+}
+
+.home-xd-about {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-weight: 400;
+  letter-spacing: 0.014em;
+  border-bottom: 1px solid #b5b5b5;
+  line-height: 1.35;
+}
+
+.home-xd-primary:hover,
+.home-xd-primary:focus-visible,
+.home-xd-secondary:hover,
+.home-xd-secondary:focus-visible,
+.home-xd-unknown:hover,
+.home-xd-unknown:focus-visible,
+.home-xd-about:hover,
+.home-xd-about:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .home-xd-page {
+    display: grid;
+    grid-template-rows: 46.48dvh minmax(0, 1fr);
+  }
+
+  .home-xd-hero {
+    min-height: 360px;
+    max-height: 405px;
+    align-items: flex-end;
+    padding: 0 22px 43px;
+  }
+
+  .home-xd-title {
+    font-size: 38px;
+    line-height: 1.18;
+  }
+
+  .home-xd-subtitle {
+    margin-top: 25px;
+    font-size: 14px;
+    line-height: 1.42;
+  }
+
+  .home-xd-actions {
+    min-height: 456px;
+  }
+
+  .home-xd-actions-main {
+    padding-top: 47px;
+  }
+
+  .home-xd-kicker {
+    margin-bottom: 24px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .home-xd-primary,
+  .home-xd-secondary {
+    width: min(324px, calc(100vw - 69px));
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .home-xd-primary {
+    height: 47px;
+  }
+
+  .home-xd-secondary {
+    height: 46px;
+    margin-top: 9px;
+  }
+
+  .home-xd-unknown {
+    margin-top: 27px;
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .home-xd-about {
+    bottom: 55px;
+    font-size: 12px;
+  }
+
+  html[data-display-mode="standalone"] .home-xd-about {
+    bottom: calc(118px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 360px) {
+  .home-xd-title {
+    font-size: 34px;
+  }
+
+  .home-xd-subtitle {
+    font-size: 13px;
+  }
+
+  .home-xd-primary,
+  .home-xd-secondary {
+    width: calc(100vw - 48px);
+  }
+}
+
+@media (min-width: 768px) {
+  .home-xd-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 463px;
+    height: 100dvh;
+  }
+
+  .home-xd-hero {
+    padding: 32px;
+  }
+
+  .home-xd-hero-inner {
+    max-width: 620px;
+  }
+
+  .home-xd-title {
+    font-size: 53px;
+    line-height: 1.19;
+  }
+
+  .home-xd-subtitle {
+    margin-top: 34px;
+    font-size: 19px;
+    line-height: 1.35;
+  }
+
+  .home-xd-actions {
+    justify-content: center;
+    padding: 24px 32px;
+  }
+
+  .home-xd-actions-main {
+    width: 388px;
+    max-width: 100%;
+  }
+
+  .home-xd-kicker {
+    margin-bottom: 30px;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .home-xd-primary,
+  .home-xd-secondary {
+    width: 388px;
+    max-width: 100%;
+    height: 56px;
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .home-xd-secondary {
+    margin-top: 10px;
+  }
+
+  .home-xd-unknown {
+    margin-top: 28px;
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .home-xd-about {
+    bottom: clamp(30px, 7.2vh, 69px);
+    font-size: 12px;
+  }
+}
