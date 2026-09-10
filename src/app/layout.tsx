@@ -24,6 +24,7 @@ import "./search-results-fidelity.css";
 import "./redesign-system.css";
 import "./home-reference-system.css";
 import "./search-home-language.css";
+import "./help-home-language.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
