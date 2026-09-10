@@ -9,6 +9,7 @@ import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-sta
 const DISMISSED_KEY = "mapa-dobra:pwa-install-dismissed";
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const RESUME_STALE_AFTER_MS = 90_000;
+const CURRENT_RELEASE = process.env.NEXT_PUBLIC_RELEASE_SHA ?? "development";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -37,6 +38,8 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
   const reconnectTimer = useRef<number | undefined>(undefined);
   const lastActiveAt = useRef(0);
   const revalidatingRef = useRef(false);
+  const releaseCheckRef = useRef(false);
+  const releaseReloadRef = useRef(false);
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === "undefined") return false;
     const dismissedUntil = Number(window.localStorage.getItem(DISMISSED_KEY) ?? 0);
@@ -45,6 +48,26 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
 
   useEffect(() => {
     let workerRegistration: ServiceWorkerRegistration | undefined;
+    const hadServiceWorkerController = "serviceWorker" in navigator && Boolean(navigator.serviceWorker.controller);
+
+    const checkRelease = async () => {
+      if (!enabled || !navigator.onLine || document.visibilityState !== "visible" || releaseCheckRef.current || releaseReloadRef.current) return;
+      if (CURRENT_RELEASE === "development") return;
+      releaseCheckRef.current = true;
+      try {
+        const response = await fetch("/api/release", { cache: "no-store", headers: { "x-dobra-mapa-release-check": "1" } });
+        if (!response.ok) return;
+        const body = await response.json() as { release?: string };
+        if (body.release && body.release !== CURRENT_RELEASE) {
+          releaseReloadRef.current = true;
+          window.location.reload();
+        }
+      } catch {
+        // Release checks are best effort and must never block the public application.
+      } finally {
+        releaseCheckRef.current = false;
+      }
+    };
 
     lastActiveAt.current = Date.now();
     const revalidateIfStale = () => {
@@ -52,6 +75,15 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       const inactiveFor = Date.now() - lastActiveAt.current;
       lastActiveAt.current = Date.now();
       if (inactiveFor < RESUME_STALE_AFTER_MS) return;
+
+      // A client-side router refresh does not replace root-layout CSS chunks. In a
+      // standalone PWA that can leave the previous release's visual system alive
+      // after a deployment. A full navigation guarantees the new app shell/CSS.
+      if (isStandalonePwa()) {
+        window.location.reload();
+        return;
+      }
+
       revalidatingRef.current = true;
       setRevalidating(true);
       router.refresh();
@@ -78,6 +110,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
           revalidateIfStale();
         }
         updateServiceWorker();
+        void checkRelease();
       }
       connectionInitialized.current = true;
     };
@@ -102,10 +135,22 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       else {
         revalidateIfStale();
         updateServiceWorker();
+        void checkRelease();
       }
     };
-    const onPageShow = () => revalidateIfStale();
-    const onFocus = () => revalidateIfStale();
+    const onPageShow = () => {
+      revalidateIfStale();
+      void checkRelease();
+    };
+    const onFocus = () => {
+      revalidateIfStale();
+      void checkRelease();
+    };
+    const onControllerChange = () => {
+      if (!hadServiceWorkerController || !isStandalonePwa() || releaseReloadRef.current) return;
+      releaseReloadRef.current = true;
+      window.location.reload();
+    };
 
     updateConnection();
     window.addEventListener("online", updateConnection);
@@ -117,12 +162,14 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("focus", onFocus);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     if (enabled && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
         .then((registration) => {
           workerRegistration = registration;
           updateServiceWorker();
+          void checkRelease();
         })
         .catch(() => {
           // The application remains usable online when registration is unavailable.
@@ -140,6 +187,7 @@ export function PwaClient({ enabled }: { enabled: boolean }) {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("focus", onFocus);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };
   }, [enabled, router]);
 
