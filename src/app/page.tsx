@@ -1,7 +1,13 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import { PrimaryActionCard } from "@/components/home/primary-action-card";
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
+import { Roboto } from "next/font/google";
 import { canonicalAlternates } from "@/lib/site-url";
+
+const roboto = Roboto({
+  subsets: ["latin", "latin-ext"],
+  weight: ["100", "300", "400", "500"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Dobra Mapa",
@@ -9,57 +15,42 @@ export const metadata: Metadata = {
   alternates: canonicalAlternates("/"),
 };
 
+export const viewport: Viewport = {
+  themeColor: "#F4F6F4",
+};
+
 export default function Home() {
   return (
-    <div className="home-page home-journey-foyer mobile-nav-safe-content">
-      <header className="home-intro">
-        <p className="home-wordmark">DOBRA MAPA</p>
-        <div className="home-wordmark-line" aria-hidden="true" />
-        <div className="home-hero-grid">
-          <div className="home-hero-copy">
-            <h1 className="home-motto">
-              <span className="home-motto-mobile">JAK MOŻEMY<br />CI DZIŚ POMÓC?</span>
-              <span className="home-motto-desktop">JAK MOŻEMY<br />CI DZIŚ POMÓC?</span>
-            </h1>
-            <p className="home-subheadline">Znajdź właściwe wsparcie blisko siebie.</p>
-          </div>
-          <div className="home-art-stage">
-            <Image src="/brand/journeys/journey-guide.png" alt="" width={640} height={640} className="home-hero-illustration" priority aria-hidden="true" />
-          </div>
+    <div className={`${roboto.className} home-xd-page`}>
+      <section className="home-xd-hero" aria-labelledby="home-xd-title">
+        <div className="home-xd-hero-inner">
+          <h1 id="home-xd-title" className="home-xd-title">
+            Jak możemy<br />Ci dziś pomóc?
+          </h1>
+          <p className="home-xd-subtitle">Znajdź właściwe wsparcie blisko siebie.</p>
         </div>
-      </header>
+      </section>
 
-      <section className="home-paths" aria-labelledby="home-paths-title">
-        <div className="home-paths-heading">
-          <h2 id="home-paths-title">WYBIERZ DROGĘ</h2>
-          <div className="home-rule" aria-hidden="true" />
+      <section className="home-xd-actions" aria-labelledby="home-xd-paths-title">
+        <div className="home-xd-actions-main">
+          <h2 id="home-xd-paths-title" className="home-xd-kicker">WYBIERZ DROGĘ</h2>
+
+          <Link className="home-xd-primary" href="/szukam">
+            Szukam pomocy
+          </Link>
+
+          <Link className="home-xd-secondary" href="/pomagam">
+            Chcę komuś pomóc
+          </Link>
+
+          <Link className="home-xd-unknown" href="/szukam?tryb=guided&krok=1">
+            Nie wiem, czego potrzebuję
+          </Link>
         </div>
-        <div className="home-primary-actions">
-        <PrimaryActionCard
-          href="/szukam"
-          title="Szukam pomocy"
-          description="Jedzenie, nocleg, zdrowie…"
-          variant="help"
-        />
-        <PrimaryActionCard
-          href="/pomagam"
-          title="Chcę komuś pomóc"
-          description="Znajdź pomoc dla drugiej osoby."
-          variant="activate"
-        />
-        <PrimaryActionCard
-          href="/mapa?otwarte=1&lokalizacja=moja"
-          title="Pomoc dostępna teraz"
-          description="Zobacz miejsca otwarte w tej chwili."
-          variant="now"
-        />
-        <PrimaryActionCard
-          href="/szukam?tryb=guided&krok=1"
-          title="Nie wiem, czego potrzebuję"
-          description="Odpowiedz na dwa proste pytania, a wskażemy właściwy kierunek."
-          variant="unknown"
-        />
-        </div>
+
+        <Link className="home-xd-about" href="/o-projekcie">
+          Przeczytaj o Dobrej Mapie
+        </Link>
       </section>
     </div>
   );
