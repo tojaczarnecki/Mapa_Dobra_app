@@ -31,8 +31,26 @@ require_app_root() {
 
 restart_passenger() {
   local app_root="$1"
+  local expected_env="$2"
+  local pid
+
   mkdir -p "$app_root/tmp"
   touch "$app_root/tmp/restart.txt"
+
+  # On IQHost staging, Passenger did not reliably react to restart.txt after an
+  # atomic current symlink switch. Terminate only the exact staging app process;
+  # Passenger will spawn it again on the next request. Production remains on
+  # the non-disruptive restart.txt mechanism until separately validated.
+  if [[ "$expected_env" == "staging" && "$app_root" == "/home/host11515/apps/mapa-dobra-git-staging" ]]; then
+    while IFS= read -r pid; do
+      [[ "$pid" =~ ^[0-9]+$ ]] || continue
+      kill "$pid" 2>/dev/null || true
+      echo "Stopped staging Passenger process $pid for clean reload"
+    done < <(
+      ps -u "$USER" -o pid=,cmd= 2>/dev/null \
+        | awk -v exact="lsnode:$app_root" '$0 ~ exact "$" { print $1 }'
+    )
+  fi
 }
 
 replace_symlink_atomically() {
@@ -116,7 +134,7 @@ activate_release() {
   replace_symlink_atomically "$next_link" "$app_root/current"
   [[ "$(realpath "$app_root/current")" == "$(realpath "$release_dir")" ]] || fail "failed to activate release"
 
-  restart_passenger "$app_root"
+  restart_passenger "$app_root" "$expected_env"
   echo "Activated release $build_id"
   if [[ -n "$previous_target" ]]; then
     echo "Previous release: $previous_target"
@@ -142,7 +160,7 @@ rollback_release() {
   rm -f "$next_link"
   ln -s "$previous_target" "$next_link"
   replace_symlink_atomically "$next_link" "$app_root/current"
-  restart_passenger "$app_root"
+  restart_passenger "$app_root" "$expected_env"
   echo "Rolled back to $(basename "$previous_target")"
 }
 
