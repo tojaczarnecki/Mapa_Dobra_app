@@ -2,11 +2,34 @@
  * Dobra Mapa — Home is the visual master.
  * These rules align the standalone PWA navigation with the flat editorial language
  * used on the Home screen: no floating pill, no rounded active capsule, no shadow.
+ *
+ * Navigation visibility contract:
+ * - desktop: no bottom navigation;
+ * - mobile browser: no bottom navigation (use the header menu);
+ * - standalone PWA on mobile: bottom navigation visible.
  */
 
+/* Bottom navigation is a PWA-only control. Keep it out of desktop and normal browser UI. */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-nav,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa,
+  html[data-display-mode="standalone"] .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+
 @media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
   html[data-display-mode="standalone"] .mobile-bottom-nav,
   .mobile-bottom-nav.mobile-bottom-nav-pwa {
+    display: block !important;
     position: fixed !important;
     inset: auto 0 0 0 !important;
     width: 100% !important;
