@@ -54,7 +54,7 @@ export default function Home() {
           variant="now"
         />
         <PrimaryActionCard
-          href="/szukam?tryb=guided"
+          href="/szukam?tryb=guided&krok=1"
           title="Nie wiem, czego potrzebuję"
           description="Odpowiedz na dwa proste pytania, a wskażemy właściwy kierunek."
           variant="unknown"
