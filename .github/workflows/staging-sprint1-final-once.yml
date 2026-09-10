@@ -119,17 +119,7 @@ jobs:
             rm -f /tmp/mapa-dobra-health.body /tmp/mapa-dobra-health.headers
             code="$(curl --silent --show-error --max-time 12 --output /tmp/mapa-dobra-health.body --dump-header /tmp/mapa-dobra-health.headers --write-out '%{http_code}' "$BASE_URL/api/health" || true)"
             echo "Health attempt $attempt: HTTP $code"
-            if [[ "$code" == "200" ]] && python3 - <<'PY' >/dev/null 2>&1
-import json
-with open('/tmp/mapa-dobra-health.body', 'r', encoding='utf-8') as f:
-    data = json.load(f)
-assert data.get('status') == 'ok'
-checks = data.get('checks', {})
-assert checks.get('application') == 'ok'
-assert checks.get('configuration') == 'ok'
-assert checks.get('database') == 'ok'
-PY
-            then
+            if [[ "$code" == "200" ]] && python3 -c 'import json; d=json.load(open("/tmp/mapa-dobra-health.body", encoding="utf-8")); c=d.get("checks", {}); assert d.get("status")=="ok" and c.get("application")=="ok" and c.get("configuration")=="ok" and c.get("database")=="ok"' >/dev/null 2>&1; then
               healthy=1
               break
             fi
