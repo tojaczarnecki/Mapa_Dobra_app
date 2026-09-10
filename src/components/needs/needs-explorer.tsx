@@ -26,13 +26,6 @@ type Filter = "TODAY" | "WEEKEND" | "NO_EXPERIENCE" | "NEAREST";
 type UserLocation = { latitude: number; longitude: number };
 type LocationStatus = "idle" | "loading" | "ready" | "unavailable";
 
-const filterLabels: Record<Filter, string> = {
-  TODAY: "Dziś",
-  WEEKEND: "Weekend",
-  NO_EXPERIENCE: "Bez doświadczenia",
-  NEAREST: "Najbliżej",
-};
-
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
 }
@@ -59,9 +52,12 @@ function distanceKm(from: UserLocation, to: { latitude: number; longitude: numbe
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function hasCoordinates(need: Need): need is Need & { place: NonNullable<Need["place"]> & { latitude: number; longitude: number } } {
+  return need.place?.latitude !== null && need.place?.latitude !== undefined && need.place?.longitude !== null && need.place?.longitude !== undefined;
+}
+
 export function NeedsExplorer({ needs }: { needs: Need[] }) {
   const [filter, setFilter] = useState<Filter | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -78,10 +74,10 @@ export function NeedsExplorer({ needs }: { needs: Need[] }) {
 
     if (filter === "NEAREST" && userLocation) {
       return [...result].sort((left, right) => {
-        const leftDistance = left.place?.latitude !== null && left.place?.latitude !== undefined && left.place?.longitude !== null && left.place?.longitude !== undefined
+        const leftDistance = hasCoordinates(left)
           ? distanceKm(userLocation, { latitude: left.place.latitude, longitude: left.place.longitude })
           : Number.POSITIVE_INFINITY;
-        const rightDistance = right.place?.latitude !== null && right.place?.latitude !== undefined && right.place?.longitude !== null && right.place?.longitude !== undefined
+        const rightDistance = hasCoordinates(right)
           ? distanceKm(userLocation, { latitude: right.place.latitude, longitude: right.place.longitude })
           : Number.POSITIVE_INFINITY;
         return leftDistance - rightDistance;
@@ -92,7 +88,7 @@ export function NeedsExplorer({ needs }: { needs: Need[] }) {
   }, [filter, needs, now, userLocation]);
 
   const visible = filtered.slice(0, visibleCount);
-  const groups = ["Dzisiaj", "Jutro", "W ten weekend", "Później"];
+  const groups = filter === "NEAREST" ? ["Najbliżej"] : ["Dzisiaj", "Jutro", "W ten weekend", "Później"];
 
   function resetPaging() {
     setVisibleCount(8);
@@ -144,32 +140,23 @@ export function NeedsExplorer({ needs }: { needs: Need[] }) {
           <button type="button" aria-pressed={filter === "TODAY"} onClick={() => toggleFilter("TODAY")} className={`needs-filter ${filter === "TODAY" ? "is-active" : ""}`}>Dziś</button>
           <button type="button" aria-pressed={filter === "WEEKEND"} onClick={() => toggleFilter("WEEKEND")} className={`needs-filter ${filter === "WEEKEND" ? "is-active" : ""}`}>Weekend</button>
           <button type="button" aria-pressed={filter === "NO_EXPERIENCE"} onClick={() => toggleFilter("NO_EXPERIENCE")} className={`needs-filter ${filter === "NO_EXPERIENCE" ? "is-active" : ""}`}>Bez doświadczenia</button>
-          <button type="button" aria-pressed={filter === "NEAREST"} onClick={toggleNearest} className={`needs-filter ${filter === "NEAREST" ? "is-active" : ""}`} disabled={locationStatus === "loading"}>{locationStatus === "loading" ? "Ustalam lokalizację…" : filterLabels.NEAREST}</button>
-          <button type="button" aria-expanded={showFilters} onClick={() => setShowFilters((open) => !open)} className="needs-filter needs-filter-more">Filtry</button>
+          <button type="button" aria-pressed={filter === "NEAREST"} onClick={toggleNearest} className={`needs-filter ${filter === "NEAREST" ? "is-active" : ""}`} disabled={locationStatus === "loading"}>{locationStatus === "loading" ? "Ustalam lokalizację…" : "Najbliżej"}</button>
         </div>
       </div>
 
-      {locationStatus === "unavailable" ? <p className="needs-filter-disclosure" role="status">Nie udało się ustalić lokalizacji. Pozostałe filtry nadal działają.</p> : null}
-      {showFilters ? <div className="needs-filter-disclosure">Filtry możesz łączyć z ponownym wyszukaniem po zmianie wyboru. <button type="button" onClick={() => { setFilter(null); setShowFilters(false); resetPaging(); }} className="font-bold text-brand-strong underline-offset-2 hover:underline">Wyczyść wybór</button></div> : null}
+      {locationStatus === "unavailable" ? <p className="needs-filter-disclosure" role="status">Nie udało się ustalić lokalizacji. Możesz nadal korzystać z pozostałych filtrów.</p> : null}
 
       {visible.length ? (
         <div className={mobileExpanded ? "needs-list is-expanded" : "needs-list"}>
-          {(() => {
-            let itemIndex = 0;
-            return groups.map((group) => {
-              const groupNeeds = visible.filter((need) => bucketFor(need.startsAt, now) === group);
-              return groupNeeds.length ? (
-                <section key={group} className="needs-group" aria-labelledby={`needs-group-${group}`}>
-                  <h2 id={`needs-group-${group}`} className="needs-group-title"><span className="sm:hidden">{group === "W ten weekend" ? "Weekend" : group}</span><span className="hidden sm:inline">{group}</span></h2>
-                  {groupNeeds.map((need) => {
-                    const index = itemIndex;
-                    itemIndex += 1;
-                    return <div key={need.id} className={index >= 6 ? "needs-list-limited" : undefined}><NeedCard {...need} /></div>;
-                  })}
-                </section>
-              ) : null;
-            });
-          })()}
+          {groups.map((group) => {
+            const groupNeeds = filter === "NEAREST" ? visible : visible.filter((need) => bucketFor(need.startsAt, now) === group);
+            return groupNeeds.length ? (
+              <section key={group} className="needs-group" aria-labelledby={`needs-group-${group}`}>
+                <h2 id={`needs-group-${group}`} className="needs-group-title"><span className="sm:hidden">{group === "W ten weekend" ? "Weekend" : group}</span><span className="hidden sm:inline">{group}</span></h2>
+                {groupNeeds.map((need, index) => <div key={need.id} className={index >= 6 ? "needs-list-limited" : undefined}><NeedCard {...need} /></div>)}
+              </section>
+            ) : null;
+          })}
         </div>
       ) : (
         <div className="needs-empty needs-empty-filtered">
