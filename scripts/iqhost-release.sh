@@ -32,6 +32,7 @@ require_app_root() {
 restart_passenger() {
   local app_root="$1"
   local expected_env="$2"
+  local pids=""
   local pid
 
   mkdir -p "$app_root/tmp"
@@ -39,17 +40,21 @@ restart_passenger() {
 
   # On IQHost staging, Passenger did not reliably react to restart.txt after an
   # atomic current symlink switch. Terminate only the exact staging app process;
-  # Passenger will spawn it again on the next request. Production remains on
-  # the non-disruptive restart.txt mechanism until separately validated.
+  # Passenger will spawn it again on the next request. Avoid process substitution
+  # because this hosting environment does not expose /dev/fd reliably.
+  # Production remains on the non-disruptive restart.txt mechanism until
+  # separately validated.
   if [[ "$expected_env" == "staging" && "$app_root" == "/home/host11515/apps/mapa-dobra-git-staging" ]]; then
-    while IFS= read -r pid; do
+    pids="$(
+      ps -u "$USER" -o pid=,cmd= 2>/dev/null \
+        | awk -v exact="lsnode:$app_root" '$0 ~ exact "$" { print $1 }'
+    )"
+
+    for pid in $pids; do
       [[ "$pid" =~ ^[0-9]+$ ]] || continue
       kill "$pid" 2>/dev/null || true
       echo "Stopped staging Passenger process $pid for clean reload"
-    done < <(
-      ps -u "$USER" -o pid=,cmd= 2>/dev/null \
-        | awk -v exact="lsnode:$app_root" '$0 ~ exact "$" { print $1 }'
-    )
+    done
   fi
 }
 
