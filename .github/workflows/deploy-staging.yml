@@ -86,6 +86,15 @@ jobs:
           TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
           "${SSH[@]}" "$TARGET" "set -eu; test \"\$(hostname -f)\" = 'h1.iqhs.eu'; test -d '$STAGING_APP_ROOT'; test -f '$STAGING_APP_ROOT/server.cjs'; test \"\$(tr -d '\\r\\n' < '$STAGING_APP_ROOT/.deployment-env')\" = 'staging'; echo VERIFIED_STAGING_ROOT='$STAGING_APP_ROOT'"
+      - name: Prepare staging storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
+          SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          SCP=(scp -P "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          "${SCP[@]}" scripts/iqhost-release.sh "$TARGET:$STAGING_APP_ROOT/deploy-release.sh"
+          "${SSH[@]}" "$TARGET" "chmod 700 '$STAGING_APP_ROOT/deploy-release.sh' && bash '$STAGING_APP_ROOT/deploy-release.sh' prepare '$STAGING_APP_ROOT' staging"
       - name: Activate staging atomically
         id: activate
         shell: bash
@@ -97,9 +106,8 @@ jobs:
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
           SCP=(scp -P "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
           "${SSH[@]}" "$TARGET" "mkdir -p '$STAGING_APP_ROOT/incoming'"
-          "${SCP[@]}" scripts/iqhost-release.sh "$TARGET:$STAGING_APP_ROOT/deploy-release.sh"
           "${SCP[@]}" "$ARCHIVE" "$TARGET:$STAGING_APP_ROOT/incoming/$ARCHIVE"
-          "${SSH[@]}" "$TARGET" "chmod 700 '$STAGING_APP_ROOT/deploy-release.sh' && bash '$STAGING_APP_ROOT/deploy-release.sh' activate '$STAGING_APP_ROOT' '$STAGING_APP_ROOT/incoming/$ARCHIVE' staging && test \"\$(cat '$STAGING_APP_ROOT/current/.next/BUILD_ID')\" = '$BUILD_ID'"
+          "${SSH[@]}" "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' activate '$STAGING_APP_ROOT' '$STAGING_APP_ROOT/incoming/$ARCHIVE' staging && test \"\$(cat '$STAGING_APP_ROOT/current/.next/BUILD_ID')\" = '$BUILD_ID'"
       - name: Health and public correctness smoke
         shell: bash
         run: |
