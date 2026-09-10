@@ -1,6 +1,6 @@
 /* Final public UI consistency layer.
    Keep this file last in layout.tsx so route-specific legacy styles cannot
-   reintroduce a different mobile dock or old square CTA geometry. */
+   reintroduce a different mobile dock or legacy CTA geometry. */
 
 @media (max-width: 767px), (hover: none) and (pointer: coarse) {
   .mobile-bottom-nav {
@@ -109,23 +109,34 @@
   }
 }
 
-/* Public CTA language: rounded, calm, consistent geometry instead of
-   isolated square/outlined legacy buttons. */
+/* Public CTA language follows the current Dobra Mapa editorial system:
+   rectangular controls, clear hierarchy, no isolated pills. The floating
+   mobile dock is the deliberate rounded exception. */
 .public-action-link-system,
 .place-detail-show-help-trigger,
 .place-detail-actions > button,
 .inline-disclosure-control,
-.inline-action {
-  border-radius: 0.9rem !important;
+.inline-action,
+.editorial-empty-state-search .touch-target {
+  border-radius: 0 !important;
+}
+
+.public-action-link-system,
+.place-detail-show-help-trigger,
+.place-detail-actions > button,
+.inline-disclosure-control,
+.editorial-empty-state-search .touch-target,
+.editorial-empty-state-search .inline-action {
+  min-height: 3.25rem !important;
+  padding: 0.8rem 1rem !important;
+  font-weight: 700 !important;
 }
 
 .place-detail-show-help-trigger,
 .place-detail-actions > button {
-  min-height: 3.25rem !important;
   border: 1px solid #0b4f48 !important;
   background: #ffffff !important;
   color: #0b4f48 !important;
-  font-weight: 700 !important;
 }
 
 .place-detail-show-help-trigger:hover,
@@ -135,15 +146,12 @@
 }
 
 .inline-disclosure-control {
-  min-height: 3.25rem !important;
   width: 100% !important;
   justify-content: flex-start !important;
   gap: 0.55rem !important;
-  padding: 0.8rem 1rem !important;
   border: 1px solid #d7e2df !important;
   background: #f7faf9 !important;
   color: #0b4f48 !important;
-  font-weight: 700 !important;
   text-align: left !important;
 }
 
@@ -151,6 +159,66 @@
 .inline-disclosure-control:focus-visible {
   border-color: #0b4f48 !important;
   background: #eef6f4 !important;
+}
+
+/* Empty search state: one primary, one secondary and one tertiary action.
+   All three use the same rectangular geometry instead of pill-shaped legacy
+   styles visible on mobile. */
+.editorial-empty-state-search .touch-target {
+  display: inline-flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #13ad87 !important;
+  background: #13ad87 !important;
+  color: #10211e !important;
+}
+
+.editorial-empty-state-search .inline-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #0b4f48 !important;
+  background: #ffffff !important;
+  color: #0b4f48 !important;
+  text-decoration: none !important;
+}
+
+.editorial-empty-state-search .inline-action:last-child {
+  border-color: transparent !important;
+  background: transparent !important;
+  justify-content: flex-start !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.editorial-empty-state-search .touch-target:hover,
+.editorial-empty-state-search .touch-target:focus-visible {
+  border-color: #0b4f48 !important;
+  background: #0b4f48 !important;
+  color: #ffffff !important;
+}
+
+.editorial-empty-state-search .inline-action:hover,
+.editorial-empty-state-search .inline-action:focus-visible {
+  border-color: #0b4f48 !important;
+  background: #eef6f4 !important;
+  color: #0b4f48 !important;
+}
+
+.editorial-empty-state-search .inline-action:last-child:hover,
+.editorial-empty-state-search .inline-action:last-child:focus-visible {
+  background: transparent !important;
+  text-decoration: underline !important;
+}
+
+/* System links such as the empty "Aktualne potrzeby" CTA keep their journey
+   colour but use the same rectangular button construction as the rest of the
+   public UI. */
+.needs-empty .public-action-link-system,
+.public-action-link-system {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .place-detail-page .public-action-link-system.public-action-link-primary {
@@ -170,4 +238,17 @@
   border-color: #083b36 !important;
   background: #083b36 !important;
   color: #ffffff !important;
+}
+
+@media (max-width: 767px) {
+  .editorial-empty-state-search .flex.flex-wrap {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+
+  .editorial-empty-state-search .inline-action,
+  .editorial-empty-state-search .inline-action:last-child {
+    width: 100% !important;
+  }
 }
