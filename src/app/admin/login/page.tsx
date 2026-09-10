@@ -12,23 +12,23 @@ export default async function AdminLoginPage() {
   if (session) redirect("/admin");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f5ef] px-5 py-10">
-      <section className="w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-[0_18px_45px_rgb(29_29_27_/_8%)] sm:p-8">
+    <div className="admin-login-page">
+      <section className="admin-login-card">
         <Image
           src="/brand/mapa-dobra-logo-header-new.svg"
           alt="Dobra Mapa"
           width={604}
           height={120}
           priority
-          className="mb-7 h-11 w-auto"
+          className="admin-login-logo"
         />
-        <p className="mb-1 text-sm font-bold uppercase text-brand-strong">Panel administratora</p>
-        <h1 className="text-2xl font-bold">Zaloguj się do Dobrej Mapy</h1>
-        <p className="mb-7 mt-2 text-sm leading-6 text-muted-foreground">
-          Dostęp wyłącznie dla upoważnionych osób moderujących zgłoszenia.
-        </p>
+        <div className="admin-login-heading">
+          <p>PANEL ADMINISTRATORA</p>
+          <h1>Zaloguj się</h1>
+          <span>Dostęp dla osób moderujących dane i zgłoszenia Dobrej Mapy.</span>
+        </div>
         <LoginForm />
-        <p className="mt-7 border-t border-border pt-5 text-center text-xs leading-5 text-muted-foreground">Dostęp do panelu mają wyłącznie zaproszeni użytkownicy.</p>
+        <p className="admin-login-note">Dostęp mają wyłącznie zaproszeni użytkownicy.</p>
       </section>
     </div>
   );
