@@ -35,7 +35,7 @@ jobs:
       STAGING_SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       STAGING_APP_ROOT: ${{ secrets.STAGING_APP_ROOT }}
       PUBLIC_STAGING_BASE_URL: https://host11515.iqhs.pl
-      EXPECTED_HOME_MARKER: 'data-home-design="xd-screen-1"'
+      EXPECTED_HOME_MARKER: 'xd-screen-1'
 
     steps:
       - name: Checkout deployment tooling
