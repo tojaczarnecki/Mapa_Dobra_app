@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { BookOpen, HeartHandshake, Home, Search } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
 
 const primaryItems = [
   { href: "/", label: "Start", icon: Home },
@@ -26,13 +25,12 @@ function itemIsActive(pathname: string, href: string) {
 export function MobileBottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const standalone = useIsStandalonePwa();
   const mapMode = pathname === "/mapa" || (pathname === "/szukaj" && searchParams.get("view") === "map");
 
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <nav aria-label="Dolna nawigacja" className={`mobile-bottom-nav ${standalone ? "mobile-bottom-nav-pwa" : ""} ${mapMode ? "map-mode-nav" : ""}`}>
+    <nav aria-label="Dolna nawigacja" className={`mobile-bottom-nav ${mapMode ? "map-mode-nav" : ""}`}>
       <div className="mobile-bottom-nav-inner">
         {primaryItems.map((item) => {
           const active = itemIsActive(pathname, item.href);
