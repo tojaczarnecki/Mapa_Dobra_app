@@ -78,6 +78,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     noDocuments: first(raw.bez_dokumentow) === "1",
     sort,
   };
+
   const [allPlaces, allMapPlaces] = await Promise.all([getPublicSearchPlaces(), getPublicMapPlaces()]);
   const places = filterPublicSearchPlaces(allPlaces, filters);
   const foodJourney = category === "jedzenie";
@@ -89,6 +90,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const filterablePlaces = foodJourney ? allPlaces.filter((place) => place.profileKind !== "FOOD_SHARING") : allPlaces;
   const resultIds = new Set(visiblePlaces.map((place) => place.id));
   const mapPlaces = allMapPlaces.filter((place) => resultIds.has(place.id));
+
   const current = new URLSearchParams();
   if (interpretedText) current.set("zapytanie", interpretedText);
   else if (query) current.set("q", query);
@@ -101,10 +103,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (sort !== "best") current.set("sort", sort);
   const location = first(raw.lokalizacja);
   if (location) current.set("lokalizacja", location);
+
   const mapViewParams = new URLSearchParams(current);
   mapViewParams.set("view", "map");
   const locationHrefParams = new URLSearchParams(mapViewParams);
   locationHrefParams.set("lokalizacja", "moja");
+
   const categories = Array.from(
     new Map(
       allPlaces.flatMap((place) =>
@@ -112,6 +116,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       ),
     ).entries(),
   ).sort((left, right) => left[1].localeCompare(right[1], "pl"));
+
   const quickFilters = [
     { label: "Otwarte teraz", key: "otwarte", value: "1", active: filters.openNow },
     { label: "Dzisiaj", key: "dzisiaj", value: "1", active: filters.today },
@@ -135,6 +140,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     { label: "Najlepiej dopasowane", key: "sort", value: "best", href: searchHref(current, "sort"), active: sort === "best" },
     { label: "Najbliżej", key: "sort", value: "distance", href: searchHref(current, "sort", "distance"), active: sort === "distance" },
   ];
+
   const originalIntent = interpretedText ? interpretSearchQuery(interpretedText) : undefined;
   const activeIntentTokens = originalIntent?.tokens.filter((token) => tokenIsActive(token, filters)) ?? [];
   const searchValue = interpretedText || query;
@@ -147,15 +153,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       : "miejsc";
 
   return (
-    <div className={["search-results-page journey-search mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8", resultsMode ? "search-results-results-mode" : "", first(raw.view) === "map" ? "search-results-map-mode" : ""].join(" ")}>
+    <div className={["search-results-page journey-search mobile-nav-safe-content mx-auto w-full min-w-0 max-w-[1200px] px-4 pb-28 pt-3 sm:px-6 sm:pt-6 md:pb-16 lg:px-8", resultsMode ? "search-results-results-mode" : "", first(raw.view) === "map" ? "search-results-map-mode" : ""].join(" ")}>
       <SearchResultsInteractive places={mapPlaces} mapView={first(raw.view) === "map"} listHref={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"}>
         <section className="min-w-0 space-y-3 sm:space-y-4">
           <div className="search-results-query-area w-full min-w-0 max-w-full">
             <div className="min-w-0 space-y-3 sm:space-y-4">
+              <div className="search-results-route-label" aria-hidden="true"><span>SZUKAM POMOCY</span><i /></div>
               <div className="search-results-heading-row flex min-w-0 flex-wrap items-center justify-between gap-x-5 gap-y-2">
                 <div className="space-y-1 sm:space-y-2">
                   <h1 className="text-2xl font-extrabold leading-tight text-foreground sm:text-4xl">Znajdź pomoc</h1>
-                  <p className="hidden text-base leading-7 text-muted-foreground sm:block">Napisz po prostu, czego potrzebujesz.</p>
+                  <p className="hidden text-base leading-7 text-muted-foreground sm:block">Wyniki możesz zawęzić jednym kliknięciem.</p>
                 </div>
                 <div className="search-results-meta-toolbar hidden lg:flex">
                   <span className="search-results-meta-count">{visiblePlaces.length} {resultCountLabel}</span>
@@ -187,6 +194,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 <span className="search-results-mobile-count">{visiblePlaces.length} {resultCountLabel}</span>
               </div>
 
+              <nav className="search-results-quick-filters" aria-label="Szybkie filtry">
+                {quickFilters.map((filter) => (
+                  <Link key={`${filter.key}-${filter.value}`} href={searchHref(current, filter.key, filter.value)} className={filter.active ? "is-active" : undefined} aria-current={filter.active ? "true" : undefined}>
+                    {filter.label}
+                  </Link>
+                ))}
+              </nav>
+
               {interpretedText ? (
                 <div className="smart-intent-summary" aria-label="Interpretacja wyszukiwania">
                   <div className="smart-intent-copy">
@@ -210,11 +225,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   ) : null}
                 </div>
               ) : null}
-
             </div>
           </div>
 
-          {interpretedText || query ? <p className="min-w-0 text-xs font-semibold text-muted-foreground sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : `Wyniki dla: ${query}`}</p> : null}
+          {interpretedText || query ? <p className="search-results-query-caption min-w-0 text-xs font-semibold text-muted-foreground sm:text-sm">{interpretedText ? `Dopasowane do: ${interpretedText}` : `Wyniki dla: ${query}`}</p> : null}
 
           <div data-search-result-list className="grid min-w-0 gap-3 overscroll-contain sm:gap-4 lg:max-h-[calc(100dvh-18rem)] lg:overflow-y-auto lg:scroll-pb-6 lg:pr-2">
             {visiblePlaces.map((place) => <PlaceCard key={place.id} place={place} returnTo={current.toString() ? `/szukaj?${current.toString()}` : "/szukaj"} />)}
@@ -222,7 +236,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
           {foodJourney && foodSharingPlaces.length ? <FoodSharingModule fallback={visiblePlaces.length === 0} /> : null}
         </section>
-
       </SearchResultsInteractive>
     </div>
   );

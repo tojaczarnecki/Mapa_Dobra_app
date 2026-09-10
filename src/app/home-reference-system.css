@@ -1,0 +1,144 @@
+/*
+ * Dobra Mapa — Home is the visual master.
+ * These rules align the standalone PWA navigation with the flat editorial language
+ * used on the Home screen: no floating pill, no rounded active capsule, no shadow.
+ *
+ * Navigation visibility contract:
+ * - desktop: no bottom navigation;
+ * - mobile browser: no bottom navigation (use the header menu);
+ * - standalone PWA on mobile: bottom navigation visible.
+ */
+
+/* Bottom navigation is a PWA-only control. Keep it out of desktop and normal browser UI. */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-nav,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa,
+  html[data-display-mode="standalone"] .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa {
+    display: block !important;
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 env(safe-area-inset-bottom) !important;
+    border: 0 !important;
+    border-top: 1px solid #090d0d !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-inner,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-inner {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 4.2rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.18rem !important;
+    min-width: 0 !important;
+    min-height: 4.2rem !important;
+    margin: 0 !important;
+    padding: 0.5rem 0.2rem 0.42rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #52605b !important;
+    font-family: "Jost", Arial, Helvetica, sans-serif !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item-active,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item-active {
+    color: #090d0d !important;
+    background: transparent !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item-active::before,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item-active::before {
+    content: "" !important;
+    position: absolute !important;
+    top: -1px !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 4px !important;
+    border-radius: 0 !important;
+    background: #090d0d !important;
+    transform: none !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item:nth-child(2).mobile-bottom-nav-item-active::before,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item:nth-child(2).mobile-bottom-nav-item-active::before {
+    background: #9bd3aa !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item:nth-child(3).mobile-bottom-nav-item-active::before,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item:nth-child(3).mobile-bottom-nav-item-active::before {
+    background: #e99bd3 !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-item:nth-child(4).mobile-bottom-nav-item-active::before,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-item:nth-child(4).mobile-bottom-nav-item-active::before {
+    background: #c05b94 !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-icon,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-icon {
+    display: grid !important;
+    place-items: center !important;
+    width: 1.55rem !important;
+    height: 1.55rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-bottom-nav-icon svg,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa .mobile-bottom-nav-icon svg {
+    width: 1.4rem !important;
+    height: 1.4rem !important;
+    stroke-width: 1.9 !important;
+  }
+
+  /* The fixed navigation must never cover the final decision/action. */
+  html[data-display-mode="standalone"] .home-page {
+    padding-bottom: calc(6.6rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  html[data-display-mode="standalone"] .mobile-nav-safe-content {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+  }
+}
