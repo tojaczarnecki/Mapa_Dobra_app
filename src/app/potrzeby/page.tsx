@@ -28,7 +28,7 @@ export default async function NeedsPage() {
   }));
 
   return (
-    <div className="needs-page mx-auto w-full max-w-[1180px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
+    <div className="journey-help needs-page mobile-nav-safe-content mx-auto w-full max-w-[1180px] px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:px-8">
       <header className="needs-page-hero">
         <p className="needs-eyebrow">POMÓŻ BLISKO SIEBIE</p>
         <h1>Aktualne potrzeby</h1>

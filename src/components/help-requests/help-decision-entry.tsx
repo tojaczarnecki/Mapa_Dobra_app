@@ -98,6 +98,12 @@ export function HelpDecisionEntry({ categories }: { categories: HelpDecisionCate
     if (activePanel) focusRef.current?.focus({ preventScroll: true });
   }, [activePanel]);
 
+  useEffect(() => {
+    if (activePanel) document.documentElement.dataset.focusFlow = "help";
+    else delete document.documentElement.dataset.focusFlow;
+    return () => { delete document.documentElement.dataset.focusFlow; };
+  }, [activePanel]);
+
   function choosePanel(panel: "categories" | "scenario-picker" | HelpDecisionScenarioId) {
     setActivePanel(panel);
     if (panel !== "unsure") setUnsureSafety(null);
@@ -158,7 +164,7 @@ export function HelpDecisionEntry({ categories }: { categories: HelpDecisionCate
   }
 
   return (
-    <div className="journey-help help-decision-page mx-auto w-full max-w-[1040px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
+    <div className="journey-help help-decision-page mobile-nav-safe-content mx-auto w-full max-w-[1040px] px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
       <header className="help-decision-hero">
         <div>
           <p className="help-decision-eyebrow">CHCĘ KOMUŚ POMÓC</p>
