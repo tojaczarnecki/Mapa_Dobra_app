@@ -36,7 +36,7 @@ export default function Home() {
         </div>
         <div className="home-primary-actions">
         <PrimaryActionCard
-          href="/szukam?tryb=guided"
+          href="/szukam"
           title="Szukam pomocy"
           description="Jedzenie, nocleg, zdrowie…"
           variant="help"
@@ -54,9 +54,9 @@ export default function Home() {
           variant="now"
         />
         <PrimaryActionCard
-          href="/szukam"
+          href="/szukam?tryb=guided&krok=1"
           title="Nie wiem, czego potrzebuję"
-          description=""
+          description="Odpowiedz na dwa proste pytania, a wskażemy właściwy kierunek."
           variant="unknown"
         />
         </div>

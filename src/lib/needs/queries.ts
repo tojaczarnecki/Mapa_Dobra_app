@@ -9,10 +9,26 @@ function activeNeedWhere() {
 export async function getPublicNeeds() {
   const needs = await prisma.organizationNeed.findMany({
     where: activeNeedWhere(),
-    include: { organization: { select: { name: true } }, place: { select: { name: true, addressLine: true, city: true, slug: true, primaryCategory: { select: { slug: true } } } }, responses: { where: { status: "CONFIRMED" }, select: { id: true } } },
+    include: {
+      organization: { select: { name: true } },
+      place: {
+        select: {
+          name: true,
+          addressLine: true,
+          city: true,
+          slug: true,
+          latitude: true,
+          longitude: true,
+          primaryCategory: { select: { slug: true } },
+        },
+      },
+      responses: { where: { status: "CONFIRMED" }, select: { id: true } },
+    },
     orderBy: [{ startsAt: "asc" }, { publishedAt: "desc" }],
   });
-  return needs.filter((need) => needHasAvailableCapacity(need.peopleNeeded, need.responses.length)).map(({ responses, ...need }) => ({ ...need, responsesCount: responses.length }));
+  return needs
+    .filter((need) => needHasAvailableCapacity(need.peopleNeeded, need.responses.length))
+    .map(({ responses, ...need }) => ({ ...need, responsesCount: responses.length }));
 }
 
 export async function getPublicNeed(id: string) {

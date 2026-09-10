@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Phone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 type MainNeed = "basic" | "shelter" | "health" | "advice";
-type Screen = "intro" | "main" | "branch" | "shelter" | "unknown";
+type Screen = "main" | "branch" | "shelter" | "unknown";
 
 const mainNeeds = [
   ["basic", "Potrzebuję czegoś podstawowego", "Jedzenie, higiena albo odzież."],
@@ -46,19 +46,32 @@ function EmergencyEscape() {
   return <p className="uncertain-flow-emergency"><Phone aria-hidden="true" size={16} /><span>Bezpośrednie zagrożenie życia lub zdrowia?</span> <a href="tel:112">Zadzwoń 112</a></p>;
 }
 
+function readScreenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const urlNeed = params.get("potrzeba") as MainNeed | null;
+  const urlStep = params.get("krok");
+  const validNeed = ["basic", "shelter", "health", "advice"].includes(urlNeed ?? "") ? urlNeed : null;
+  const screen: Screen = urlStep === "2" && validNeed === "shelter"
+    ? "shelter"
+    : urlStep === "2" && validNeed
+      ? "branch"
+      : urlStep === "2"
+        ? "unknown"
+        : "main";
+  return { need: validNeed, screen };
+}
+
 export function UncertainSupportFlow() {
-  const [screen, setScreen] = useState<Screen>("intro");
+  const [screen, setScreen] = useState<Screen>("main");
   const [need, setNeed] = useState<MainNeed | null>(null);
   const flowRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     function syncFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      const urlNeed = params.get("potrzeba") as MainNeed | null;
-      const urlStep = params.get("krok");
-      setNeed(["basic", "shelter", "health", "advice"].includes(urlNeed ?? "") ? urlNeed : null);
-      setScreen(urlStep === "1" ? "main" : urlStep === "2" && urlNeed === "shelter" ? "shelter" : urlStep === "2" && ["basic", "health", "advice"].includes(urlNeed ?? "") ? "branch" : urlStep === "2" && !urlNeed ? "unknown" : "intro");
+      const state = readScreenFromUrl();
+      setNeed(state.need);
+      setScreen(state.screen);
     }
     syncFromUrl();
     window.addEventListener("popstate", syncFromUrl);
@@ -70,20 +83,14 @@ export function UncertainSupportFlow() {
     flowRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
   }, [screen]);
 
-  const progress = screen === "main" ? 1 : screen === "branch" || screen === "shelter" || screen === "unknown" ? 2 : null;
-  const illustration = screen === "intro" ? "/brand/journeys/journey-guide.png" : null;
+  const progress = screen === "main" ? 1 : 2;
 
   function navigateTo(nextScreen: Screen, nextNeed: MainNeed | null = need) {
     const url = new URL(window.location.href);
     url.searchParams.set("tryb", "guided");
-    if (nextScreen === "intro") {
-      url.searchParams.delete("krok");
-      url.searchParams.delete("potrzeba");
-    } else {
-      url.searchParams.set("krok", nextScreen === "main" ? "1" : "2");
-      if (nextNeed) url.searchParams.set("potrzeba", nextNeed);
-      else url.searchParams.delete("potrzeba");
-    }
+    url.searchParams.set("krok", nextScreen === "main" ? "1" : "2");
+    if (nextNeed) url.searchParams.set("potrzeba", nextNeed);
+    else url.searchParams.delete("potrzeba");
     window.history.pushState({}, "", url);
     setNeed(nextNeed);
     setScreen(nextScreen);
@@ -93,27 +100,15 @@ export function UncertainSupportFlow() {
     navigateTo(value === "shelter" ? "shelter" : "branch", value);
   }
 
-  function goBack() {
-    if (screen === "intro") return;
-    window.history.back();
-  }
-
   return <div ref={flowRef} className="uncertain-flow-page guided-flow-page mobile-nav-safe-content mx-auto w-full max-w-[820px] px-4 pb-28 pt-6 sm:px-6 sm:pt-12 lg:px-8" aria-labelledby="uncertain-flow-title">
-    {progress ? <div className="uncertain-flow-progress" aria-label={`Krok ${progress} z 2`}><span>Krok {progress} z 2</span><span className="uncertain-flow-progress-track"><span style={{ width: `${progress * 50}%` }} /></span></div> : null}
+    <div className="uncertain-flow-progress" aria-label={`Krok ${progress} z 2`}><span>Krok {progress} z 2</span><span className="uncertain-flow-progress-track"><span style={{ width: `${progress * 50}%` }} /></span></div>
 
     <section className={`uncertain-flow-canvas uncertain-flow-screen-${screen}`}>
-      <p className="uncertain-flow-eyebrow">{screen === "intro" ? "NIE MUSISZ WIEDZIEĆ" : screen === "shelter" ? "NA DZIŚ" : screen === "unknown" ? "TO TEŻ JEST OK" : "NIE WIEM, CZEGO POTRZEBUJĘ"}</p>
-      {illustration ? <Image src={illustration} alt="" width={260} height={190} className="uncertain-flow-art" aria-hidden="true" priority={screen === "intro"} /> : null}
-
-      {screen === "intro" ? <div className="uncertain-flow-question uncertain-flow-intro">
-        <h1 ref={headingRef} id="uncertain-flow-title" tabIndex={-1}>Zacznijmy od tego, co jest Ci potrzebne teraz.</h1>
-        <p>Wybierz odpowiedź, która jest najbliżej Twojej sytuacji. Nie musisz znać nazwy usługi ani miejsca.</p>
-        <button type="button" className="uncertain-flow-primary" onClick={() => navigateTo("main", null)}>Zacznij <ArrowRight aria-hidden="true" size={20} /></button>
-      </div> : null}
+      <p className="uncertain-flow-eyebrow">{screen === "shelter" ? "NA DZIŚ" : screen === "unknown" ? "TO TEŻ JEST OK" : "NIE WIEM, CZEGO POTRZEBUJĘ"}</p>
 
       {screen === "main" ? <div className="uncertain-flow-question">
         <h1 ref={headingRef} id="uncertain-flow-title" tabIndex={-1}>Co byłoby teraz największą pomocą?</h1>
-        <p>Wybierz odpowiedź, która jest najbliżej Twojej sytuacji.</p>
+        <p>Wybierz odpowiedź, która jest najbliżej Twojej sytuacji. Nie musisz znać nazwy usługi ani miejsca.</p>
         <div className="uncertain-flow-choices" role="list">{mainNeeds.map(([value, title, description]) => <button key={value} type="button" className="uncertain-flow-choice" onClick={() => chooseNeed(value)}><span className="uncertain-flow-choice-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight aria-hidden="true" size={20} /></button>)}</div>
         <button type="button" className="uncertain-flow-secondary" onClick={() => navigateTo("unknown", null)}>Nadal nie wiem <ArrowRight aria-hidden="true" size={17} /></button>
       </div> : null}
@@ -144,7 +139,7 @@ export function UncertainSupportFlow() {
     </section>
 
     <div className="uncertain-flow-footer">
-      {screen !== "intro" ? <button type="button" className="uncertain-flow-back" onClick={goBack}><ArrowLeft aria-hidden="true" size={18} />Wstecz</button> : <Link href="/szukam" className="uncertain-flow-back"><ArrowLeft aria-hidden="true" size={18} />Wróć do wyszukiwania</Link>}
+      {screen === "main" ? <Link href="/szukam" className="uncertain-flow-back"><ArrowLeft aria-hidden="true" size={18} />Wróć do wyszukiwania</Link> : <button type="button" className="uncertain-flow-back" onClick={() => window.history.back()}><ArrowLeft aria-hidden="true" size={18} />Wstecz</button>}
       <EmergencyEscape />
     </div>
   </div>;

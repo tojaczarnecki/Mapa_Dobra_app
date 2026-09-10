@@ -3,9 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUp, Download } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { isStandalonePwa, useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
+import { isFocusFlowPath } from "@/lib/navigation/focus-flow";
 
 const findLinks = [
   { href: "/szukaj", label: "Szukaj pomocy" },
@@ -59,21 +60,18 @@ function getInstallAvailability() {
 }
 
 function subscribeToInstallState(onChange: () => void) {
-  const onInstalled = () => {
-    onChange();
-  };
+  const onInstalled = () => onChange();
   window.addEventListener("appinstalled", onInstalled);
-  return () => {
-    window.removeEventListener("appinstalled", onInstalled);
-  };
+  return () => window.removeEventListener("appinstalled", onInstalled);
 }
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const standalone = useIsStandalonePwa();
   const installAvailable = useSyncExternalStore(subscribeToInstallState, getInstallAvailability, () => false) && !standalone;
 
-  if (pathname.startsWith("/admin")) return null;
+  if (pathname.startsWith("/admin") || isFocusFlowPath(pathname, searchParams)) return null;
 
   if (pathname === "/") {
     return (

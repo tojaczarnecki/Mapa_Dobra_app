@@ -76,10 +76,10 @@ export default async function SupportSearchEntry({ searchParams }: SupportSearch
           ))}
           <CategoryTile href="/szukaj" label="Więcej" slug="wiecej" icon={CircleHelp} accent="#0B4F48" />
         </div>
-        <Link href="/szukam?tryb=guided" className="support-uncertain-entry">
+        <Link href="/szukam?tryb=guided&krok=1" className="support-uncertain-entry">
           <span className="support-uncertain-copy">
             <strong>Nie wiem, czego potrzebuję</strong>
-            <small>Pomóż mi wybrać właściwą pomoc.</small>
+            <small>Odpowiedz na dwa proste pytania.</small>
           </span>
           <ArrowRight className="support-uncertain-arrow" aria-hidden="true" size={20} />
         </Link>

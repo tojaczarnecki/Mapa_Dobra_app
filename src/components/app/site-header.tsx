@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { resolveJourney } from "@/lib/journeys";
 import { useIsStandalonePwa } from "@/components/app/use-is-standalone-pwa";
+import { isFocusFlowPath } from "@/lib/navigation/focus-flow";
 
 const links = [
   { href: "/szukam", label: "Szukam wsparcia" },
@@ -30,10 +31,10 @@ export function SiteHeader() {
         ? "site-header-journey-search"
         : "site-header-journey-neutral";
 
-  if (pathname.startsWith("/admin") || pathname === "/") return null;
+  if (pathname.startsWith("/admin") || pathname === "/" || isFocusFlowPath(pathname, searchParams)) return null;
 
   return (
-      <header className={`site-header ${journeyClass} z-30 ${standalone ? "site-header-standalone" : ""} ${pathname === "/" ? "site-header-home" : ""}`}>
+    <header className={`site-header ${journeyClass} z-30 ${standalone ? "site-header-standalone" : ""}`}>
       <div className="site-header-inner">
         <Link
           href="/"
@@ -49,8 +50,8 @@ export function SiteHeader() {
               href={link.href}
               className="site-header-link"
               aria-current={
-                (link.href === "/szukam" && (isRoute(pathname, "/szukam") || isRoute(pathname, "/szukaj"))) ||
-                (link.href === "/pomagam" && (isRoute(pathname, "/pomagam") || isRoute(pathname, "/uruchom-pomoc"))) ||
+                (link.href === "/szukam" && (isRoute(pathname, "/szukam") || isRoute(pathname, "/szukaj") || isRoute(pathname, "/mapa") || isRoute(pathname, "/znajdz-nocleg"))) ||
+                (link.href === "/pomagam" && (isRoute(pathname, "/pomagam") || isRoute(pathname, "/potrzeby"))) ||
                 (link.href === "/jak-pomagac" && isRoute(pathname, "/jak-pomagac")) ||
                 (link.href === "/ulubione" && isRoute(pathname, "/ulubione"))
                   ? "page"
@@ -73,8 +74,8 @@ export function SiteHeader() {
                 href={link.href}
                 className="site-header-mobile-menu-link"
                 aria-current={
-                  ((link.href === "/szukam" && (isRoute(pathname, "/szukam") || isRoute(pathname, "/szukaj"))) ||
-                    (link.href === "/pomagam" && (isRoute(pathname, "/pomagam") || isRoute(pathname, "/uruchom-pomoc"))) ||
+                  ((link.href === "/szukam" && (isRoute(pathname, "/szukam") || isRoute(pathname, "/szukaj") || isRoute(pathname, "/mapa") || isRoute(pathname, "/znajdz-nocleg"))) ||
+                    (link.href === "/pomagam" && (isRoute(pathname, "/pomagam") || isRoute(pathname, "/potrzeby"))) ||
                     (link.href === "/jak-pomagac" && isRoute(pathname, "/jak-pomagac")) ||
                     (link.href === "/ulubione" && isRoute(pathname, "/ulubione"))) ? "page" : undefined
                 }
