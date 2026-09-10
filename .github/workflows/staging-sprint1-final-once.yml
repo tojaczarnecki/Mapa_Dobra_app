@@ -1,15 +1,16 @@
-name: One-time final Sprint 1 staging deploy
+name: Deploy staging
 
 on:
   push:
     branches:
       - audit-fixes/sprint-1-correctness
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: iqhost-sprint1-final-staging
+  group: iqhost-staging-deploy
   cancel-in-progress: false
 
 jobs:
