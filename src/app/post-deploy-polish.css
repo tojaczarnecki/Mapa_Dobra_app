@@ -1,0 +1,198 @@
+/* Final mobile polish after staging visual QA. Loaded last. */
+
+@media (max-width: 767px) {
+  .home-page.home-journey-foyer {
+    padding: calc(16px + env(safe-area-inset-top)) 20px 6.5rem;
+  }
+
+  .home-page.home-journey-foyer .home-wordmark {
+    font-size: 14px;
+    letter-spacing: 0.1em;
+  }
+
+  .home-page.home-journey-foyer .home-wordmark-line {
+    margin-top: 0.65rem;
+  }
+
+  .home-page.home-journey-foyer .home-hero-copy {
+    padding-top: 1rem;
+  }
+
+  .home-page.home-journey-foyer .home-motto {
+    max-width: 9.8ch;
+    font-size: clamp(2.35rem, 10vw, 2.75rem);
+    line-height: 1.03;
+  }
+
+  .home-page.home-journey-foyer .home-subheadline {
+    max-width: 19rem;
+    margin-top: 1rem;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .home-page.home-journey-foyer .home-art-stage {
+    height: clamp(8.5rem, 37vw, 10rem);
+  }
+
+  .home-page.home-journey-foyer .home-hero-illustration {
+    top: -0.65rem;
+    width: clamp(170px, 46vw, 200px);
+  }
+
+  .home-page.home-journey-foyer .home-paths {
+    margin-top: 0.5rem;
+  }
+
+  .home-page.home-journey-foyer .home-paths-heading h2 {
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+  }
+
+  .home-page.home-journey-foyer .home-rule {
+    margin-top: 0.55rem;
+    background: #cfd6d2;
+  }
+
+  .home-page.home-journey-foyer .home-primary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+    margin-top: 0.9rem;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"],
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-height: 5.15rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem 1rem;
+    border: 1px solid rgb(9 13 13 / 10%);
+    border-radius: 0.95rem;
+    box-shadow: none;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"] { background: #dcefe2; }
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] { background: #f3d2e8; }
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] { background: #f7dda1; }
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] { background: #dfe9f8; }
+
+  .home-page.home-journey-foyer .home-primary-copy,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-copy {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .home-page.home-journey-foyer .home-primary-title-row,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-row {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    white-space: normal;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-mobile {
+    display: inline;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title-desktop {
+    display: none;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-title,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-title {
+    min-width: 0;
+    font-family: "Jost", Arial, Helvetica, sans-serif;
+    font-size: clamp(1.15rem, 5.6vw, 1.35rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.14;
+    text-transform: none;
+  }
+
+  .home-page.home-journey-foyer .home-primary-card .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="search"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="help"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="now"] .home-primary-arrow,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-arrow {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0;
+    border: 1px solid rgb(9 13 13 / 20%);
+    border-radius: 999px;
+    font-family: "Jost", Arial, Helvetica, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .home-page.home-journey-foyer .home-primary-description,
+  .home-page.home-journey-foyer .home-primary-card[data-journey="guide"] .home-primary-description {
+    display: block;
+    max-width: 17rem;
+    margin-top: 0.4rem;
+    color: #53605b;
+    font-family: "Jost", Arial, Helvetica, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.35;
+  }
+
+  /* Keep the app navigation visible above iOS Safari chrome without returning to the oversized pill. */
+  .mobile-bottom-nav,
+  .mobile-bottom-nav.mobile-bottom-nav-pwa,
+  html[data-display-mode="standalone"] .mobile-bottom-nav {
+    inset: auto 0.75rem max(0.75rem, env(safe-area-inset-bottom)) 0.75rem !important;
+    width: auto !important;
+    max-width: 28rem !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: 1px solid rgb(9 13 13 / 14%) !important;
+    border-radius: 1rem !important;
+    background: rgb(255 255 255 / 96%) !important;
+    box-shadow: 0 8px 24px rgb(9 13 13 / 10%) !important;
+    overflow: hidden;
+  }
+
+  .mobile-bottom-nav-inner {
+    min-height: 3.75rem !important;
+    padding: 0 0.25rem !important;
+  }
+
+  .mobile-bottom-nav-item,
+  .mobile-bottom-nav-item:hover,
+  .mobile-bottom-nav-item:focus-visible,
+  .mobile-bottom-nav-item-active {
+    min-height: 3.75rem !important;
+    padding: 0.38rem 0.15rem 0.32rem !important;
+    font-size: 0.66rem !important;
+  }
+
+  .mobile-bottom-nav-item-active::before {
+    top: 0 !important;
+    width: 2.2rem !important;
+    height: 2px !important;
+  }
+
+  .mobile-nav-safe-content {
+    padding-bottom: calc(6.8rem + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(6.8rem + env(safe-area-inset-bottom));
+  }
+}
