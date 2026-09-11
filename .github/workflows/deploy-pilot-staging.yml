@@ -36,6 +36,7 @@ jobs:
       STAGING_APP_ROOT: ${{ secrets.STAGING_APP_ROOT }}
       PUBLIC_STAGING_BASE_URL: https://host11515.iqhs.pl
       EXPECTED_HOME_MARKER: 'xd-screen-1'
+      EXPECTED_SEARCH_MARKER: 'search-results-xd-page'
 
     steps:
       - name: Checkout deployment tooling
@@ -100,16 +101,20 @@ jobs:
           [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one release tar.gz, found ${#archives[@]}." >&2; exit 1; }
           printf '%s\n' "${archives[0]}" > /tmp/mapa-dobra-release/archive-path
 
-      - name: Verify artifact contains approved Home
+      - name: Verify artifact contains approved XD screens
         shell: bash
         run: |
           set -euo pipefail
           ARCHIVE="$(cat /tmp/mapa-dobra-release/archive-path)"
-          if ! tar -xOzf "$ARCHIVE" .next/server/app/page.js 2>/dev/null | grep -Fq 'xd-screen-1'; then
+          if ! tar -xOzf "$ARCHIVE" .next/server/app/page.js 2>/dev/null | grep -Fq "$EXPECTED_HOME_MARKER"; then
             echo "Selected artifact does not contain the approved Adobe XD Home marker." >&2
             exit 1
           fi
-          echo "Approved Adobe XD Home marker found in release artifact."
+          if ! tar -xOzf "$ARCHIVE" .next/server/app/szukaj/page.js 2>/dev/null | grep -Fq "$EXPECTED_SEARCH_MARKER"; then
+            echo "Selected artifact does not contain the approved Adobe XD search-results marker." >&2
+            exit 1
+          fi
+          echo "Approved Adobe XD Home and search-results markers found in release artifact."
 
       - name: Configure SSH trust
         shell: bash
@@ -144,8 +149,8 @@ jobs:
           set -euo pipefail
           TARGET="$STAGING_SSH_USER@$STAGING_SSH_HOST"
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
-          "${SSH[@]}" "$TARGET" "test -L '$STAGING_APP_ROOT/current' && grep -Fq 'xd-screen-1' '$STAGING_APP_ROOT/current/.next/server/app/page.js'"
-          echo "Activated Passenger release contains the approved Home marker."
+          "${SSH[@]}" "$TARGET" "test -L '$STAGING_APP_ROOT/current' && grep -Fq '$EXPECTED_HOME_MARKER' '$STAGING_APP_ROOT/current/.next/server/app/page.js' && grep -Fq '$EXPECTED_SEARCH_MARKER' '$STAGING_APP_ROOT/current/.next/server/app/szukaj/page.js'"
+          echo "Activated release contains the approved Home and search-results markers."
 
       - name: Smoke actual public pilot host and rollback on failure
         shell: bash
@@ -156,14 +161,18 @@ jobs:
           SSH=(ssh -p "$STAGING_SSH_PORT" -i "$HOME/.ssh/mapa_dobra_staging" -o BatchMode=yes -o StrictHostKeyChecking=yes)
 
           healthy=0
-          marker_seen=0
+          home_marker_seen=0
+          search_marker_seen=0
           for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --max-time 12 "$BASE_URL/api/health" >/tmp/mapa-dobra-health.json \
-              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/" >/tmp/mapa-dobra-home.html \
-              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/mapa" >/dev/null \
-              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/znajdz-nocleg" >/dev/null; then
-              if grep -Fq "$EXPECTED_HOME_MARKER" /tmp/mapa-dobra-home.html; then
-                marker_seen=1
+            probe="$(date +%s%N)-$attempt"
+            if curl --fail --silent --show-error --max-time 12 "$BASE_URL/api/health?probe=$probe" >/tmp/mapa-dobra-health.json \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/?probe=$probe" >/tmp/mapa-dobra-home.html \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/szukaj?deploy_smoke=$probe" >/tmp/mapa-dobra-search.html \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/mapa?probe=$probe" >/dev/null \
+              && curl --fail --silent --show-error --max-time 12 "$BASE_URL/znajdz-nocleg?probe=$probe" >/dev/null; then
+              grep -Fq "$EXPECTED_HOME_MARKER" /tmp/mapa-dobra-home.html && home_marker_seen=1 || true
+              grep -Fq "$EXPECTED_SEARCH_MARKER" /tmp/mapa-dobra-search.html && search_marker_seen=1 || true
+              if [[ "$home_marker_seen" -eq 1 && "$search_marker_seen" -eq 1 ]]; then
                 healthy=1
                 break
               fi
@@ -172,19 +181,15 @@ jobs:
           done
 
           if [[ "$healthy" -ne 1 ]]; then
-            if [[ "$marker_seen" -ne 1 ]]; then
-              echo "The actual public host $BASE_URL is NOT serving the activated Adobe XD Home release." >&2
-              echo "The artifact and server filesystem contain the new Home, so the public hostname/vhost is pointing at a different app root or Passenger instance." >&2
-            else
-              echo "Public host smoke failed for another route or health check." >&2
-            fi
+            echo "Public pilot smoke did not prove the activated release is being served." >&2
+            echo "Home marker seen: $home_marker_seen; search-results marker seen: $search_marker_seen" >&2
             echo "Rolling back the activated staging app root." >&2
             "${SSH[@]}" "$TARGET" "bash '$STAGING_APP_ROOT/deploy-release.sh' rollback '$STAGING_APP_ROOT' staging" || true
             exit 1
           fi
 
           cat /tmp/mapa-dobra-health.json
-          echo "Verified Adobe XD Home on $BASE_URL"
+          echo "Verified active Adobe XD Home and search-results screen on $BASE_URL"
           "${SSH[@]}" "$TARGET" "rm -f '$STAGING_APP_ROOT/incoming/${{ steps.activate.outputs.archive_name }}'"
 
       - name: Report active staging release
