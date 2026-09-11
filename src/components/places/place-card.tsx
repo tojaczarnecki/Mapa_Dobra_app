@@ -17,7 +17,7 @@ import { CategoryIllustration } from "@/components/categories/category-illustrat
 import { PublicActionLink } from "./public-action-link";
 import { placeIllustrationSlug } from "@/lib/categories/category-illustrations";
 
-export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: string }) {
+export function PlaceCard({ place, returnTo, visualMode = "default" }: { place: DemoPlace; returnTo?: string; visualMode?: "default" | "xd-results" }) {
   const Icon = place.primaryIcon;
   const detailsHref = `/lodz/${place.categorySlug}/${place.slug}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
   const primaryAction = getResultPrimaryAction(place, detailsHref);
@@ -31,11 +31,17 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
   const isFoodSharing = place.profileKind === "FOOD_SHARING";
   const isMobileService = place.profileKind === "MOBILE_SERVICE";
   const illustrationSlug = placeIllustrationSlug(place.profileKind, place.categorySlug);
-  const routeHref = isFoodSharing ? directionsHref(place) : undefined;
+  const routeHref = directionsHref(place);
   const showDistance = place.distance !== "Odległość nieznana";
+  const xdResults = visualMode === "xd-results";
 
   return (
-    <article data-search-result-id={place.id} data-profile-kind={place.profileKind} tabIndex={0} className="search-result-card">
+    <article
+      data-search-result-id={place.id}
+      data-profile-kind={place.profileKind}
+      tabIndex={0}
+      className={["search-result-card", xdResults ? "search-result-card-xd" : ""].filter(Boolean).join(" ")}
+    >
       <div className="search-result-content">
         <div className="search-result-heading">
           <span className="search-result-category-cue" aria-hidden="true">
@@ -52,8 +58,8 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
           {isMobileService || showHours || showDistance ? (
             <p>
               {isMobileService ? <><Clock3 aria-hidden="true" size={15} /><span>{place.mobileTodayStops?.length ? `Dziś: ${place.mobileTodayStops[0]}` : "Postoje według rozkładu"}</span></> : showHours ? <><Clock3 aria-hidden="true" size={15} /><span>{place.todayHours}</span></> : null}
-              {(isMobileService || showHours) && showDistance ? <span aria-hidden="true">·</span> : null}
-              {showDistance ? <><Navigation aria-hidden="true" size={15} /><span>{place.distance}</span></> : null}
+              {(isMobileService || showHours) && showDistance ? <span className="search-result-distance-separator" aria-hidden="true">·</span> : null}
+              {showDistance ? <><Navigation className="search-result-distance-icon" aria-hidden="true" size={15} /><span className="search-result-distance">{place.distance}</span></> : null}
             </p>
           ) : null}
           <p className="search-result-address">
@@ -63,7 +69,7 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
         </div>
 
         {importantCondition ? (
-            <ul className="search-result-condition">
+          <ul className="search-result-condition">
             <li>
               <StatusIndicator status="condition">
                 {importantCondition}
@@ -73,15 +79,24 @@ export function PlaceCard({ place, returnTo }: { place: DemoPlace; returnTo?: st
         ) : null}
 
         <div className="search-result-actions">
-          {routeHref ? <PublicActionLink href={routeHref} variant="secondary" icon={<Navigation aria-hidden="true" size={17} />} external>Trasa</PublicActionLink> : null}
-          {primaryAction ? (
-            primaryAction.kind === "details" ? (
-              <PublicActionLink href={primaryAction.href} variant={primaryActionIsFridge ? "tertiary" : primaryActionIsCalm ? "secondary" : "primary"} icon={<ChevronRight aria-hidden="true" size={17} />}>{primaryAction.label}</PublicActionLink>
-            ) : (
-              <PublicActionLink href={primaryAction.href} variant={primaryActionIsCalm ? "secondary" : "primary"} icon={primaryActionIsCall ? <Phone aria-hidden="true" size={17} /> : primaryAction.kind === "search" ? <Search aria-hidden="true" size={17} /> : <Navigation aria-hidden="true" size={17} />} external={Boolean(primaryAction.external)}>{primaryAction.label}</PublicActionLink>
-            )
-          ) : null}
-          {!primaryActionIsDetails ? <PublicActionLink href={detailsHref} variant="tertiary" icon={<ChevronRight aria-hidden="true" size={17} />}>Szczegóły</PublicActionLink> : null}
+          {xdResults ? (
+            <>
+              <PublicActionLink href={detailsHref} variant="primary" className="search-xd-details-action" icon={<ChevronRight aria-hidden="true" size={15} />}>Zobacz szczegóły</PublicActionLink>
+              {routeHref ? <PublicActionLink href={routeHref} variant="secondary" className="search-xd-route-action" external>Zobacz trasę</PublicActionLink> : null}
+            </>
+          ) : (
+            <>
+              {isFoodSharing && routeHref ? <PublicActionLink href={routeHref} variant="secondary" icon={<Navigation aria-hidden="true" size={17} />} external>Trasa</PublicActionLink> : null}
+              {primaryAction ? (
+                primaryAction.kind === "details" ? (
+                  <PublicActionLink href={primaryAction.href} variant={primaryActionIsFridge ? "tertiary" : primaryActionIsCalm ? "secondary" : "primary"} icon={<ChevronRight aria-hidden="true" size={17} />}>{primaryAction.label}</PublicActionLink>
+                ) : (
+                  <PublicActionLink href={primaryAction.href} variant={primaryActionIsCalm ? "secondary" : "primary"} icon={primaryActionIsCall ? <Phone aria-hidden="true" size={17} /> : primaryAction.kind === "search" ? <Search aria-hidden="true" size={17} /> : <Navigation aria-hidden="true" size={17} />} external={Boolean(primaryAction.external)}>{primaryAction.label}</PublicActionLink>
+                )
+              ) : null}
+              {!primaryActionIsDetails ? <PublicActionLink href={detailsHref} variant="tertiary" icon={<ChevronRight aria-hidden="true" size={17} />}>Szczegóły</PublicActionLink> : null}
+            </>
+          )}
         </div>
       </div>
     </article>

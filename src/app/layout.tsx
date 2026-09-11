@@ -24,6 +24,7 @@ import "./search-results-fidelity.css";
 import "./redesign-system.css";
 import "./journey-visual-system.css";
 import "./home-xd-screen.css";
+import "./search-results-xd-screen.css";
 
 export const metadata: Metadata = {
   metadataBase: getSiteBaseUrl(),
