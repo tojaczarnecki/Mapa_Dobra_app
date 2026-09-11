@@ -24,15 +24,49 @@ require_app_root() {
   [[ -d "$app_root" ]] || fail "app root does not exist: $app_root"
   [[ -f "$marker" ]] || fail "missing deployment marker: $marker"
   [[ "$(tr -d '\r\n' < "$marker")" == "$expected_env" ]] || fail "deployment marker does not match $expected_env"
-  [[ -f "$app_root/server.cjs" ]] || fail "missing stable Passenger startup file: $app_root/server.cjs"
+  [[ -f "$app_root/server.cjs" ]] || fail "missing stable startup file: $app_root/server.cjs"
 
   mkdir -p "$app_root/releases" "$app_root/incoming" "$app_root/tmp"
 }
 
-restart_passenger() {
+restart_runtime() {
   local app_root="$1"
+  local proc
+  local pid
+  local cwd
+  local cmdline
+  local stopped=0
+
   mkdir -p "$app_root/tmp"
+
+  # Keep the Passenger-style marker for compatibility, but IQHost currently
+  # runs this app under LiteSpeed LSNode. LSNode workers keep the release
+  # directory as their cwd, so changing the `current` symlink alone does not
+  # make an existing worker load the new release.
   touch "$app_root/tmp/restart.txt"
+
+  for proc in /proc/[0-9]*; do
+    pid="${proc##*/}"
+    cwd="$(readlink -f "$proc/cwd" 2>/dev/null || true)"
+    case "$cwd" in
+      "$app_root"/releases/*)
+        cmdline="$(tr '\0' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+        if [[ "$cmdline" == *"lsnode:"* ]]; then
+          echo "Stopping LSNode worker $pid -> $cwd"
+          kill -TERM "$pid" 2>/dev/null || true
+          stopped=1
+        fi
+        ;;
+    esac
+  done
+
+  if [[ "$stopped" -eq 1 ]]; then
+    # Give LiteSpeed a short grace period to reap the previous workers. The
+    # next public request will start a fresh worker from the new `current`.
+    sleep 2
+  else
+    echo "No LSNode worker found for $app_root; restart marker touched."
+  fi
 }
 
 replace_symlink_atomically() {
@@ -79,7 +113,7 @@ activate_release() {
     fail "archive unexpectedly contains database migrations"
   fi
   if grep -qx 'server.cjs' "$listing"; then
-    fail "release archive must not replace the stable Passenger startup file"
+    fail "release archive must not replace the stable startup file"
   fi
 
   build_id="$(tar -xOzf "$archive" .next/BUILD_ID | tr -d '\r\n')"
@@ -116,7 +150,7 @@ activate_release() {
   replace_symlink_atomically "$next_link" "$app_root/current"
   [[ "$(realpath "$app_root/current")" == "$(realpath "$release_dir")" ]] || fail "failed to activate release"
 
-  restart_passenger "$app_root"
+  restart_runtime "$app_root"
   echo "Activated release $build_id"
   if [[ -n "$previous_target" ]]; then
     echo "Previous release: $previous_target"
@@ -142,7 +176,7 @@ rollback_release() {
   rm -f "$next_link"
   ln -s "$previous_target" "$next_link"
   replace_symlink_atomically "$next_link" "$app_root/current"
-  restart_passenger "$app_root"
+  restart_runtime "$app_root"
   echo "Rolled back to $(basename "$previous_target")"
 }
 
