@@ -35,7 +35,7 @@ export default function Home() {
         <div className="home-xd-actions-main">
           <h2 id="home-xd-paths-title" className="home-xd-kicker">WYBIERZ DROGĘ</h2>
 
-          <Link className="home-xd-primary" href="/szukam">
+          <Link className="home-xd-primary" href="/szukaj">
             Szukam pomocy
           </Link>
 
